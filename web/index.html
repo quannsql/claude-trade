@@ -44,7 +44,7 @@
             <!-- Active Orders Panel -->
             <div class="panel orders-panel">
                 <div class="panel-header">ACTIVE ORDERS</div>
-                <div class="panel-content">
+                <div class="panel-content panel-scroll">
                     <table class="tech-table">
                         <thead>
                             <tr>
@@ -55,6 +55,28 @@
                             </tr>
                         </thead>
                         <tbody id="orders-tbody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Order History Panel -->
+            <div class="panel history-panel">
+                <div class="panel-header">ORDER HISTORY (FILLS)</div>
+                <div class="panel-content panel-scroll">
+                    <table class="tech-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Coin</th>
+                                <th>Action</th>
+                                <th>Price</th>
+                                <th>Size</th>
+                                <th>PnL (USDC)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-tbody">
                             <!-- Populated by JS -->
                         </tbody>
                     </table>

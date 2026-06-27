@@ -75,6 +75,43 @@ async function updateState() {
                 `;
             });
         }
+
+        // Update Order History (Fills)
+        const historyTbody = document.getElementById('history-tbody');
+        historyTbody.innerHTML = '';
+        
+        const fills = data.fills || [];
+        if (fills.length === 0) {
+            historyTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: #8b8b9a">No order history found</td></tr>';
+        } else {
+            fills.forEach(f => {
+                const dateObj = new Date(f.time);
+                const timeStr = dateObj.toLocaleTimeString('en-GB') + ' ' + dateObj.toLocaleDateString('en-GB', {day: '2-digit', month: '2-digit'});
+                
+                const pnl = parseFloat(f.closedPnl || 0);
+                let pnlClass = '';
+                let pnlText = pnl.toFixed(4);
+                if (pnl > 0) {
+                    pnlClass = 'buy-text';
+                    pnlText = '+' + pnlText;
+                } else if (pnl < 0) {
+                    pnlClass = 'sell-text';
+                }
+
+                const actionClass = f.dir.includes('Long') ? 'buy-text' : 'sell-text';
+
+                historyTbody.innerHTML += `
+                    <tr>
+                        <td>${timeStr}</td>
+                        <td>${f.coin}</td>
+                        <td class="${actionClass}">${f.dir}</td>
+                        <td>${f.px}</td>
+                        <td>${f.sz}</td>
+                        <td class="${pnlClass}">${pnlText}</td>
+                    </tr>
+                `;
+            });
+        }
     } catch (err) {
         console.error("Failed to fetch state:", err);
     }

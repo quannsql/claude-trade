@@ -75,10 +75,14 @@ def get_state():
         # Fetch open orders
         open_orders = info.open_orders(user_address)
         
+        # Fetch order history (fills)
+        fills = info.user_fills(user_address)
+        
         return {
             "address": user_address,
             "margin_summary": user_state.get("marginSummary", {}),
-            "open_orders": open_orders
+            "open_orders": open_orders,
+            "fills": fills[:30] if fills else [] # Return top 30 recent fills
         }
     except Exception as e:
         return {"error": str(e)}
