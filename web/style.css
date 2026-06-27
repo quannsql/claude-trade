@@ -1,0 +1,224 @@
+:root {
+    --bg-dark: #09090b;
+    --panel-bg: #111115;
+    --text-main: #f8f8f2;
+    --text-dim: #8b8b9a;
+    --accent: #00f0ff;
+    --accent-glow: rgba(0, 240, 255, 0.4);
+    --buy-color: #00ff66;
+    --sell-color: #ff3366;
+    --border-col: #22222a;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    font-family: 'Inter', sans-serif;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.dashboard {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 16px;
+    gap: 16px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-col);
+    padding-bottom: 12px;
+}
+
+.logo {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 24px;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.badge {
+    background-color: var(--accent);
+    color: var(--bg-dark);
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: bold;
+    box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.wallet-info {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    color: var(--text-dim);
+}
+
+.highlight {
+    color: var(--accent);
+}
+
+.grid-container {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 16px;
+    height: 100%;
+    min-height: 0;
+}
+
+.panel {
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border-col);
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+.panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.5;
+}
+
+.panel-header {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-col);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.panel-content {
+    flex: 1;
+    overflow: hidden;
+    padding: 16px;
+}
+
+/* Balance */
+.balance-panel {
+    grid-column: 2 / 3;
+    grid-row: 1 / 2;
+}
+
+.balance-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 24px;
+}
+
+.stat-box {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+}
+
+.stat-value {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 32px;
+}
+
+/* Chart */
+.chart-panel {
+    grid-column: 1 / 2;
+    grid-row: 1 / 2;
+}
+
+#chart-container {
+    padding: 0;
+}
+
+/* Orders */
+.orders-panel {
+    grid-column: 2 / 3;
+    grid-row: 2 / 3;
+}
+
+.tech-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+}
+
+.tech-table th {
+    text-align: left;
+    color: var(--text-dim);
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-col);
+    font-weight: normal;
+}
+
+.tech-table td {
+    padding: 12px 0;
+    border-bottom: 1px dashed var(--border-col);
+}
+
+.buy-text {
+    color: var(--buy-color);
+}
+.sell-text {
+    color: var(--sell-color);
+}
+
+/* Terminal */
+.terminal-panel {
+    grid-column: 1 / 2;
+    grid-row: 2 / 3;
+}
+
+.terminal-content {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: var(--text-dim);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.terminal-content span.time {
+    color: #4CAF50;
+    margin-right: 8px;
+}
+
+.pulse {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--buy-color);
+    box-shadow: 0 0 10px var(--buy-color);
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 1; }
+}

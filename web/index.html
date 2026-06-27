@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hyperliquid Bot Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- Google Fonts for Tech Style -->
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <!-- Lightweight Charts for PnL/Equity Chart -->
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+    <div class="dashboard">
+        <header class="header">
+            <div class="logo">HL-BOT <span class="badge">LIVE</span></div>
+            <div class="wallet-info">
+                Address: <span id="wallet-address" class="highlight">Loading...</span>
+            </div>
+        </header>
+
+        <div class="grid-container">
+            <!-- Balance Panel -->
+            <div class="panel balance-panel">
+                <div class="panel-header">ACCOUNT BALANCE</div>
+                <div class="panel-content balance-content">
+                    <div class="stat-box">
+                        <div class="stat-label">Total Value (USD)</div>
+                        <div class="stat-value" id="val-total">0.00</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Available Margin</div>
+                        <div class="stat-value highlight" id="val-margin">0.00</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PnL Chart Panel -->
+            <div class="panel chart-panel">
+                <div class="panel-header">EQUITY CURVE (MOCK)</div>
+                <div class="panel-content" id="chart-container"></div>
+            </div>
+
+            <!-- Active Orders Panel -->
+            <div class="panel orders-panel">
+                <div class="panel-header">ACTIVE ORDERS</div>
+                <div class="panel-content">
+                    <table class="tech-table">
+                        <thead>
+                            <tr>
+                                <th>Coin</th>
+                                <th>Side</th>
+                                <th>Price</th>
+                                <th>Size</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orders-tbody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Live Terminal Panel -->
+            <div class="panel terminal-panel">
+                <div class="panel-header">LIVE TERMINAL <div class="pulse"></div></div>
+                <div class="panel-content terminal-content" id="terminal">
+                    <!-- Populated by WebSockets -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/main.js"></script>
+</body>
+</html>
