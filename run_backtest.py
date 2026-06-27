@@ -149,20 +149,20 @@ PROFILES = {
         "leverage": 10,
         "margin_full": 10.0,
         "margin_half": 5.0,
-        "min_score_half": 40,    # Just BB touch is enough for half size
+        "min_score_half": 50,    # Just BB touch is enough for half size
         "min_score_full": 60,    # BB touch + RSI confirm for full size
 
         # Fixed TP/SL as fallback
-        "tp1_pct": 0.15,
-        "tp2_pct": 0.30,
-        "sl_pct": 0.25,
-        "time_stop_minutes": 30,  # Scalper time-stop
+        "tp1_pct": 0.35,
+        "tp2_pct": 0.55,
+        "sl_pct": 0.30,
+        "time_stop_minutes": 120,  # Extended to prevent unnecessary market close fees
 
         # Dynamic ATR-based TP/SL (using 5m ATR)
         "use_dynamic_tp_sl": True, 
-        "tp1_atr_mult": 1.0,
-        "tp2_atr_mult": 2.0,
-        "sl_atr_mult": 1.5,
+        "tp1_atr_mult": 2.0,
+        "tp2_atr_mult": 4.0,
+        "sl_atr_mult": 2.0,
 
         # Trailing stop
         "use_trailing_stop": False, # Disabled for pure scalping

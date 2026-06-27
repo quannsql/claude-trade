@@ -154,15 +154,8 @@ def _to_float(value: Any, default: float = 0.0) -> float:
 
 
 def _round_price(price: float) -> float:
-    if price >= 10_000:
-        return round(price, 1)
-    if price >= 1_000:
-        return round(price, 2)
-    if price >= 100:
-        return round(price, 3)
-    if price >= 10:
-        return round(price, 4)
-    return round(price, 6)
+    # Hyperliquid requires max 5 significant figures for all prices.
+    return float(f"{price:.5g}")
 
 
 def _round_size(exchange: Exchange, coin: str, size: float) -> float:
@@ -242,7 +235,7 @@ def _fills_by_oid(info: Info, address: str, start_ms: int, coin: str, oid: int |
     return [fill for fill in fills if fill.get("coin") == coin and int(fill.get("oid", -1)) == oid]
 
 
-def _get_orderbook_imbalance(info: Info, coin: str, depth: int = 10) -> float:
+def _get_orderbook_imbalance(info: Info, coin: str, depth: int = 50) -> float:
     """
     Fetch live Level 2 Orderbook and calculate volume imbalance.
     Returns a float between -1.0 (100% asks) and 1.0 (100% bids).
@@ -513,6 +506,7 @@ async def _execute_setup(
     signal_price: float,
     signal_ts: pd.Timestamp,
     margin: float,
+    atr_5m: float = 0.0,
 ) -> TradeResult | None:
     leverage = CONFIG["leverage"]
     notional = margin * leverage
@@ -601,18 +595,33 @@ async def _execute_setup(
 
     avg_entry = entry_fill.avg_price
     filled_size = _round_size(exchange, coin, entry_fill.size)
-    tp1_pct = CONFIG["tp1_pct"] / 100
-    tp2_pct = CONFIG["tp2_pct"] / 100
-    sl_pct = CONFIG["sl_pct"] / 100
-
-    if direction == "long":
-        tp1_price = avg_entry * (1 + tp1_pct)
-        tp2_price = avg_entry * (1 + tp2_pct)
-        sl_price = avg_entry * (1 - sl_pct)
+    
+    if CONFIG.get("use_dynamic_tp_sl", False) and atr_5m > 0:
+        from filters import compute_dynamic_levels
+        levels = compute_dynamic_levels(
+            avg_entry,
+            direction,
+            atr_5m,
+            tp1_atr_mult=CONFIG.get("tp1_atr_mult", 1.5),
+            tp2_atr_mult=CONFIG.get("tp2_atr_mult", 3.0),
+            sl_atr_mult=CONFIG.get("sl_atr_mult", 1.2),
+        )
+        tp1_price = levels["tp1_price"]
+        tp2_price = levels["tp2_price"]
+        sl_price = levels["sl_price"]
     else:
-        tp1_price = avg_entry * (1 - tp1_pct)
-        tp2_price = avg_entry * (1 - tp2_pct)
-        sl_price = avg_entry * (1 + sl_pct)
+        tp1_pct = CONFIG["tp1_pct"] / 100
+        tp2_pct = CONFIG["tp2_pct"] / 100
+        sl_pct = CONFIG["sl_pct"] / 100
+
+        if direction == "long":
+            tp1_price = avg_entry * (1 + tp1_pct)
+            tp2_price = avg_entry * (1 + tp2_pct)
+            sl_price = avg_entry * (1 - sl_pct)
+        else:
+            tp1_price = avg_entry * (1 - tp1_pct)
+            tp2_price = avg_entry * (1 - tp2_pct)
+            sl_price = avg_entry * (1 + sl_pct)
 
     tp1_size = _round_size(exchange, coin, filled_size / 2)
     if tp1_size <= POSITION_EPSILON:
@@ -868,6 +877,7 @@ async def _scan_coin(
             current_price,
             signal_ts,
             margin,
+            setup.get("atr_5m", 0.0),
         )
         if result is not None:
             risk.record_trade(result)

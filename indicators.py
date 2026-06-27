@@ -156,16 +156,71 @@ def score_setup(i15: int, df15: pd.DataFrame,
     rsi1 = row1["rsi"]
     rsi5 = row5["rsi"]
     
+    vol1 = row1.get("volume")
+    vol_avg20_1 = row1.get("vol_avg20")
+    ema50_5 = row5.get("ema50")
+    price5 = row5["close"]
+    vwap1 = row1.get("vwap")
+    
     if pd.isna(bb_upper1) or pd.isna(bb_lower1) or pd.isna(rsi1) or pd.isna(rsi5):
         return result
+        
+    vwap_stretch_pct = 0.0
+    if not pd.isna(vwap1) and vwap1 > 0:
+        vwap_stretch_pct = abs(price1 - vwap1) / vwap1 * 100
 
     # Check BB touch
     if price1 <= bb_lower1:
         direction = "long"
         score += 40
+        
+        # Penalize catching a falling knife blindly
+        pattern = detect_candle_pattern(row1, row1_prev)
+        if pattern == "strong_bearish_close":
+            score -= 15
+            
+        # Reward volume climax
+        if not pd.isna(vol1) and not pd.isna(vol_avg20_1) and vol1 > vol_avg20_1 * 1.5:
+            score += 10
+            
+        # Soft Trend Alignment on 5m
+        if not pd.isna(ema50_5):
+            if price5 > ema50_5:
+                score += 10
+            else:
+                score -= 10
+                
+        # VWAP Stretch (Rubber band effect)
+        if vwap_stretch_pct > 0.5:
+            score += 20
+        elif vwap_stretch_pct > 0.3:
+            score += 10
+
     elif price1 >= bb_upper1:
         direction = "short"
         score += 40
+        
+        # Penalize blindly shorting a rocket
+        pattern = detect_candle_pattern(row1, row1_prev)
+        if pattern == "strong_bullish_close":
+            score -= 15
+            
+        # Reward volume climax
+        if not pd.isna(vol1) and not pd.isna(vol_avg20_1) and vol1 > vol_avg20_1 * 1.5:
+            score += 10
+            
+        # Soft Trend Alignment on 5m
+        if not pd.isna(ema50_5):
+            if price5 < ema50_5:
+                score += 10
+            else:
+                score -= 10
+                
+        # VWAP Stretch (Rubber band effect)
+        if vwap_stretch_pct > 0.5:
+            score += 20
+        elif vwap_stretch_pct > 0.3:
+            score += 10
     else:
         # Not touching BB extremes -> No signal for mean-reversion
         return result
