@@ -1,6 +1,7 @@
 // Terminal WebSocket
 const terminal = document.getElementById('terminal');
-const ws = new WebSocket(`ws://${window.location.host}/ws/logs`);
+const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/logs`);
 
 ws.onmessage = function(event) {
     const msg = event.data;
