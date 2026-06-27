@@ -19,6 +19,7 @@ import os
 from tabulate import tabulate
 
 from indicators import add_indicators, score_setup
+from filters import compute_dynamic_levels
 
 # ---------------------------------------------------------
 # BACKTEST CONFIGURATION - 2 PROFILES for direct comparison
@@ -30,7 +31,7 @@ from indicators import add_indicators, score_setup
 # Change ACTIVE_PROFILE to select the config to run. Run both times (change
 # profile then run again) to compare actual results on the same data.
 
-ACTIVE_PROFILE = "swing_5usd"   # change to "scalp_1usd" to run original version
+ACTIVE_PROFILE = "smart"
 
 BASE_CONFIG = {
     "symbols": ["BTCUSDT", "ETHUSDT"],
@@ -46,6 +47,14 @@ BASE_CONFIG = {
     "max_trades_per_day": 20,
     "min_equity_usd": 80.0,
     "starting_equity": 100.0,
+
+    # Optional strict filters applied inside score_setup. None means disabled.
+    "allowed_hours_utc": None,
+    "max_entry_volume_ratio": 5.0,
+    "max_entry_bb_width_pct": None,
+    "max_5m_atr_pct": None,
+    "max_5m_ema21_distance_pct": None,
+    "move_sl_to_breakeven_after_tp1": False,
 
     "data_dir": "data",
     "output_dir": "results",
@@ -93,6 +102,87 @@ PROFILES = {
         "slippage_pct": 0.0,            # limit fills at exact price, no slippage on ENTRY
         "daily_loss_limit_usd": 8.0,    # wider because SL/trade is larger than old $3
     },
+
+    # ---- Safer testnet executor profile ----
+    # This does not magically create edge; it removes the worst classes of
+    # trades found after fixing lookahead/overlap bias and cuts position size
+    # so live/testnet drawdown is not dominated by a few SLs.
+    "conservative_testnet": {
+        "symbols": ["BTCUSDT"],
+        "leverage": 10,
+        "margin_full": 10.0,
+        "margin_half": 5.0,
+        "min_score_half": 65,
+        "min_score_full": 75,
+
+        "tp1_pct": 0.30,
+        "tp2_pct": 0.55,
+        "sl_pct": 0.40,
+        "time_stop_minutes": 30,
+
+        "entry_order_type": "limit",
+        "use_maker_for_entry": True,
+        "use_maker_for_tp": True,
+        "limit_offset_pct": 0.0,
+        "limit_timeout_bars": 1,
+        "slippage_pct": 0.0,
+
+        "allowed_hours_utc": list(range(8, 22)),
+        "max_entry_volume_ratio": 2.0,
+        "max_entry_bb_width_pct": 0.45,
+        "move_sl_to_breakeven_after_tp1": False,
+        "max_trades_per_day": 6,
+        "daily_loss_limit_usd": 2.0,
+        "cooldown_minutes": 60,
+        "min_equity_usd": 50.0,
+
+        # New filters (Module 6+7)
+        "use_regime_filter": True,
+        "use_momentum_filter": True,
+    },
+
+    # ---- SMART profile: higher quality, fewer but better trades ----
+    # Uses dynamic ATR-based TP/SL, trailing stop, stricter scoring,
+    # regime + momentum filters. Designed for higher win rate.
+    "smart": {
+        "symbols": ["BTCUSDT"],
+        "leverage": 10,
+        "margin_full": 10.0,
+        "margin_half": 5.0,
+        "min_score_half": 40,    # Just BB touch is enough for half size
+        "min_score_full": 60,    # BB touch + RSI confirm for full size
+
+        # Fixed TP/SL as fallback
+        "tp1_pct": 0.15,
+        "tp2_pct": 0.30,
+        "sl_pct": 0.25,
+        "time_stop_minutes": 30,  # Scalper time-stop
+
+        # Dynamic ATR-based TP/SL (using 5m ATR)
+        "use_dynamic_tp_sl": True, 
+        "tp1_atr_mult": 1.0,
+        "tp2_atr_mult": 2.0,
+        "sl_atr_mult": 1.5,
+
+        # Trailing stop
+        "use_trailing_stop": False, # Disabled for pure scalping
+
+        "entry_order_type": "limit",
+        "use_maker_for_entry": True,
+        "use_maker_for_tp": True,
+        "limit_offset_pct": 0.0,
+        "limit_timeout_bars": 1,
+        "slippage_pct": 0.0,
+
+        "allowed_hours_utc": list(range(0, 24)), # Scalp anytime
+        "max_trades_per_day": 20, # Higher frequency
+        "daily_loss_limit_usd": 5.0,
+        "cooldown_minutes": 15, # Shorter cooldown
+        "min_equity_usd": 50.0,
+
+        "use_regime_filter": False,
+        "use_momentum_filter": False,
+    },
 }
 
 CONFIG = {**BASE_CONFIG, **PROFILES[ACTIVE_PROFILE]}
@@ -110,14 +200,16 @@ def load_data(symbol: str, timeframe: str, data_dir: str) -> pd.DataFrame:
     return df
 
 
-def align_index(target_ts, df: pd.DataFrame, last_idx: int) -> int:
+def align_index(target_ts, df: pd.DataFrame, last_idx: int, timeframe_minutes: int = 1) -> int:
     """
-    Finds the most recent candle index in df where timestamp <= target_ts,
-    starts searching from last_idx for performance (data is time-sorted).
+    Finds the most recent fully closed candle index for the 1m signal time.
+    Backtest evaluates a 1m candle after it closes, so higher-timeframe candles
+    are available only when their open timestamp + timeframe <= target_ts + 1m.
     """
+    closed_cutoff = target_ts + pd.Timedelta(minutes=1 - timeframe_minutes)
     n = len(df)
     idx = last_idx
-    while idx + 1 < n and df.iloc[idx + 1]["timestamp"] <= target_ts:
+    while idx + 1 < n and df.iloc[idx + 1]["timestamp"] <= closed_cutoff:
         idx += 1
     return idx
 
@@ -149,11 +241,17 @@ def try_fill_limit_entry(direction: str, limit_price: float, df1: pd.DataFrame,
 
 def simulate_trade(direction: str, entry_price: float, entry_time,
                     df1: pd.DataFrame, entry_idx: int, margin: float,
-                    cfg: dict) -> dict:
+                    cfg: dict, atr_5m: float = 0.0) -> dict:
     """
-    Simulates 1 trade from entry to close (TP1+TP2, SL, or time-stop),
-    iterating through 1m candles after entry_idx. Returns dict of trade result,
-    or None if entry is limit order and not filled (timeout -> skip setup).
+    Simulates 1 trade from entry to close (TP1+TP2, SL, trailing-stop, or
+    time-stop), iterating through 1m candles after entry_idx.
+
+    Supports:
+    - Fixed % TP/SL (original behavior)
+    - Dynamic ATR-based TP/SL (when use_dynamic_tp_sl=True and atr_1m > 0)
+    - Trailing stop (when use_trailing_stop=True)
+
+    Returns dict of trade result, or None if limit order not filled.
     """
     leverage = cfg["leverage"]
     notional = margin * leverage
@@ -183,18 +281,39 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
     entry_fee_pct = cfg["maker_fee_pct"] if cfg["use_maker_for_entry"] else cfg["taker_fee_pct"]
     entry_fee = notional * (entry_fee_pct / 100)
 
-    tp1_pct = cfg["tp1_pct"] / 100
-    tp2_pct = cfg["tp2_pct"] / 100
-    sl_pct = cfg["sl_pct"] / 100
-
-    if direction == "long":
-        tp1_price = fill_price * (1 + tp1_pct)
-        tp2_price = fill_price * (1 + tp2_pct)
-        sl_price = fill_price * (1 - sl_pct)
+    # ------- Dynamic ATR-based TP/SL or fixed % -------
+    if cfg.get("use_dynamic_tp_sl", False) and atr_5m > 0:
+        levels = compute_dynamic_levels(
+            fill_price, direction, atr_5m,
+            tp1_atr_mult=cfg.get("tp1_atr_mult", 1.5),
+            tp2_atr_mult=cfg.get("tp2_atr_mult", 3.0),
+            sl_atr_mult=cfg.get("sl_atr_mult", 1.2),
+        )
+        tp1_price = levels["tp1_price"]
+        tp2_price = levels["tp2_price"]
+        sl_price = levels["sl_price"]
+        tp1_pct = levels["tp1_pct"] / 100
+        tp2_pct = levels["tp2_pct"] / 100
+        sl_pct = levels["sl_pct"] / 100
     else:
-        tp1_price = fill_price * (1 - tp1_pct)
-        tp2_price = fill_price * (1 - tp2_pct)
-        sl_price = fill_price * (1 + sl_pct)
+        tp1_pct = cfg["tp1_pct"] / 100
+        tp2_pct = cfg["tp2_pct"] / 100
+        sl_pct = cfg["sl_pct"] / 100
+
+        if direction == "long":
+            tp1_price = fill_price * (1 + tp1_pct)
+            tp2_price = fill_price * (1 + tp2_pct)
+            sl_price = fill_price * (1 - sl_pct)
+        else:
+            tp1_price = fill_price * (1 - tp1_pct)
+            tp2_price = fill_price * (1 - tp2_pct)
+            sl_price = fill_price * (1 + sl_pct)
+
+    # ------- Trailing stop config -------
+    use_trailing = cfg.get("use_trailing_stop", False)
+    trailing_activate_pct = cfg.get("trailing_activate_pct", 0.15) / 100
+    trailing_lock_pct = cfg.get("trailing_lock_pct", 0.50)
+    max_favorable_move = 0.0  # Track best price reached
 
     remaining_notional = notional
     realized_pnl = 0.0
@@ -203,6 +322,7 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
     exit_reason = None
     exit_price = None
     exit_time = None
+    exit_idx = None
 
     max_bars = cfg["time_stop_minutes"]
     n = len(df1)
@@ -213,10 +333,30 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
             exit_reason = "data_end"
             exit_price = df1.iloc[-1]["close"]
             exit_time = df1.iloc[-1]["timestamp"]
+            exit_idx = n - 1
             break
 
         bar = df1.iloc[idx]
-        high, low = bar["high"], bar["low"]
+        high, low, close = bar["high"], bar["low"], bar["close"]
+
+        # ------- Update trailing stop -------
+        if use_trailing:
+            if direction == "long":
+                favorable = (high - fill_price) / fill_price
+            else:
+                favorable = (fill_price - low) / fill_price
+
+            max_favorable_move = max(max_favorable_move, favorable)
+
+            if max_favorable_move >= trailing_activate_pct:
+                # Trail: move SL to lock a portion of the best move
+                lock_amount = max_favorable_move * trailing_lock_pct
+                if direction == "long":
+                    trailing_sl = fill_price * (1 + lock_amount)
+                    sl_price = max(sl_price, trailing_sl)
+                else:
+                    trailing_sl = fill_price * (1 - lock_amount)
+                    sl_price = min(sl_price, trailing_sl)
 
         if direction == "long":
             hit_sl = low <= sl_price
@@ -229,13 +369,24 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
 
         # SL is checked first (pessimistic assumption: if both SL and TP are hit in same candle, SL triggers)
         if hit_sl:
-            pnl_remaining = -remaining_notional * sl_pct
+            # Determine if this is a trailing stop or original SL
+            if use_trailing and max_favorable_move >= trailing_activate_pct:
+                # Trailing stop: PnL based on actual SL level
+                if direction == "long":
+                    actual_pnl_pct = (sl_price - fill_price) / fill_price
+                else:
+                    actual_pnl_pct = (fill_price - sl_price) / fill_price
+                pnl_remaining = remaining_notional * actual_pnl_pct
+                exit_reason = "trailing_stop"
+            else:
+                pnl_remaining = -remaining_notional * sl_pct
+                exit_reason = "SL"
             exit_fee = remaining_notional * (cfg["taker_fee_pct"] / 100)  # SL is always market = taker
             realized_pnl += pnl_remaining
             fees_paid += exit_fee
-            exit_reason = "SL"
             exit_price = sl_price
             exit_time = bar["timestamp"]
+            exit_idx = idx
             break
 
         if hit_tp1:
@@ -247,6 +398,8 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
             fees_paid += fee_half
             remaining_notional = half_notional
             tp1_hit = True
+            if cfg.get("move_sl_to_breakeven_after_tp1", False):
+                sl_price = fill_price
             continue
 
         if hit_tp2:
@@ -258,6 +411,7 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
             exit_reason = "TP2"
             exit_price = tp2_price
             exit_time = bar["timestamp"]
+            exit_idx = idx
             remaining_notional = 0
             break
 
@@ -276,6 +430,7 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
         exit_reason = "time_stop"
         exit_price = close_price
         exit_time = bar["timestamp"]
+        exit_idx = idx
 
     net_pnl = realized_pnl - fees_paid
 
@@ -292,6 +447,7 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
         "fees": fees_paid,
         "net_pnl": net_pnl,
         "win": net_pnl > 0,
+        "exit_idx": exit_idx,
     }
 
 
@@ -331,13 +487,14 @@ def run_symbol_backtest(symbol: str, cfg: dict) -> pd.DataFrame:
         if trades_today.get(day_key, 0) >= cfg["max_trades_per_day"]:
             continue
 
-        idx5 = align_index(ts, df5, idx5)
-        idx15 = align_index(ts, df15, idx15)
+        idx5 = align_index(ts, df5, idx5, timeframe_minutes=5)
+        idx15 = align_index(ts, df15, idx15, timeframe_minutes=15)
 
         setup = score_setup(
             idx15, df15, idx5, df5, i1, df1,
             consecutive_losses=consecutive_losses,
             hour_utc=ts.hour,
+            cfg=cfg,
         )
 
         if setup["hard_block"] or setup["direction"] is None:
@@ -350,7 +507,8 @@ def run_symbol_backtest(symbol: str, cfg: dict) -> pd.DataFrame:
         margin = cfg["margin_full"] if score >= cfg["min_score_full"] else cfg["margin_half"]
 
         entry_price = df1.iloc[i1]["close"]
-        trade = simulate_trade(setup["direction"], entry_price, ts, df1, i1, margin, cfg)
+        atr_5m = setup.get("atr_5m", 0.0)
+        trade = simulate_trade(setup["direction"], entry_price, ts, df1, i1, margin, cfg, atr_5m=atr_5m)
 
         if trade is None:
             # Limit order not filled within wait time - according to rule
@@ -382,7 +540,7 @@ def run_symbol_backtest(symbol: str, cfg: dict) -> pd.DataFrame:
         if day_pnl <= -cfg["daily_loss_limit_usd"]:
             cooldown_until = pd.Timestamp(day_key, tz="UTC") + pd.Timedelta(days=1)
 
-        last_trade_exit_idx = i1
+        last_trade_exit_idx = int(trade.get("exit_idx", i1))
 
     if cfg.get("entry_order_type") == "limit":
         total_signals = len(trades) + missed_limit_entries

@@ -1,185 +1,927 @@
-import time
-import os
-import logging
 import asyncio
-import pandas as pd
-from datetime import datetime, timezone
-from hyperliquid.info import Info
-from hyperliquid.exchange import Exchange
-from hyperliquid.utils import constants
+import logging
+import os
+import time
+from dataclasses import dataclass, field
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal, ROUND_DOWN
+from typing import Any
+
 import eth_account
+import pandas as pd
 from eth_account.signers.local import LocalAccount
+from hyperliquid.exchange import Exchange
+from hyperliquid.info import Info
+from hyperliquid.utils import constants
 
 from indicators import add_indicators, score_setup
 from run_backtest import CONFIG
 
-# Configure logger
+
 logger = logging.getLogger("bot_engine")
 logger.setLevel(logging.INFO)
-# We will attach handlers in app.py for the dashboard, but for now just console:
 if not logger.handlers:
     ch = logging.StreamHandler()
-    formatter = logging.Formatter('%(asctime)s - %(message)s', datefmt='%H:%M:%S')
+    formatter = logging.Formatter("%(asctime)s - %(message)s", datefmt="%H:%M:%S")
     ch.setFormatter(formatter)
     logger.addHandler(ch)
+
 
 PRIVATE_KEY = os.environ.get("HL_PRIVATE_KEY", "")
 API_URL = constants.TESTNET_API_URL
 
-def fetch_hyperliquid_candles(info: Info, coin: str, interval: str, lookback_bars: int) -> pd.DataFrame:
-    """Fetch candles from Hyperliquid and convert to standard DataFrame"""
-    end_time = int(time.time() * 1000)
-    
-    interval_ms = 0
+SIGNAL_POLL_SECONDS = int(os.environ.get("HL_SIGNAL_POLL_SECONDS", "15"))
+ORDER_POLL_SECONDS = int(os.environ.get("HL_ORDER_POLL_SECONDS", "5"))
+LOOKBACK_1M = int(os.environ.get("HL_LOOKBACK_1M", "300"))
+LOOKBACK_5M = int(os.environ.get("HL_LOOKBACK_5M", "160"))
+LOOKBACK_15M = int(os.environ.get("HL_LOOKBACK_15M", "260"))
+MARKET_CLOSE_SLIPPAGE = float(os.environ.get("HL_MARKET_CLOSE_SLIPPAGE", "0.002"))
+POSITION_EPSILON = 1e-8
+
+# Per-coin lock to prevent concurrent trade execution (position stacking bug fix)
+_coin_locks: dict[str, asyncio.Lock] = {}
+
+
+@dataclass
+class FillSummary:
+    size: float = 0.0
+    notional: float = 0.0
+    closed_pnl: float = 0.0
+    fees: float = 0.0
+    crossed: bool = False
+
+    @property
+    def avg_price(self) -> float | None:
+        if self.size <= 0:
+            return None
+        return self.notional / self.size
+
+
+@dataclass
+class TradeResult:
+    coin: str
+    direction: str
+    exit_reason: str
+    net_pnl: float
+    filled_size: float
+    entry_price: float
+    entry_time: datetime
+    exit_time: datetime
+
+    @property
+    def win(self) -> bool:
+        return self.net_pnl > 0
+
+
+@dataclass
+class RiskState:
+    consecutive_losses: dict[str, int] = field(default_factory=dict)
+    cooldown_until: dict[str, datetime] = field(default_factory=dict)
+    trades_today: dict[tuple[str, date], int] = field(default_factory=dict)
+    pnl_today: dict[tuple[str, date], float] = field(default_factory=dict)
+
+    def can_trade(self, coin: str, now_utc: datetime) -> tuple[bool, str | None]:
+        cooldown = self.cooldown_until.get(coin)
+        if cooldown and now_utc < cooldown:
+            return False, f"cooldown until {cooldown.isoformat()}"
+
+        day_key = (coin, now_utc.date())
+        if self.trades_today.get(day_key, 0) >= CONFIG["max_trades_per_day"]:
+            return False, "max trades per day reached"
+
+        if self.pnl_today.get(day_key, 0.0) <= -CONFIG["daily_loss_limit_usd"]:
+            return False, "daily loss limit reached"
+
+        return True, None
+
+    def record_trade(self, result: TradeResult) -> None:
+        day_key = (result.coin, result.entry_time.date())
+        self.trades_today[day_key] = self.trades_today.get(day_key, 0) + 1
+        self.pnl_today[day_key] = self.pnl_today.get(day_key, 0.0) + result.net_pnl
+
+        if result.win:
+            self.consecutive_losses[result.coin] = 0
+        else:
+            losses = self.consecutive_losses.get(result.coin, 0) + 1
+            self.consecutive_losses[result.coin] = losses
+            if losses >= CONFIG["max_consecutive_losses"]:
+                self.cooldown_until[result.coin] = result.exit_time + timedelta(minutes=CONFIG["cooldown_minutes"])
+                self.consecutive_losses[result.coin] = 0
+
+        if self.pnl_today[day_key] <= -CONFIG["daily_loss_limit_usd"]:
+            tomorrow = datetime.combine(
+                result.exit_time.date() + timedelta(days=1),
+                datetime.min.time(),
+                tzinfo=timezone.utc,
+            )
+            self.cooldown_until[result.coin] = tomorrow
+
+
+def _now_ms() -> int:
+    return int(time.time() * 1000)
+
+
+def _interval_ms(interval: str) -> int:
     if interval == "1m":
-        interval_ms = 60 * 1000
-    elif interval == "5m":
-        interval_ms = 5 * 60 * 1000
-    elif interval == "15m":
-        interval_ms = 15 * 60 * 1000
-        
-    start_time = end_time - (lookback_bars * interval_ms)
-    
+        return 60_000
+    if interval == "5m":
+        return 5 * 60_000
+    if interval == "15m":
+        return 15 * 60_000
+    raise ValueError(f"Unsupported interval: {interval}")
+
+
+def _symbol_to_coin(symbol: str) -> str:
+    return symbol.replace("USDT", "").replace("/", "")
+
+
+def configured_live_coins() -> list[str]:
+    raw = os.environ.get("HL_LIVE_COINS", "").strip()
+    if raw:
+        return [item.strip().upper() for item in raw.split(",") if item.strip()]
+    # Safer default for small testnet runs. Set HL_LIVE_COINS=BTC,ETH to scan both
+    # symbols from CONFIG.
+    return [_symbol_to_coin(CONFIG["symbols"][0])]
+
+
+def _to_float(value: Any, default: float = 0.0) -> float:
+    if value in (None, ""):
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _round_price(price: float) -> float:
+    if price >= 10_000:
+        return round(price, 1)
+    if price >= 1_000:
+        return round(price, 2)
+    if price >= 100:
+        return round(price, 3)
+    if price >= 10:
+        return round(price, 4)
+    return round(price, 6)
+
+
+def _round_size(exchange: Exchange, coin: str, size: float) -> float:
+    asset = exchange.info.name_to_asset(coin)
+    decimals = exchange.info.asset_to_sz_decimals.get(asset, 4)
+    quant = Decimal("1").scaleb(-decimals)
+    rounded = Decimal(str(size)).quantize(quant, rounding=ROUND_DOWN)
+    return float(rounded)
+
+
+def _order_statuses(response: Any) -> list[dict[str, Any]]:
+    if not isinstance(response, dict):
+        return []
+    data = response.get("response", {}).get("data", {})
+    statuses = data.get("statuses", [])
+    return statuses if isinstance(statuses, list) else []
+
+
+def _extract_oid(response: Any) -> int | None:
+    for status in _order_statuses(response):
+        for key in ("resting", "filled"):
+            details = status.get(key)
+            if isinstance(details, dict) and details.get("oid") is not None:
+                return int(details["oid"])
+    return None
+
+
+def _response_errors(response: Any) -> list[str]:
+    errors: list[str] = []
+    for status in _order_statuses(response):
+        if status.get("error"):
+            errors.append(str(status["error"]))
+    return errors
+
+
+def _summarize_fills(fills: list[dict[str, Any]], oid: int | None = None) -> FillSummary:
+    summary = FillSummary()
+    for fill in fills:
+        if oid is not None and int(fill.get("oid", -1)) != oid:
+            continue
+        size = _to_float(fill.get("sz"))
+        price = _to_float(fill.get("px"))
+        summary.size += size
+        summary.notional += size * price
+        summary.closed_pnl += _to_float(fill.get("closedPnl"))
+        summary.fees += _to_float(fill.get("fee"))
+        summary.crossed = summary.crossed or bool(fill.get("crossed"))
+    return summary
+
+
+def _position_for_coin(info: Info, address: str, coin: str) -> tuple[float, float | None]:
+    state = info.user_state(address)
+    for item in state.get("assetPositions", []):
+        position = item.get("position", {})
+        if position.get("coin") != coin:
+            continue
+        size = _to_float(position.get("szi"))
+        entry_px = position.get("entryPx")
+        return size, _to_float(entry_px) if entry_px not in (None, "") else None
+    return 0.0, None
+
+
+def _open_orders_for_coin(info: Info, address: str, coin: str) -> list[dict[str, Any]]:
+    return [order for order in info.open_orders(address) if order.get("coin") == coin]
+
+
+def _is_order_open(info: Info, address: str, coin: str, oid: int | None) -> bool:
+    if oid is None:
+        return False
+    return any(int(order.get("oid", -1)) == oid for order in _open_orders_for_coin(info, address, coin))
+
+
+def _fills_by_oid(info: Info, address: str, start_ms: int, coin: str, oid: int | None) -> list[dict[str, Any]]:
+    if oid is None:
+        return []
+    fills = info.user_fills_by_time(address, max(0, start_ms - 5_000)) or []
+    return [fill for fill in fills if fill.get("coin") == coin and int(fill.get("oid", -1)) == oid]
+
+
+def _get_orderbook_imbalance(info: Info, coin: str, depth: int = 10) -> float:
+    """
+    Fetch live Level 2 Orderbook and calculate volume imbalance.
+    Returns a float between -1.0 (100% asks) and 1.0 (100% bids).
+    """
+    try:
+        l2 = info.l2_snapshot(coin)
+        if not l2 or "levels" not in l2 or len(l2["levels"]) < 2:
+            return 0.0
+
+        bids = l2["levels"][0][:depth]
+        asks = l2["levels"][1][:depth]
+
+        bid_vol = sum(float(b.get("sz", 0)) for b in bids)
+        ask_vol = sum(float(a.get("sz", 0)) for a in asks)
+
+        total_vol = bid_vol + ask_vol
+        if total_vol == 0:
+            return 0.0
+
+        return (bid_vol - ask_vol) / total_vol
+    except Exception as e:
+        logger.error("Failed to fetch L2 snapshot for %s: %s", coin, e)
+        return 0.0
+
+
+def fetch_hyperliquid_candles(
+    info: Info,
+    coin: str,
+    interval: str,
+    lookback_bars: int,
+    asof_ms: int | None = None,
+) -> pd.DataFrame:
+    """Fetch fully closed Hyperliquid candles and add the same indicators used in backtest."""
+    end_time = asof_ms or _now_ms()
+    interval_ms = _interval_ms(interval)
+    start_time = end_time - ((lookback_bars + 3) * interval_ms)
+
     req = {
         "type": "candleSnapshot",
         "req": {
             "coin": coin,
             "interval": interval,
             "startTime": start_time,
-            "endTime": end_time
-        }
+            "endTime": end_time,
+        },
     }
-    
     res = info.post("/info", req)
-    
     if not res:
         return pd.DataFrame()
-        
-    records = []
-    for c in res:
-        records.append({
+
+    rows = [
+        {
             "timestamp": pd.to_datetime(c["t"], unit="ms", utc=True),
             "open": float(c["o"]),
             "high": float(c["h"]),
             "low": float(c["l"]),
             "close": float(c["c"]),
-            "volume": float(c["v"])
-        })
-        
-    df = pd.DataFrame(records)
-    if not df.empty and len(df) > 30: 
+            "volume": float(c["v"]),
+        }
+        for c in res
+    ]
+    df = pd.DataFrame(rows).sort_values("timestamp").drop_duplicates("timestamp")
+
+    cutoff = pd.to_datetime(end_time - interval_ms, unit="ms", utc=True)
+    df = df[df["timestamp"] <= cutoff].tail(lookback_bars).reset_index(drop=True)
+    if not df.empty and len(df) > 30:
         df = add_indicators(df)
-        
     return df
 
-def place_orders(exchange: Exchange, coin: str, direction: str, price: float, margin: float):
-    """Place Entry and corresponding TP/SL Limit orders"""
-    logger.info(f"🚀 PLACING {direction.upper()} ORDER FOR {coin} AT {price}...")
-    
+
+def _align_index(ts: pd.Timestamp, df: pd.DataFrame) -> int:
+    idx = df["timestamp"].searchsorted(ts, side="right") - 1
+    return int(max(idx, 0))
+
+
+def _latest_setup(info: Info, coin: str) -> tuple[dict[str, Any], float, pd.Timestamp] | None:
+    asof_ms = _now_ms()
+    df15 = fetch_hyperliquid_candles(info, coin, "15m", LOOKBACK_15M, asof_ms)
+    df5 = fetch_hyperliquid_candles(info, coin, "5m", LOOKBACK_5M, asof_ms)
+    df1 = fetch_hyperliquid_candles(info, coin, "1m", LOOKBACK_1M, asof_ms)
+
+    if df15.empty or df5.empty or df1.empty:
+        logger.warning("%s: empty candle data", coin)
+        return None
+
+    i1 = len(df1) - 1
+    signal_ts = df1.iloc[i1]["timestamp"]
+    i5 = _align_index(signal_ts, df5)
+    i15 = _align_index(signal_ts, df15)
+
+    setup = score_setup(
+        i15,
+        df15,
+        i5,
+        df5,
+        i1,
+        df1,
+        hour_utc=signal_ts.hour,
+        cfg=CONFIG,
+    )
+    current_price = float(df1.iloc[i1]["close"])
+    return setup, current_price, signal_ts
+
+
+async def _call(fn, *args, **kwargs):
+    return await asyncio.to_thread(fn, *args, **kwargs)
+
+
+async def _cancel_if_open(exchange: Exchange, info: Info, address: str, coin: str, oid: int | None) -> None:
+    if oid is None:
+        return
+    try:
+        if await _call(_is_order_open, info, address, coin, oid):
+            logger.info("%s: cancel open order oid=%s", coin, oid)
+            await _call(exchange.cancel, coin, oid)
+    except Exception as exc:
+        logger.warning("%s: cancel oid=%s failed: %s", coin, oid, exc)
+
+
+async def _place_limit(
+    exchange: Exchange,
+    coin: str,
+    is_buy: bool,
+    size: float,
+    price: float,
+    reduce_only: bool,
+    tif: str,
+) -> tuple[int | None, Any]:
+    response = await _call(
+        exchange.order,
+        coin,
+        is_buy,
+        size,
+        _round_price(price),
+        {"limit": {"tif": tif}},
+        reduce_only,
+    )
+    errors = _response_errors(response)
+    if errors:
+        logger.warning("%s: limit order errors: %s", coin, "; ".join(errors))
+    return _extract_oid(response), response
+
+
+async def _place_trigger_sl(
+    exchange: Exchange,
+    coin: str,
+    is_buy: bool,
+    size: float,
+    trigger_price: float,
+) -> tuple[int | None, Any]:
+    price = _round_price(trigger_price)
+    response = await _call(
+        exchange.order,
+        coin,
+        is_buy,
+        size,
+        price,
+        {"trigger": {"triggerPx": price, "isMarket": True, "tpsl": "sl"}},
+        True,
+    )
+    errors = _response_errors(response)
+    if errors:
+        logger.warning("%s: SL trigger errors: %s", coin, "; ".join(errors))
+    return _extract_oid(response), response
+
+
+async def _place_tp_with_fallback(
+    exchange: Exchange,
+    coin: str,
+    is_buy: bool,
+    size: float,
+    price: float,
+) -> int | None:
+    tif = "Alo" if CONFIG.get("use_maker_for_tp", True) else "Gtc"
+    oid, _ = await _place_limit(exchange, coin, is_buy, size, price, True, tif)
+    if oid is not None:
+        return oid
+    if tif == "Alo":
+        logger.warning("%s: TP Alo was not accepted; retrying TP as Gtc reduce-only", coin)
+        oid, _ = await _place_limit(exchange, coin, is_buy, size, price, True, "Gtc")
+    return oid
+
+
+async def _wait_entry_fill(
+    info: Info,
+    exchange: Exchange,
+    address: str,
+    coin: str,
+    oid: int | None,
+    target_size: float,
+    start_ms: int,
+    timeout_seconds: int,
+) -> FillSummary:
+    deadline = time.monotonic() + timeout_seconds
+    last_summary = FillSummary()
+
+    while time.monotonic() < deadline:
+        fills = await _call(_fills_by_oid, info, address, start_ms, coin, oid)
+        last_summary = _summarize_fills(fills, oid)
+        if last_summary.size >= target_size * 0.999:
+            return last_summary
+        if oid is not None and not await _call(_is_order_open, info, address, coin, oid) and last_summary.size <= 0:
+            return last_summary
+        await asyncio.sleep(ORDER_POLL_SECONDS)
+
+    await _cancel_if_open(exchange, info, address, coin, oid)
+    fills = await _call(_fills_by_oid, info, address, start_ms, coin, oid)
+    return _summarize_fills(fills, oid)
+
+
+async def _market_close_remaining(
+    exchange: Exchange,
+    info: Info,
+    address: str,
+    coin: str,
+    managed_oids: set[int],
+) -> int | None:
+    pos_size, _ = await _call(_position_for_coin, info, address, coin)
+    close_size = abs(pos_size)
+    if close_size <= POSITION_EPSILON:
+        return None
+    logger.info("%s: time-stop market close size=%.8f", coin, close_size)
+    response = await _call(
+        exchange.market_close,
+        coin,
+        close_size,
+        None,
+        MARKET_CLOSE_SLIPPAGE,
+    )
+    oid = _extract_oid(response)
+    if oid is not None:
+        managed_oids.add(oid)
+    errors = _response_errors(response)
+    if errors:
+        logger.warning("%s: market close errors: %s", coin, "; ".join(errors))
+    return oid
+
+
+async def _final_net_pnl(info: Info, address: str, coin: str, start_ms: int, managed_oids: set[int]) -> float:
+    await asyncio.sleep(2)
+    fills = await _call(info.user_fills_by_time, address, max(0, start_ms - 5_000))
+    if not fills:
+        return 0.0
+    related = [
+        fill
+        for fill in fills
+        if fill.get("coin") == coin and int(fill.get("oid", -1)) in managed_oids
+    ]
+    return sum(_to_float(fill.get("closedPnl")) for fill in related)
+
+
+async def _wait_for_position_flat(info: Info, address: str, coin: str, timeout_seconds: int = 30) -> bool:
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        pos_size, _ = await _call(_position_for_coin, info, address, coin)
+        if abs(pos_size) <= POSITION_EPSILON:
+            return True
+        await asyncio.sleep(ORDER_POLL_SECONDS)
+    return False
+
+
+async def _execute_setup(
+    exchange: Exchange,
+    info: Info,
+    address: str,
+    coin: str,
+    direction: str,
+    signal_price: float,
+    signal_ts: pd.Timestamp,
+    margin: float,
+) -> TradeResult | None:
     leverage = CONFIG["leverage"]
     notional = margin * leverage
-    size = notional / price
-    
-    size_str = f"{size:.4f}"
-    price_str = f"{price:.1f}" 
-    
-    is_buy = True if direction == "long" else False
-    
-    try:
-        # 1. Place Entry Limit Order
-        logger.info(f"  -> Entry Limit: {'Buy' if is_buy else 'Sell'} {size_str} {coin} at {price_str}")
-        entry_res = exchange.order(coin, is_buy, float(size_str), float(price_str), {"limit": {"tif": "Gtc"}})
-        logger.info(f"  Entry Result: {entry_res}")
-        
-        # 2. Place Take Profit Limit Order (Assuming entry is filled immediately for demo)
-        tp_pct = CONFIG["tp2_pct"] / 100
-        sl_pct = CONFIG["sl_pct"] / 100
-        
-        if is_buy:
-            tp_price = price * (1 + tp_pct)
-            sl_price = price * (1 - sl_pct)
-        else:
-            tp_price = price * (1 - tp_pct)
-            sl_price = price * (1 + sl_pct)
-            
-        tp_price_str = f"{tp_price:.1f}"
-        sl_price_str = f"{sl_price:.1f}"
-        
-        logger.info(f"  -> TP Limit: {tp_price_str}")
-        tp_res = exchange.order(coin, not is_buy, float(size_str), float(tp_price_str), {"limit": {"tif": "Gtc"}}, reduce_only=True)
-        logger.info(f"  TP Result: {tp_res}")
-        
-    except Exception as e:
-        logger.error(f"❌ Order placement error: {e}")
+    is_entry_buy = direction == "long"
+    exit_is_buy = not is_entry_buy
+
+    entry_price = signal_price
+    if CONFIG.get("entry_order_type") == "limit":
+        offset = CONFIG.get("limit_offset_pct", 0.0) / 100
+        entry_price = signal_price * (1 - offset if is_entry_buy else 1 + offset)
+    size = _round_size(exchange, coin, notional / entry_price)
+    if size <= 0:
+        logger.warning("%s: computed entry size is zero; skipping", coin)
+        return None
+
+    start_ms = _now_ms()
+    managed_oids: set[int] = set()
+
+    logger.info(
+        "%s: entry %s score setup at %.4f, margin=%.2f notional=%.2f size=%.8f",
+        coin,
+        direction.upper(),
+        signal_price,
+        margin,
+        notional,
+        size,
+    )
+
+    # CRITICAL: Double-check no position exists RIGHT BEFORE placing order.
+    # This prevents race conditions where another coroutine opened a position
+    # between the guard check in _scan_coin and this execution.
+    pre_check_pos, _ = await _call(_position_for_coin, info, address, coin)
+    pre_check_orders = await _call(_open_orders_for_coin, info, address, coin)
+    if abs(pre_check_pos) > POSITION_EPSILON or pre_check_orders:
+        logger.warning(
+            "%s: position/orders appeared between scan and execute (pos=%.8f orders=%d); aborting",
+            coin, pre_check_pos, len(pre_check_orders),
+        )
+        return None
+
+    if CONFIG.get("entry_order_type") == "market":
+        response = await _call(
+            exchange.market_open,
+            coin,
+            is_entry_buy,
+            size,
+            signal_price,
+            CONFIG.get("slippage_pct", 0.0) / 100,
+        )
+        entry_oid = _extract_oid(response)
+        timeout_seconds = 30
+    else:
+        # Use Gtc instead of Alo to reduce partial fill fragmentation.
+        # Alo can reject if price crosses immediately, causing bot to retry
+        # and create many small partial fills.
+        tif = "Gtc"
+        entry_oid, response = await _place_limit(exchange, coin, is_entry_buy, size, entry_price, False, tif)
+        timeout_seconds = max(1, int(CONFIG.get("limit_timeout_bars", 1))) * 60
+
+    if entry_oid is None:
+        logger.warning("%s: entry order was not accepted: %s", coin, response)
+        return None
+    managed_oids.add(entry_oid)
+
+    entry_fill = await _wait_entry_fill(
+        info,
+        exchange,
+        address,
+        coin,
+        entry_oid,
+        size,
+        start_ms,
+        timeout_seconds,
+    )
+    if entry_fill.size <= POSITION_EPSILON or entry_fill.avg_price is None:
+        logger.info("%s: entry not filled within backtest timeout; setup skipped", coin)
+        return None
+
+    if entry_fill.size < size * 0.999:
+        logger.warning(
+            "%s: partial entry fill %.8f / %.8f; managing filled remainder",
+            coin,
+            entry_fill.size,
+            size,
+        )
+
+    avg_entry = entry_fill.avg_price
+    filled_size = _round_size(exchange, coin, entry_fill.size)
+    tp1_pct = CONFIG["tp1_pct"] / 100
+    tp2_pct = CONFIG["tp2_pct"] / 100
+    sl_pct = CONFIG["sl_pct"] / 100
+
+    if direction == "long":
+        tp1_price = avg_entry * (1 + tp1_pct)
+        tp2_price = avg_entry * (1 + tp2_pct)
+        sl_price = avg_entry * (1 - sl_pct)
+    else:
+        tp1_price = avg_entry * (1 - tp1_pct)
+        tp2_price = avg_entry * (1 - tp2_pct)
+        sl_price = avg_entry * (1 + sl_pct)
+
+    tp1_size = _round_size(exchange, coin, filled_size / 2)
+    if tp1_size <= POSITION_EPSILON:
+        tp1_size = filled_size
+    deadline = datetime.now(timezone.utc) + timedelta(minutes=CONFIG["time_stop_minutes"])
+
+    logger.info(
+        "%s: filled %.8f @ %.4f | TP1 %.4f size %.8f | SL %.4f | time-stop %s",
+        coin,
+        filled_size,
+        avg_entry,
+        tp1_price,
+        tp1_size,
+        sl_price,
+        deadline.isoformat(timespec="seconds"),
+    )
+
+    tp1_oid = await _place_tp_with_fallback(exchange, coin, exit_is_buy, tp1_size, tp1_price)
+    if tp1_oid is not None:
+        managed_oids.add(tp1_oid)
+    sl_oid, _ = await _place_trigger_sl(exchange, coin, exit_is_buy, filled_size, sl_price)
+    if sl_oid is not None:
+        managed_oids.add(sl_oid)
+
+    if tp1_oid is None or sl_oid is None:
+        logger.error("%s: could not place protective TP1/SL pair; closing position", coin)
+        await _cancel_if_open(exchange, info, address, coin, tp1_oid)
+        await _cancel_if_open(exchange, info, address, coin, sl_oid)
+        await _market_close_remaining(exchange, info, address, coin, managed_oids)
+        await _wait_for_position_flat(info, address, coin)
+        net_pnl = await _final_net_pnl(info, address, coin, start_ms, managed_oids)
+        return TradeResult(
+            coin,
+            direction,
+            "protective_order_failed",
+            net_pnl,
+            filled_size,
+            avg_entry,
+            signal_ts.to_pydatetime(),
+            datetime.now(timezone.utc),
+        )
+
+    stage = "tp1"
+    exit_reason = "unknown"
+    tp2_oid: int | None = None
+
+    while True:
+        now = datetime.now(timezone.utc)
+        pos_size, _ = await _call(_position_for_coin, info, address, coin)
+        abs_pos = abs(pos_size)
+
+        if now >= deadline:
+            exit_reason = "time_stop"
+            for oid in (tp1_oid, tp2_oid, sl_oid):
+                await _cancel_if_open(exchange, info, address, coin, oid)
+            await _market_close_remaining(exchange, info, address, coin, managed_oids)
+            await _wait_for_position_flat(info, address, coin)
+            break
+
+        if abs_pos <= POSITION_EPSILON:
+            exit_reason = "SL_or_external_flat" if stage != "tp2_done" else "TP2"
+            break
+
+        if stage == "tp1":
+            tp1_summary = _summarize_fills(
+                await _call(_fills_by_oid, info, address, start_ms, coin, tp1_oid),
+                tp1_oid,
+            )
+            sl_summary = _summarize_fills(
+                await _call(_fills_by_oid, info, address, start_ms, coin, sl_oid),
+                sl_oid,
+            )
+
+            if sl_summary.size > 0 and abs_pos <= POSITION_EPSILON:
+                exit_reason = "SL"
+                await _cancel_if_open(exchange, info, address, coin, tp1_oid)
+                break
+
+            if tp1_summary.size >= tp1_size * 0.999:
+                logger.info("%s: TP1 filled %.8f; placing TP2 for remaining", coin, tp1_summary.size)
+                await _cancel_if_open(exchange, info, address, coin, sl_oid)
+                pos_size, _ = await _call(_position_for_coin, info, address, coin)
+                remaining_size = _round_size(exchange, coin, abs(pos_size))
+                if remaining_size <= POSITION_EPSILON:
+                    exit_reason = "TP1_flat"
+                    break
+
+                next_sl_price = avg_entry if CONFIG.get("move_sl_to_breakeven_after_tp1", False) else sl_price
+                tp2_oid = await _place_tp_with_fallback(exchange, coin, exit_is_buy, remaining_size, tp2_price)
+                if tp2_oid is not None:
+                    managed_oids.add(tp2_oid)
+                sl_oid, _ = await _place_trigger_sl(exchange, coin, exit_is_buy, remaining_size, next_sl_price)
+                if sl_oid is not None:
+                    managed_oids.add(sl_oid)
+                if tp2_oid is None or sl_oid is None:
+                    logger.error("%s: could not place TP2/SL pair; closing remaining position", coin)
+                    await _cancel_if_open(exchange, info, address, coin, tp2_oid)
+                    await _cancel_if_open(exchange, info, address, coin, sl_oid)
+                    await _market_close_remaining(exchange, info, address, coin, managed_oids)
+                    await _wait_for_position_flat(info, address, coin)
+                    exit_reason = "protective_order_failed"
+                    break
+                logger.info(
+                    "%s: TP2 %.4f size %.8f | SL %.4f",
+                    coin,
+                    tp2_price,
+                    remaining_size,
+                    next_sl_price,
+                )
+                stage = "tp2"
+
+        elif stage == "tp2":
+            tp2_summary = _summarize_fills(
+                await _call(_fills_by_oid, info, address, start_ms, coin, tp2_oid),
+                tp2_oid,
+            )
+            sl_summary = _summarize_fills(
+                await _call(_fills_by_oid, info, address, start_ms, coin, sl_oid),
+                sl_oid,
+            )
+            if tp2_summary.size > 0 and abs_pos <= POSITION_EPSILON:
+                exit_reason = "TP2"
+                await _cancel_if_open(exchange, info, address, coin, sl_oid)
+                break
+            if sl_summary.size > 0 and abs_pos <= POSITION_EPSILON:
+                exit_reason = "SL"
+                await _cancel_if_open(exchange, info, address, coin, tp2_oid)
+                break
+
+        await asyncio.sleep(ORDER_POLL_SECONDS)
+
+    for oid in (tp1_oid, tp2_oid, sl_oid):
+        await _cancel_if_open(exchange, info, address, coin, oid)
+
+    net_pnl = await _final_net_pnl(info, address, coin, start_ms, managed_oids)
+    logger.info("%s: trade closed reason=%s net_pnl=%.6f", coin, exit_reason, net_pnl)
+    return TradeResult(
+        coin,
+        direction,
+        exit_reason,
+        net_pnl,
+        filled_size,
+        avg_entry,
+        signal_ts.to_pydatetime(),
+        datetime.now(timezone.utc),
+    )
+
+
+async def _scan_coin(
+    exchange: Exchange,
+    info: Info,
+    address: str,
+    coin: str,
+    risk: RiskState,
+    last_signal_ts: dict[str, pd.Timestamp],
+    last_guard_log: dict[str, datetime],
+) -> None:
+    # Acquire per-coin lock to prevent concurrent trade execution.
+    # This is the PRIMARY fix for the position stacking bug.
+    if coin not in _coin_locks:
+        _coin_locks[coin] = asyncio.Lock()
+
+    if _coin_locks[coin].locked():
+        # Another coroutine is already executing a trade for this coin
+        return
+
+    async with _coin_locks[coin]:
+        now_utc = datetime.now(timezone.utc)
+        can_trade, reason = risk.can_trade(coin, now_utc)
+        if not can_trade:
+            logger.info("%s: risk block: %s", coin, reason)
+            return
+
+        pos_size, pos_entry = await _call(_position_for_coin, info, address, coin)
+        open_orders = await _call(_open_orders_for_coin, info, address, coin)
+
+        # Cleanup stale entry orders: If no position exists but orders exist, they are stale entries.
+        if abs(pos_size) <= POSITION_EPSILON and len(open_orders) > 0:
+            logger.info("%s: found %d stale open orders with no open position, cancelling them...", coin, len(open_orders))
+            for order in open_orders:
+                oid = order.get("oid")
+                if oid:
+                    await _call(exchange.cancel, coin, int(oid))
+            # Refresh open orders after cancellation
+            open_orders = await _call(_open_orders_for_coin, info, address, coin)
+
+        if abs(pos_size) > POSITION_EPSILON or open_orders:
+            last_log = last_guard_log.get(coin)
+            if not last_log or (now_utc - last_log).total_seconds() >= 60:
+                logger.warning(
+                    "%s: existing exposure detected, skipping new setup. position=%.8f entry=%s open_orders=%d",
+                    coin,
+                    pos_size,
+                    pos_entry,
+                    len(open_orders),
+                )
+                last_guard_log[coin] = now_utc
+            return
+
+        latest = await _call(_latest_setup, info, coin)
+        if latest is None:
+            return
+        setup, current_price, signal_ts = latest
+
+        if last_signal_ts.get(coin) == signal_ts:
+            return
+        last_signal_ts[coin] = signal_ts
+
+        if setup["hard_block"] or setup["direction"] is None:
+            reason_text = setup["block_reasons"][0] if setup["block_reasons"] else "no direction"
+            logger.info("%s %s: block: %s (price %.4f)", coin, signal_ts, reason_text, current_price)
+            return
+
+        score = setup["score"]
+        direction = setup["direction"]
+
+        # LIVE GUARD: Order Book Imbalance Check
+        min_obi = 0.15 # Minimum required imbalance
+        obi = await _call(_get_orderbook_imbalance, info, coin)
+        setup["obi"] = obi # Save for logging
+
+        if direction == "long" and obi < min_obi:
+            logger.info(
+                "%s %s: setup LONG (score %d) blocked by Orderbook Imbalance: %.2f (Sellers dominating)",
+                coin, signal_ts, score, obi
+            )
+            return
+        elif direction == "short" and obi > -min_obi:
+            logger.info(
+                "%s %s: setup SHORT (score %d) blocked by Orderbook Imbalance: %.2f (Buyers dominating)",
+                coin, signal_ts, score, obi
+            )
+            return
+        logger.info(
+            "%s %s: setup %s score=%s price=%.4f obi=%.2f",
+            coin,
+            signal_ts,
+            direction.upper(),
+            score,
+            current_price,
+            obi,
+        )
+        if score < CONFIG["min_score_half"]:
+            return
+
+        margin = CONFIG["margin_full"] if score >= CONFIG["min_score_full"] else CONFIG["margin_half"]
+        result = await _execute_setup(
+            exchange,
+            info,
+            address,
+            coin,
+            setup["direction"],
+            current_price,
+            signal_ts,
+            margin,
+        )
+        if result is not None:
+            risk.record_trade(result)
+
 
 async def run_bot_async():
-    """Async loop for running the bot inside a FastAPI background task"""
     logger.info("=" * 60)
-    logger.info(" STARTING LIVE BOT ON HYPERLIQUID TESTNET")
+    logger.info("STARTING BACKTEST-MIRRORED EXECUTOR ON HYPERLIQUID TESTNET")
     logger.info("=" * 60)
-    
+    logger.info(
+        "Profile=%s entry=%s TP1=%.3f%% TP2=%.3f%% SL=%.3f%% time_stop=%sm",
+        CONFIG["profile_name"],
+        CONFIG["entry_order_type"],
+        CONFIG["tp1_pct"],
+        CONFIG["tp2_pct"],
+        CONFIG["sl_pct"],
+        CONFIG["time_stop_minutes"],
+    )
+
     if not PRIVATE_KEY:
-        logger.error("❌ ERROR: No Private Key found. Set HL_PRIVATE_KEY environment variable.")
-        return
-        
-    try:
-        account: LocalAccount = eth_account.Account.from_key(PRIVATE_KEY)
-        logger.info(f"✅ Wallet loaded: {account.address}")
-    except Exception as e:
-        logger.error(f"❌ Private Key parse error: {e}")
+        logger.error("ERROR: No private key found. Set HL_PRIVATE_KEY.")
         return
 
+    try:
+        account: LocalAccount = eth_account.Account.from_key(PRIVATE_KEY)
+    except Exception as exc:
+        logger.error("Private key parse error: %s", exc)
+        return
+
+    main_address = os.environ.get("HL_MAIN_ADDRESS", "").strip()
+    address = main_address if main_address else account.address
+
     info = Info(API_URL, skip_ws=True)
-    MAIN_ADDRESS = os.environ.get("HL_MAIN_ADDRESS", "").strip()
-    exchange = Exchange(account, API_URL, account_address=MAIN_ADDRESS if MAIN_ADDRESS else None)
-    
-    coin = "BTC"
-    
-    logger.info(f"Waiting for data and monitoring {coin}...")
-    
+    exchange = Exchange(account, API_URL, account_address=main_address if main_address else None)
+
+    coins = configured_live_coins()
+    logger.info("Wallet=%s monitoring=%s", address, ",".join(coins))
+    logger.info("Set HL_LIVE_COINS=BTC,ETH if you want to scan multiple coins.")
+
+    risk = RiskState()
+    last_signal_ts: dict[str, pd.Timestamp] = {}
+    last_guard_log: dict[str, datetime] = {}
+
     while True:
         try:
-            now = datetime.now(timezone.utc)
-            if now.second < 5:
-                logger.info("Fetching real-time data...")
-                
-                # Run sync functions in executor to prevent blocking the async loop
-                df15 = await asyncio.to_thread(fetch_hyperliquid_candles, info, coin, "15m", 250)
-                df5 = await asyncio.to_thread(fetch_hyperliquid_candles, info, coin, "5m", 100)
-                df1 = await asyncio.to_thread(fetch_hyperliquid_candles, info, coin, "1m", 50)
-                
-                if df15.empty or df5.empty or df1.empty:
-                    logger.warning("Empty candle data, retrying later.")
-                    await asyncio.sleep(10)
-                    continue
-                    
-                i15 = len(df15) - 1
-                i5 = len(df5) - 1
-                i1 = len(df1) - 1
-                
-                setup = score_setup(i15, df15, i5, df5, i1, df1, hour_utc=now.hour)
-                current_price = df1.iloc[-1]["close"]
-                
-                if setup["hard_block"]:
-                    logger.info(f"  Block: {setup['block_reasons'][0]} (Price: {current_price})")
-                else:
-                    score = setup["score"]
-                    logger.info(f"  ✅ {setup['direction'].upper()} Setup scored {score} points! (Price: {current_price})")
-                    
-                    if score >= CONFIG["min_score_half"]:
-                        margin = CONFIG["margin_full"] if score >= CONFIG["min_score_full"] else CONFIG["margin_half"]
-                        await asyncio.to_thread(place_orders, exchange, coin, setup["direction"], current_price, margin)
-                        
-                        logger.info("Order placed. Cooldown for 5 minutes...")
-                        await asyncio.sleep(300)
-                
-                await asyncio.sleep(55)
-            else:
-                await asyncio.sleep(1)
-                
-        except Exception as e:
-            logger.error(f"Main loop error: {e}")
+            for coin in coins:
+                await _scan_coin(exchange, info, address, coin, risk, last_signal_ts, last_guard_log)
+            await asyncio.sleep(SIGNAL_POLL_SECONDS)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.error("Main loop error: %s", exc)
             await asyncio.sleep(5)
+
 
 if __name__ == "__main__":
     asyncio.run(run_bot_async())

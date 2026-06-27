@@ -9,3 +9,4 @@ fastapi
 uvicorn
 websockets
 eth-account
+psycopg[binary]>=3.1.0

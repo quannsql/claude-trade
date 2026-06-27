@@ -3,49 +3,138 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hyperliquid Bot Dashboard</title>
+    <title>Backtest Dashboard</title>
+    <link rel="icon" href="data:,">
     <link rel="stylesheet" href="/static/style.css">
-    <!-- Google Fonts for Tech Style -->
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;600&display=swap" rel="stylesheet">
-    <!-- Lightweight Charts for PnL/Equity Chart -->
-    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/google-sans">
+    <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
-    <div class="dashboard">
-        <header class="header">
-            <div class="logo">HL-BOT <span class="badge">LIVE</span></div>
-            <div class="wallet-info">
-                Address: <span id="wallet-address" class="highlight">Loading...</span>
+    <main class="page-shell">
+        <header class="topbar">
+            <div class="title-group">
+                <div class="eyebrow">Hyperliquid monitor</div>
+                <h1>Trading Performance Dashboard</h1>
+            </div>
+            <div class="topbar-actions">
+                <div class="status-pill">
+                    <span class="status-dot"></span>
+                    <span id="live-status">Live feed</span>
+                </div>
+                <button class="icon-button" id="refresh-button" type="button" title="Refresh dashboard">Refresh</button>
             </div>
         </header>
 
-        <div class="grid-container">
-            <!-- Balance Panel -->
-            <div class="panel balance-panel">
-                <div class="panel-header">ACCOUNT BALANCE</div>
-                <div class="panel-content balance-content">
-                    <div class="stat-box">
-                        <div class="stat-label">Total Value (USD)</div>
-                        <div class="stat-value" id="val-total">0.00</div>
+        <section class="control-strip" id="overview">
+            <label class="select-field" for="symbol-select">
+                <span>Symbol</span>
+                <select id="symbol-select"></select>
+            </label>
+            <div class="control-stat">
+                <span>Wallet</span>
+                <strong id="wallet-address">Not configured</strong>
+            </div>
+            <div class="control-stat">
+                <span>Storage</span>
+                <strong id="storage-status">Checking...</strong>
+            </div>
+            <div class="control-stat">
+                <span>Chart source</span>
+                <strong id="chart-source">Waiting for data</strong>
+            </div>
+            <div class="control-stat">
+                <span>Last update</span>
+                <strong id="last-update">--</strong>
+            </div>
+        </section>
+
+        <section class="kpi-grid" aria-label="Key metrics">
+            <article class="metric-card">
+                <span>Account Value</span>
+                <strong id="val-total">$0.00</strong>
+                <small>Live Hyperliquid</small>
+            </article>
+            <article class="metric-card">
+                <span>Available Margin</span>
+                <strong id="val-margin">$0.00</strong>
+                <small>Balance less margin</small>
+            </article>
+            <article class="metric-card accent">
+                <span>Net PnL</span>
+                <strong id="metric-pnl">$0.00</strong>
+                <small id="metric-final-equity">Final equity $100.00</small>
+            </article>
+            <article class="metric-card">
+                <span>Win Rate</span>
+                <strong id="metric-win-rate">0.00%</strong>
+                <small id="metric-trades">0 trades</small>
+            </article>
+            <article class="metric-card">
+                <span>Max Drawdown</span>
+                <strong id="metric-drawdown">0.00%</strong>
+                <small>Worst pullback</small>
+            </article>
+            <article class="metric-card">
+                <span>Profit Factor</span>
+                <strong id="metric-profit-factor">--</strong>
+                <small id="metric-expectancy">Expectancy $0.0000</small>
+            </article>
+        </section>
+
+        <section class="chart-grid" aria-label="Performance charts">
+            <article class="panel chart-panel">
+                <div class="panel-header">
+                    <div>
+                        <span>Performance</span>
+                        <strong>Equity Curve</strong>
                     </div>
-                    <div class="stat-box">
-                        <div class="stat-label">Available Margin</div>
-                        <div class="stat-value highlight" id="val-margin">0.00</div>
+                    <div class="panel-note" id="equity-note">CSV backtest</div>
+                </div>
+                <div class="chart-frame" id="equity-chart"></div>
+            </article>
+
+            <article class="panel chart-panel">
+                <div class="panel-header">
+                    <div>
+                        <span>Risk</span>
+                        <strong>Drawdown</strong>
                     </div>
                 </div>
-            </div>
+                <div class="chart-frame" id="drawdown-chart"></div>
+            </article>
 
-            <!-- PnL Chart Panel -->
-            <div class="panel chart-panel">
-                <div class="panel-header">EQUITY CURVE (MOCK)</div>
-                <div class="panel-content" id="chart-container"></div>
-            </div>
+            <article class="panel chart-panel">
+                <div class="panel-header">
+                    <div>
+                        <span>Distribution</span>
+                        <strong>PnL per Trade</strong>
+                    </div>
+                </div>
+                <div class="chart-frame" id="pnl-chart"></div>
+            </article>
 
-            <!-- Active Orders Panel -->
-            <div class="panel orders-panel">
-                <div class="panel-header">ACTIVE ORDERS</div>
-                <div class="panel-content panel-scroll">
-                    <table class="tech-table">
+            <article class="panel chart-panel" id="terminal-panel">
+                <div class="panel-header">
+                    <div>
+                        <span>Runtime</span>
+                        <strong>Live Terminal</strong>
+                    </div>
+                    <span class="terminal-led"></span>
+                </div>
+                <div class="terminal-content" id="terminal"></div>
+            </article>
+        </section>
+
+        <section class="data-grid" aria-label="Trading data">
+            <article class="panel">
+                <div class="panel-header">
+                    <div>
+                        <span>Orders</span>
+                        <strong>Active Orders</strong>
+                    </div>
+                </div>
+                <div class="table-wrap small-table">
+                    <table class="data-table">
                         <thead>
                             <tr>
                                 <th>Coin</th>
@@ -54,44 +143,71 @@
                                 <th>Size</th>
                             </tr>
                         </thead>
-                        <tbody id="orders-tbody">
-                            <!-- Populated by JS -->
-                        </tbody>
+                        <tbody id="orders-tbody"></tbody>
                     </table>
                 </div>
-            </div>
+            </article>
 
-            <!-- Order History Panel -->
-            <div class="panel history-panel">
-                <div class="panel-header">ORDER HISTORY (FILLS)</div>
-                <div class="panel-content panel-scroll">
-                    <table class="tech-table">
+            <article class="panel">
+                <div class="panel-header">
+                    <div>
+                        <span>Exits</span>
+                        <strong>Reason Mix</strong>
+                    </div>
+                </div>
+                <div class="reason-list" id="exit-reasons"></div>
+            </article>
+
+            <article class="panel">
+                <div class="panel-header">
+                    <div>
+                        <span>Live</span>
+                        <strong>Recent Fills</strong>
+                    </div>
+                </div>
+                <div class="table-wrap small-table">
+                    <table class="data-table">
                         <thead>
                             <tr>
                                 <th>Time</th>
                                 <th>Coin</th>
                                 <th>Action</th>
                                 <th>Price</th>
-                                <th>Size</th>
-                                <th>PnL (USDC)</th>
+                                <th>PnL</th>
                             </tr>
                         </thead>
-                        <tbody id="history-tbody">
-                            <!-- Populated by JS -->
-                        </tbody>
+                        <tbody id="history-tbody"></tbody>
                     </table>
                 </div>
-            </div>
+            </article>
 
-            <!-- Live Terminal Panel -->
-            <div class="panel terminal-panel">
-                <div class="panel-header">LIVE TERMINAL <div class="pulse"></div></div>
-                <div class="panel-content terminal-content" id="terminal">
-                    <!-- Populated by WebSockets -->
+            <article class="panel trades-panel" id="trades">
+                <div class="panel-header">
+                    <div>
+                        <span>Backtest</span>
+                        <strong>Recent Simulated Trades</strong>
+                    </div>
                 </div>
-            </div>
-        </div>
-    </div>
+                <div class="table-wrap tall">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Side</th>
+                                <th>Exit</th>
+                                <th>Score</th>
+                                <th>Entry</th>
+                                <th>Close</th>
+                                <th>PnL</th>
+                                <th>Equity</th>
+                            </tr>
+                        </thead>
+                        <tbody id="backtest-tbody"></tbody>
+                    </table>
+                </div>
+            </article>
+        </section>
+    </main>
 
     <script src="/static/main.js"></script>
 </body>

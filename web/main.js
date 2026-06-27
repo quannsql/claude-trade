@@ -1,172 +1,500 @@
-// Terminal WebSocket
-const terminal = document.getElementById('terminal');
-const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/logs`);
-
-ws.onmessage = function(event) {
-    const msg = event.data;
-    const div = document.createElement('div');
-    
-    // Parse the log string if it matches our formatter
-    // Format: "HH:MM:SS - message"
-    const match = msg.match(/^(\d{2}:\d{2}:\d{2})\s-\s(.*)/);
-    if (match) {
-        div.innerHTML = `<span class="time">[${match[1]}]</span> <span class="msg">${match[2]}</span>`;
-        if (match[2].includes('❌')) {
-            div.style.color = '#ff3366';
-        } else if (match[2].includes('✅') || match[2].includes('🚀')) {
-            div.style.color = '#00ff66';
-        }
-    } else {
-        div.textContent = msg;
-    }
-
-    terminal.appendChild(div);
-    // Auto scroll to bottom
-    if (terminal.childElementCount > 100) {
-        terminal.removeChild(terminal.firstChild);
-    }
-    terminal.scrollTop = terminal.scrollHeight;
+const state = {
+    currentSymbol: null,
+    chartCleanups: [],
 };
 
-// Fetch API State
+const palette = {
+    ink: '#171a20',
+    muted: '#737b89',
+    line: '#e4e7ec',
+    cyan: '#0891b2',
+    cyanSoft: 'rgba(8, 145, 178, 0.18)',
+    green: '#15803d',
+    greenSoft: 'rgba(21, 128, 61, 0.16)',
+    red: '#dc2626',
+    redSoft: 'rgba(220, 38, 38, 0.16)',
+};
+
+const $ = (id) => document.getElementById(id);
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+}
+
+function numberValue(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatCurrency(value, digits = 2) {
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits,
+    }).format(numberValue(value));
+}
+
+function formatNumber(value, digits = 2) {
+    return new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits,
+    }).format(numberValue(value));
+}
+
+function formatPercent(value) {
+    return `${formatNumber(value, 2)}%`;
+}
+
+function formatAddress(address) {
+    if (!address) return 'Not configured';
+    if (address.length <= 14) return address;
+    return `${address.slice(0, 6)}...${address.slice(-6)}`;
+}
+
+function formatDateTime(value) {
+    if (!value) return '--';
+    const date = typeof value === 'number' ? new Date(value) : new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}
+
+function setText(id, value) {
+    const element = $(id);
+    if (element) element.textContent = value;
+}
+
+function setSignedClass(element, value) {
+    if (!element) return;
+    element.classList.toggle('positive-text', value > 0);
+    element.classList.toggle('negative-text', value < 0);
+}
+
+function tableEmpty(tbody, colspan, message) {
+    tbody.innerHTML = `<tr class="muted-row"><td colspan="${colspan}">${escapeHtml(message)}</td></tr>`;
+}
+
+function fetchJson(url) {
+    return fetch(url, { cache: 'no-store' }).then((response) => {
+        if (!response.ok) {
+            throw new Error(`Request failed: ${response.status}`);
+        }
+        return response.json();
+    });
+}
+
+function renderStorage(storage) {
+    const backend = storage?.backend || storage?.storage || 'sqlite';
+    const ready = storage?.ready ?? storage?.storage_ready;
+    const text = ready === false ? `${backend} unavailable` : `${backend} ready`;
+    setText('storage-status', text);
+}
+
+function renderOrders(orders) {
+    const tbody = $('orders-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!orders || orders.length === 0) {
+        tableEmpty(tbody, 4, 'No active orders');
+        return;
+    }
+
+    tbody.innerHTML = orders.map((order) => {
+        const isBuy = order.side === 'B' || String(order.side).toLowerCase().includes('buy');
+        const sideText = isBuy ? 'LONG' : 'SHORT';
+        const sideClass = isBuy ? 'side-buy' : 'side-sell';
+        return `
+            <tr>
+                <td>${escapeHtml(order.coin)}</td>
+                <td class="${sideClass}">${sideText}</td>
+                <td>${escapeHtml(order.limitPx ?? order.px ?? '--')}</td>
+                <td>${escapeHtml(order.sz ?? '--')}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderFills(fills) {
+    const tbody = $('history-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!fills || fills.length === 0) {
+        tableEmpty(tbody, 5, 'No live fills yet');
+        return;
+    }
+
+    tbody.innerHTML = fills.slice(0, 50).map((fill) => {
+        const pnl = numberValue(fill.closedPnl);
+        const pnlClass = pnl > 0 ? 'buy-text' : pnl < 0 ? 'sell-text' : '';
+        const action = fill.dir || fill.side || '--';
+        const actionClass = String(action).toLowerCase().includes('long') ? 'buy-text' : 'sell-text';
+        return `
+            <tr>
+                <td>${formatDateTime(fill.time)}</td>
+                <td>${escapeHtml(fill.coin ?? '--')}</td>
+                <td class="${actionClass}">${escapeHtml(action)}</td>
+                <td>${escapeHtml(fill.px ?? '--')}</td>
+                <td class="${pnlClass}">${pnl > 0 ? '+' : ''}${formatNumber(pnl, 4)}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
 async function updateState() {
     try {
-        const res = await fetch('/api/state');
-        const data = await res.json();
-        
+        const data = await fetchJson('/api/state');
+
         if (data.error) {
-            console.error(data.error);
+            setText('live-status', data.error);
+            if (data.storage) renderStorage(data.storage);
+            renderOrders([]);
+            renderFills([]);
             return;
         }
 
-        document.getElementById('wallet-address').textContent = 
-            data.address.substring(0, 6) + '...' + data.address.substring(38);
+        setText('live-status', 'Live feed');
+        setText('wallet-address', formatAddress(data.address));
 
-        // Update Balance
         const marginInfo = data.margin_summary || {};
-        const totalVal = parseFloat(marginInfo.accountValue || 0).toFixed(2);
-        const marginVal = parseFloat(marginInfo.totalMarginUsed || 0).toFixed(2);
-        const avail = (parseFloat(totalVal) - parseFloat(marginVal)).toFixed(2);
-        
-        document.getElementById('val-total').textContent = `$${totalVal}`;
-        document.getElementById('val-margin').textContent = `$${avail}`;
+        const totalValue = numberValue(marginInfo.accountValue);
+        const marginUsed = numberValue(marginInfo.totalMarginUsed);
+        const withdrawable = numberValue(marginInfo.withdrawable);
+        const available = withdrawable || Math.max(totalValue - marginUsed, 0);
 
-        // Update Orders
-        const tbody = document.getElementById('orders-tbody');
-        tbody.innerHTML = '';
-        
-        const orders = data.open_orders || [];
-        if (orders.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: #8b8b9a">No active orders</td></tr>';
-        } else {
-            orders.forEach(o => {
-                const isBuy = o.side === 'B';
-                const sideClass = isBuy ? 'buy-text' : 'sell-text';
-                const sideText = isBuy ? 'LONG' : 'SHORT';
-                
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${o.coin}</td>
-                        <td class="${sideClass}">${sideText}</td>
-                        <td>${o.limitPx}</td>
-                        <td>${o.sz}</td>
-                    </tr>
-                `;
-            });
-        }
-
-        // Update Order History (Fills)
-        const historyTbody = document.getElementById('history-tbody');
-        historyTbody.innerHTML = '';
-        
-        const fills = data.fills || [];
-        if (fills.length === 0) {
-            historyTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: #8b8b9a">No order history found</td></tr>';
-        } else {
-            fills.forEach(f => {
-                const dateObj = new Date(f.time);
-                const timeStr = dateObj.toLocaleTimeString('en-GB') + ' ' + dateObj.toLocaleDateString('en-GB', {day: '2-digit', month: '2-digit'});
-                
-                const pnl = parseFloat(f.closedPnl || 0);
-                let pnlClass = '';
-                let pnlText = pnl.toFixed(4);
-                if (pnl > 0) {
-                    pnlClass = 'buy-text';
-                    pnlText = '+' + pnlText;
-                } else if (pnl < 0) {
-                    pnlClass = 'sell-text';
-                }
-
-                const actionClass = f.dir.includes('Long') ? 'buy-text' : 'sell-text';
-
-                historyTbody.innerHTML += `
-                    <tr>
-                        <td>${timeStr}</td>
-                        <td>${f.coin}</td>
-                        <td class="${actionClass}">${f.dir}</td>
-                        <td>${f.px}</td>
-                        <td>${f.sz}</td>
-                        <td class="${pnlClass}">${pnlText}</td>
-                    </tr>
-                `;
-            });
-        }
-    } catch (err) {
-        console.error("Failed to fetch state:", err);
+        setText('val-total', formatCurrency(totalValue));
+        setText('val-margin', formatCurrency(available));
+        renderOrders(data.open_orders || []);
+        renderFills(data.fills || []);
+        renderStorage(data.storage);
+    } catch (error) {
+        setText('live-status', 'API offline');
+        console.error('Failed to fetch state:', error);
     }
 }
 
-// Periodic updates (moved to top to prevent chart errors blocking it)
-setInterval(updateState, 5000);
-updateState();
-
-try {
-    // Lightweight Charts Mock Initialization
-    const chartProperties = {
+function chartOptions(container) {
+    return {
+        width: Math.max(container.clientWidth, 320),
+        height: Math.max(container.clientHeight, 220),
         layout: {
-            background: { type: 'solid', color: '#111115' },
-            textColor: '#8b8b9a',
+            background: { type: 'solid', color: 'transparent' },
+            textColor: palette.muted,
+            fontFamily: '"Google Sans", Arial, sans-serif',
+            fontSize: 12,
         },
         grid: {
-            vertLines: { color: '#22222a' },
-            horzLines: { color: '#22222a' },
+            vertLines: { color: 'rgba(115, 123, 137, 0.12)' },
+            horzLines: { color: 'rgba(115, 123, 137, 0.12)' },
         },
         rightPriceScale: {
-            borderVisible: false,
+            borderColor: palette.line,
         },
         timeScale: {
-            borderVisible: false,
+            borderColor: palette.line,
             timeVisible: true,
             secondsVisible: false,
         },
+        crosshair: {
+            mode: LightweightCharts.CrosshairMode.Normal,
+        },
     };
+}
 
-    const chartContainer = document.getElementById('chart-container');
-    const chart = LightweightCharts.createChart(chartContainer, chartProperties);
-    const areaSeries = chart.addAreaSeries({
-        lineColor: '#00f0ff',
-        topColor: 'rgba(0, 240, 255, 0.4)',
-        bottomColor: 'rgba(0, 240, 255, 0.0)',
-        lineWidth: 2,
+function clearCharts() {
+    state.chartCleanups.forEach((cleanup) => cleanup());
+    state.chartCleanups = [];
+}
+
+function makeChart(containerId) {
+    const container = $(containerId);
+    if (!container || !window.LightweightCharts) return null;
+    container.innerHTML = '';
+
+    const chart = LightweightCharts.createChart(container, chartOptions(container));
+    const resizeObserver = new ResizeObserver((entries) => {
+        if (!entries.length) return;
+        const rect = entries[0].contentRect;
+        chart.applyOptions({
+            width: Math.max(Math.floor(rect.width), 320),
+            height: Math.max(Math.floor(rect.height), 220),
+        });
+    });
+    resizeObserver.observe(container);
+
+    state.chartCleanups.push(() => {
+        resizeObserver.disconnect();
+        chart.remove();
     });
 
-    // Mock Data for Equity Curve
-    let mockEquity = 100;
-    let currentTime = Math.floor(Date.now() / 1000) - 3600; // 1 hour ago
-    const data = [];
-    for(let i=0; i<60; i++) {
-        mockEquity += (Math.random() - 0.45) * 2; // slightly upward bias
-        data.push({ time: currentTime + i * 60, value: mockEquity });
-    }
-    areaSeries.setData(data);
-
-    // Handle window resize
-    new ResizeObserver(entries => {
-        if (entries.length === 0 || entries[0].target !== chartContainer) { return; }
-        const newRect = entries[0].contentRect;
-        chart.applyOptions({ height: newRect.height, width: newRect.width });
-    }).observe(chartContainer);
-} catch (e) {
-    console.error("Chart rendering error:", e);
+    return chart;
 }
+
+function renderCharts(series) {
+    clearCharts();
+
+    if (!window.LightweightCharts) {
+        ['equity-chart', 'drawdown-chart', 'pnl-chart'].forEach((id) => {
+            const container = $(id);
+            if (container) {
+                container.innerHTML = '<div class="empty-state">Chart library unavailable.</div>';
+            }
+        });
+        return;
+    }
+
+    const equityChart = makeChart('equity-chart');
+    if (equityChart) {
+        const equitySeries = equityChart.addAreaSeries({
+            lineColor: palette.cyan,
+            topColor: palette.cyanSoft,
+            bottomColor: 'rgba(8, 145, 178, 0.01)',
+            lineWidth: 2,
+            priceFormat: { type: 'price', precision: 4, minMove: 0.0001 },
+        });
+        equitySeries.setData(series.equity || []);
+        equityChart.timeScale().fitContent();
+    }
+
+    const drawdownChart = makeChart('drawdown-chart');
+    if (drawdownChart) {
+        const drawdownSeries = drawdownChart.addAreaSeries({
+            lineColor: palette.red,
+            topColor: 'rgba(220, 38, 38, 0.02)',
+            bottomColor: palette.redSoft,
+            lineWidth: 2,
+            priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
+        });
+        drawdownSeries.setData(series.drawdown || []);
+        drawdownChart.timeScale().fitContent();
+    }
+
+    const pnlChart = makeChart('pnl-chart');
+    if (pnlChart) {
+        const pnlSeries = pnlChart.addHistogramSeries({
+            priceFormat: { type: 'price', precision: 4, minMove: 0.0001 },
+        });
+        pnlSeries.setData(series.pnl || []);
+        pnlChart.timeScale().fitContent();
+    }
+}
+
+function renderSymbolOptions(symbols, selected) {
+    const select = $('symbol-select');
+    if (!select) return;
+
+    if (!symbols || symbols.length === 0) {
+        select.innerHTML = '<option>No results</option>';
+        select.disabled = true;
+        return;
+    }
+
+    select.disabled = false;
+    select.innerHTML = symbols.map((symbol) => (
+        `<option value="${escapeHtml(symbol)}"${symbol === selected ? ' selected' : ''}>${escapeHtml(symbol)}</option>`
+    )).join('');
+}
+
+function renderMetrics(metrics) {
+    const pnl = numberValue(metrics.net_pnl_usd);
+    const pnlElement = $('metric-pnl');
+    const pnlCard = pnlElement?.closest('.metric-card');
+    setText('metric-pnl', formatCurrency(pnl, 4));
+    setSignedClass(pnlElement, pnl);
+    pnlCard?.classList.toggle('positive', pnl > 0);
+    pnlCard?.classList.toggle('negative', pnl < 0);
+
+    setText('metric-final-equity', `Final equity ${formatCurrency(metrics.final_equity_usd, 4)}`);
+    setText('metric-win-rate', formatPercent(metrics.win_rate_pct));
+    setText('metric-trades', `${metrics.total_trades || 0} trades`);
+    setText('metric-drawdown', formatPercent(metrics.max_drawdown_pct));
+    setText('metric-profit-factor', metrics.profit_factor === null ? '--' : formatNumber(metrics.profit_factor, 2));
+    setText('metric-expectancy', `Expectancy ${formatCurrency(metrics.expectancy_usd, 4)}`);
+}
+
+function renderExitReasons(counts) {
+    const container = $('exit-reasons');
+    if (!container) return;
+
+    const entries = Object.entries(counts || {});
+    const total = entries.reduce((sum, [, count]) => sum + Number(count), 0);
+    if (!entries.length || total === 0) {
+        container.innerHTML = '<div class="empty-state">No exit reason data yet.</div>';
+        return;
+    }
+
+    container.innerHTML = entries.map(([reason, count]) => {
+        const percent = (Number(count) / total) * 100;
+        return `
+            <div class="reason-row">
+                <header>
+                    <span>${escapeHtml(reason)}</span>
+                    <span>${count} / ${formatNumber(percent, 1)}%</span>
+                </header>
+                <div class="reason-track">
+                    <div class="reason-fill" style="width:${Math.max(percent, 3)}%"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderBacktestTable(trades) {
+    const tbody = $('backtest-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!trades || trades.length === 0) {
+        tableEmpty(tbody, 8, 'No backtest trades found');
+        return;
+    }
+
+    tbody.innerHTML = trades.map((trade) => {
+        const pnl = numberValue(trade.net_pnl);
+        const pnlClass = pnl > 0 ? 'buy-text' : pnl < 0 ? 'sell-text' : '';
+        const sideClass = String(trade.direction).toLowerCase() === 'long' ? 'buy-text' : 'sell-text';
+        return `
+            <tr>
+                <td>${trade.index}</td>
+                <td class="${sideClass}">${escapeHtml(trade.direction || '--')}</td>
+                <td>${escapeHtml(trade.exit_reason || '--')}</td>
+                <td>${escapeHtml(trade.score ?? '--')}</td>
+                <td>${formatNumber(trade.entry_price, 2)}</td>
+                <td>${formatNumber(trade.exit_price, 2)}</td>
+                <td class="${pnlClass}">${pnl > 0 ? '+' : ''}${formatCurrency(pnl, 4)}</td>
+                <td>${formatCurrency(trade.equity_after, 4)}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderReportImage(chartImage) {
+    const image = $('result-chart-image');
+    const empty = $('report-empty');
+    if (!image || !empty) return;
+
+    if (chartImage) {
+        image.src = `${chartImage}?v=${Date.now()}`;
+        image.style.display = 'block';
+        empty.style.display = 'none';
+        return;
+    }
+
+    image.removeAttribute('src');
+    image.style.display = 'none';
+    empty.style.display = 'block';
+}
+
+async function updateBacktest(symbol = state.currentSymbol) {
+    try {
+        const url = new URL('/api/backtest', window.location.origin);
+        if (symbol) url.searchParams.set('symbol', symbol);
+
+        const data = await fetchJson(url.toString());
+        state.currentSymbol = data.selected_symbol;
+
+        renderSymbolOptions(data.symbols, data.selected_symbol);
+        renderMetrics(data.metrics || {});
+        renderCharts(data.series || {});
+        renderExitReasons(data.exit_reason_counts || {});
+        renderBacktestTable(data.trades || []);
+        renderReportImage(data.chart_image);
+
+        setText('chart-source', data.selected_symbol ? `${data.selected_symbol}_trades.csv` : 'No result CSV');
+        setText('equity-note', 'CSV backtest');
+        setText('last-update', new Date().toLocaleTimeString('en-GB'));
+    } catch (error) {
+        console.error('Failed to fetch backtest:', error);
+        setText('chart-source', 'Backtest API offline');
+    }
+}
+
+function initTerminal() {
+    const terminal = $('terminal');
+    if (!terminal) return;
+
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/logs`);
+
+    ws.onopen = () => {
+        appendTerminal('Connected to log stream.', 'ok');
+        window.setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) ws.send('ping');
+        }, 30000);
+    };
+
+    ws.onmessage = (event) => appendTerminal(event.data);
+    ws.onerror = () => appendTerminal('Log stream error.', 'error');
+    ws.onclose = () => appendTerminal('Log stream disconnected.', 'error');
+}
+
+function appendTerminal(message, forcedClass = '') {
+    const terminal = $('terminal');
+    if (!terminal) return;
+
+    const div = document.createElement('div');
+    const match = String(message).match(/^(\d{2}:\d{2}:\d{2})\s-\s(.*)/);
+    const body = match ? match[2] : String(message);
+    const lowered = body.toLowerCase();
+    let className = forcedClass;
+
+    if (!className) {
+        if (/(error|failed|reject|exception|traceback|insufficient|invalid)/i.test(lowered)) {
+            className = 'error';
+        } else if (/(connected|filled|closed|saved|started|ready|placed)/i.test(lowered)) {
+            className = 'ok';
+        }
+    }
+
+    if (className) div.classList.add(className);
+
+    if (match) {
+        div.innerHTML = `<span class="time">[${escapeHtml(match[1])}]</span>${escapeHtml(body)}`;
+    } else {
+        div.textContent = body;
+    }
+
+    terminal.appendChild(div);
+    while (terminal.childElementCount > 140) {
+        terminal.removeChild(terminal.firstElementChild);
+    }
+    terminal.scrollTop = terminal.scrollHeight;
+}
+
+function bindEvents() {
+    const select = $('symbol-select');
+    if (select) {
+        select.addEventListener('change', (event) => {
+            state.currentSymbol = event.target.value;
+            updateBacktest(state.currentSymbol);
+        });
+    }
+
+    const refreshButton = $('refresh-button');
+    if (refreshButton) {
+        refreshButton.addEventListener('click', () => {
+            updateState();
+            updateBacktest(state.currentSymbol);
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    bindEvents();
+    initTerminal();
+    updateState();
+    updateBacktest();
+    window.setInterval(updateState, 5000);
+    window.setInterval(() => updateBacktest(state.currentSymbol), 30000);
+});
