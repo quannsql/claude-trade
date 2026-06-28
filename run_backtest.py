@@ -146,11 +146,11 @@ PROFILES = {
     # regime + momentum filters. Designed for higher win rate.
     "smart": {
         "symbols": ["BTCUSDT"],
-        "leverage": 10,
-        "margin_full": 10.0,
-        "margin_half": 5.0,
-        "min_score_half": 50,    # Just BB touch is enough for half size
-        "min_score_full": 60,    # BB touch + RSI confirm for full size
+        "leverage": 20,          # Tăng đòn bẩy lên 20x để tối ưu vốn Scalp
+        "margin_full": 50.0,     # Tăng ký quỹ lên 50$ (Volume lệnh sẽ là 1000$)
+        "margin_half": 25.0,     # Lệnh nhỏ ký quỹ 25$ (Volume 500$)
+        "min_score_half": 40,    # Hạ điểm để BẬT TÍNH NĂNG ĐÁNH NHANH NHIỀU LỆNH
+        "min_score_full": 50,    # Điểm lệnh lớn
 
         # Fixed TP/SL as fallback
         "tp1_pct": 0.35,
