@@ -31,7 +31,7 @@ from filters import compute_dynamic_levels
 # Change ACTIVE_PROFILE to select the config to run. Run both times (change
 # profile then run again) to compare actual results on the same data.
 
-ACTIVE_PROFILE = "smart"
+ACTIVE_PROFILE = "high_freq_scalp"
 
 BASE_CONFIG = {
     "symbols": ["BTCUSDT", "ETHUSDT"],
@@ -139,6 +139,39 @@ PROFILES = {
         # New filters (Module 6+7)
         "use_regime_filter": True,
         "use_momentum_filter": True,
+    },
+
+    # ---- High Frequency Scalping Profile ----
+    "high_freq_scalp": {
+        "symbols": ["BTCUSDT"],
+        "leverage": 20,
+        "margin_full": 100.0,
+        "margin_half": 50.0,
+        "min_score_half": 45,
+        "min_score_full": 55,
+
+        "tp1_pct": 0.20,
+        "tp2_pct": 0.40,
+        "sl_pct": 0.25,
+        "time_stop_minutes": 30,
+
+        "use_dynamic_tp_sl": False,
+
+        "entry_order_type": "limit",
+        "use_maker_for_entry": True,
+        "use_maker_for_tp": True,
+        "limit_offset_pct": 0.0,
+        "limit_timeout_bars": 2,
+        "slippage_pct": 0.0,
+
+        "allowed_hours_utc": list(range(0, 24)),
+        "max_trades_per_day": 100,
+        "daily_loss_limit_usd": 15.0,
+        "cooldown_minutes": 5,
+        "min_equity_usd": 50.0,
+
+        "use_regime_filter": False,
+        "use_momentum_filter": False,
     },
 
     # ---- SMART profile: higher quality, fewer but better trades ----
