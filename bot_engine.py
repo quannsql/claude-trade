@@ -209,7 +209,7 @@ def configured_live_coins() -> list[str]:
     raw = os.environ.get("HL_LIVE_COINS", "").strip()
     if raw:
         return [item.strip().upper() for item in raw.split(",") if item.strip()]
-    return [_symbol_to_coin(CONFIG["symbols"][0])]
+    return [_symbol_to_coin(s) for s in CONFIG.get("symbols", [])]
 
 
 def _to_float(value: Any, default: float = 0.0) -> float:

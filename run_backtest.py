@@ -143,7 +143,7 @@ PROFILES = {
 
     # ---- High Frequency Scalping Profile ----
     "high_freq_scalp": {
-        "symbols": ["BTCUSDT"],
+        "symbols": ["BTCUSDT", "ETHUSDT"],
         "leverage": 20,
         "margin_full": 100.0,
         "margin_half": 50.0,
