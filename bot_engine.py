@@ -412,27 +412,35 @@ async def _cancel_if_open(exchange: Exchange, info: Info, address: str, coin: st
 async def _place_limit(
     exchange: Exchange, coin: str, is_buy: bool, size: float, price: float, reduce_only: bool, tif: str,
 ) -> tuple[int | None, Any]:
-    response = await _call(
-        exchange.order, coin, is_buy, size, _round_price(price), {"limit": {"tif": tif}}, reduce_only,
-    )
-    errors = _response_errors(response)
-    if errors:
-        logger.warning("%s: limit order errors: %s", coin, "; ".join(errors))
-    return _extract_oid(response), response
+    try:
+        response = await _call(
+            exchange.order, coin, is_buy, size, _round_price(price), {"limit": {"tif": tif}}, reduce_only,
+        )
+        errors = _response_errors(response)
+        if errors:
+            logger.warning("%s: limit order errors: %s", coin, "; ".join(errors))
+        return _extract_oid(response), response
+    except Exception as exc:
+        logger.warning("%s: place limit order failed: %s", coin, exc)
+        return None, None
 
 
 async def _place_trigger_sl(
     exchange: Exchange, coin: str, is_buy: bool, size: float, trigger_price: float,
 ) -> tuple[int | None, Any]:
-    price = _round_price(trigger_price)
-    response = await _call(
-        exchange.order, coin, is_buy, size, price,
-        {"trigger": {"triggerPx": price, "isMarket": True, "tpsl": "sl"}}, True,
-    )
-    errors = _response_errors(response)
-    if errors:
-        logger.warning("%s: SL trigger errors: %s", coin, "; ".join(errors))
-    return _extract_oid(response), response
+    try:
+        price = _round_price(trigger_price)
+        response = await _call(
+            exchange.order, coin, is_buy, size, price,
+            {"trigger": {"triggerPx": price, "isMarket": True, "tpsl": "sl"}}, True,
+        )
+        errors = _response_errors(response)
+        if errors:
+            logger.warning("%s: SL trigger errors: %s", coin, "; ".join(errors))
+        return _extract_oid(response), response
+    except Exception as exc:
+        logger.warning("%s: place trigger SL failed: %s", coin, exc)
+        return None, None
 
 
 async def _place_tp_with_fallback(
@@ -502,19 +510,23 @@ async def _wait_entry_fill(
 async def _market_close_remaining(
     exchange: Exchange, info: Info, address: str, coin: str, managed_oids: set[int],
 ) -> int | None:
-    pos_size, _ = await _call(_position_for_coin, info, address, coin)
-    close_size = abs(pos_size)
-    if close_size <= POSITION_EPSILON:
+    try:
+        pos_size, _ = await _call(_position_for_coin, info, address, coin)
+        close_size = abs(pos_size)
+        if close_size <= POSITION_EPSILON:
+            return None
+        logger.info("%s: time-stop market close size=%.8f", coin, close_size)
+        response = await _call(exchange.market_close, coin, close_size, None, MARKET_CLOSE_SLIPPAGE)
+        oid = _extract_oid(response)
+        if oid is not None:
+            managed_oids.add(oid)
+        errors = _response_errors(response)
+        if errors:
+            logger.warning("%s: market close errors: %s", coin, "; ".join(errors))
+        return oid
+    except Exception as exc:
+        logger.error("%s: market close failed: %s", coin, exc)
         return None
-    logger.info("%s: time-stop market close size=%.8f", coin, close_size)
-    response = await _call(exchange.market_close, coin, close_size, None, MARKET_CLOSE_SLIPPAGE)
-    oid = _extract_oid(response)
-    if oid is not None:
-        managed_oids.add(oid)
-    errors = _response_errors(response)
-    if errors:
-        logger.warning("%s: market close errors: %s", coin, "; ".join(errors))
-    return oid
 
 
 async def _final_net_pnl(info: Info, address: str, coin: str, start_ms: int, managed_oids: set[int]) -> float:
@@ -680,103 +692,85 @@ async def _execute_setup(
     if sl_oid is not None:
         managed_oids.add(sl_oid)
 
-    if tp1_oid is None or sl_oid is None:
-        logger.error("%s: could not place TP1/SL pair; emergency close", coin)
-        await _cancel_if_open(exchange, info, address, coin, tp1_oid)
-        await _cancel_if_open(exchange, info, address, coin, sl_oid)
-        await _market_close_remaining(exchange, info, address, coin, managed_oids)
-        await _wait_for_position_flat(info, address, coin)
-        net_pnl = await _final_net_pnl(info, address, coin, start_ms, managed_oids)
-        _clear_active_entry(coin)
-        return TradeResult(
-            coin, direction, "protective_order_failed", net_pnl, filled_size, avg_entry,
-            signal_ts.to_pydatetime(), datetime.now(timezone.utc),
-        )
+    # Removed emergency close, active order monitoring will retry if they are None
 
     stage = "tp1"
     exit_reason = "unknown"
     tp2_oid: int | None = None
 
     while True:
-        now = datetime.now(timezone.utc)
-        pos_size, _ = await _call(_position_for_coin, info, address, coin)
-        abs_pos = abs(pos_size)
+        try:
+            now = datetime.now(timezone.utc)
+            pos_size, _ = await _call(_position_for_coin, info, address, coin)
+            abs_pos = abs(pos_size)
 
-        if now >= deadline:
-            exit_reason = "time_stop"
-            for oid in (tp1_oid, tp2_oid, sl_oid):
-                await _cancel_if_open(exchange, info, address, coin, oid)
-            await _market_close_remaining(exchange, info, address, coin, managed_oids)
-            await _wait_for_position_flat(info, address, coin)
-            break
-
-        if abs_pos <= POSITION_EPSILON:
-            exit_reason = "SL_or_external_flat" if stage != "tp2_done" else "TP2"
-            break
-
-        if stage == "tp1":
-            tp1_summary = _summarize_fills(
-                await _call(_fills_by_oid, info, address, start_ms, coin, tp1_oid), tp1_oid,
-            )
-            sl_summary = _summarize_fills(
-                await _call(_fills_by_oid, info, address, start_ms, coin, sl_oid), sl_oid,
-            )
-
-            if sl_summary.size > 0 and abs_pos <= POSITION_EPSILON:
-                exit_reason = "SL"
-                await _cancel_if_open(exchange, info, address, coin, tp1_oid)
+            if now >= deadline:
+                exit_reason = "time_stop"
+                for oid in (tp1_oid, tp2_oid, sl_oid):
+                    await _cancel_if_open(exchange, info, address, coin, oid)
+                await _market_close_remaining(exchange, info, address, coin, managed_oids)
+                await _wait_for_position_flat(info, address, coin)
                 break
 
-            if tp1_summary.size >= tp1_size * 0.999:
-                logger.info("%s: TP1 filled %.8f; placing TP2", coin, tp1_summary.size)
-                # Cancel SL cũ (cover toàn bộ size) và đặt lại đúng remaining size
-                await _cancel_if_open(exchange, info, address, coin, sl_oid)
-                pos_size, _ = await _call(_position_for_coin, info, address, coin)
-                remaining_size = _round_size(exchange, coin, abs(pos_size))
-                if remaining_size <= POSITION_EPSILON:
-                    exit_reason = "TP1_flat"
-                    break
+            if abs_pos <= POSITION_EPSILON:
+                exit_reason = "SL_or_external_flat" if stage != "tp2_done" else "TP2"
+                break
 
-                next_sl_price = avg_entry if CONFIG.get("move_sl_to_breakeven_after_tp1", False) else sl_price
-                tp2_oid = await _place_tp_with_fallback(exchange, coin, exit_is_buy, remaining_size, tp2_price)
-                if tp2_oid is not None:
-                    managed_oids.add(tp2_oid)
+            open_orders = await _call(_open_orders_for_coin, info, address, coin)
+            open_oids = {int(o["oid"]) for o in open_orders if "oid" in o}
 
-                # ── FIX #5: SL cho stage 2 phải đúng remaining_size ──
-                sl_oid, _ = await _place_trigger_sl(exchange, coin, exit_is_buy, remaining_size, next_sl_price)
-                if sl_oid is not None:
-                    managed_oids.add(sl_oid)
+            if stage == "tp1":
+                if tp1_oid is None or tp1_oid not in open_oids:
+                    tp1_summary = _summarize_fills(await _call(_fills_by_oid, info, address, start_ms, coin, tp1_oid), tp1_oid) if tp1_oid else FillSummary()
+                    if tp1_summary.size < tp1_size * 0.999 and abs_pos > (filled_size - tp1_size) * 1.001:
+                        logger.warning("%s: TP1 order missing, recreating...", coin)
+                        tp1_oid = await _place_tp_with_fallback(exchange, coin, exit_is_buy, tp1_size, tp1_price)
+                        if tp1_oid: managed_oids.add(tp1_oid)
 
-                if tp2_oid is None or sl_oid is None:
-                    logger.error("%s: could not place TP2/SL pair; closing remaining", coin)
-                    await _cancel_if_open(exchange, info, address, coin, tp2_oid)
+                if sl_oid is None or sl_oid not in open_oids:
+                    sl_summary = _summarize_fills(await _call(_fills_by_oid, info, address, start_ms, coin, sl_oid), sl_oid) if sl_oid else FillSummary()
+                    if sl_summary.size <= 0 and abs_pos > POSITION_EPSILON:
+                        logger.warning("%s: SL order missing, recreating...", coin)
+                        sl_oid, _ = await _place_trigger_sl(exchange, coin, exit_is_buy, abs_pos, sl_price)
+                        if sl_oid: managed_oids.add(sl_oid)
+
+                if abs_pos <= (filled_size - tp1_size) * 1.001:
+                    logger.info("%s: TP1 threshold reached (pos=%.8f); moving to TP2", coin, abs_pos)
                     await _cancel_if_open(exchange, info, address, coin, sl_oid)
-                    await _market_close_remaining(exchange, info, address, coin, managed_oids)
-                    await _wait_for_position_flat(info, address, coin)
-                    exit_reason = "protective_order_failed"
-                    break
+                    await _cancel_if_open(exchange, info, address, coin, tp1_oid)
+                    
+                    remaining_size = _round_size(exchange, coin, abs_pos)
+                    if remaining_size > POSITION_EPSILON:
+                        next_sl_price = avg_entry if CONFIG.get("move_sl_to_breakeven_after_tp1", False) else sl_price
+                        tp2_oid = await _place_tp_with_fallback(exchange, coin, exit_is_buy, remaining_size, tp2_price)
+                        if tp2_oid: managed_oids.add(tp2_oid)
+                        
+                        sl_oid, _ = await _place_trigger_sl(exchange, coin, exit_is_buy, remaining_size, next_sl_price)
+                        if sl_oid: managed_oids.add(sl_oid)
+                        
+                        stage = "tp2"
+                    else:
+                        exit_reason = "TP1_flat"
+                        break
 
-                logger.info(
-                    "%s: TP2=%.4f size=%.8f | SL=%.4f",
-                    coin, tp2_price, remaining_size, next_sl_price,
-                )
-                stage = "tp2"
+            elif stage == "tp2":
+                if tp2_oid is None or tp2_oid not in open_oids:
+                    tp2_summary = _summarize_fills(await _call(_fills_by_oid, info, address, start_ms, coin, tp2_oid), tp2_oid) if tp2_oid else FillSummary()
+                    if tp2_summary.size <= 0 and abs_pos > POSITION_EPSILON:
+                        logger.warning("%s: TP2 order missing, recreating...", coin)
+                        tp2_oid = await _place_tp_with_fallback(exchange, coin, exit_is_buy, abs_pos, tp2_price)
+                        if tp2_oid: managed_oids.add(tp2_oid)
 
-        elif stage == "tp2":
-            tp2_summary = _summarize_fills(
-                await _call(_fills_by_oid, info, address, start_ms, coin, tp2_oid), tp2_oid,
-            )
-            sl_summary = _summarize_fills(
-                await _call(_fills_by_oid, info, address, start_ms, coin, sl_oid), sl_oid,
-            )
-            if tp2_summary.size > 0 and abs_pos <= POSITION_EPSILON:
-                exit_reason = "TP2"
-                await _cancel_if_open(exchange, info, address, coin, sl_oid)
-                break
-            if sl_summary.size > 0 and abs_pos <= POSITION_EPSILON:
-                exit_reason = "SL"
-                await _cancel_if_open(exchange, info, address, coin, tp2_oid)
-                break
+                if sl_oid is None or sl_oid not in open_oids:
+                    sl_summary = _summarize_fills(await _call(_fills_by_oid, info, address, start_ms, coin, sl_oid), sl_oid) if sl_oid else FillSummary()
+                    if sl_summary.size <= 0 and abs_pos > POSITION_EPSILON:
+                        logger.warning("%s: SL stage 2 missing, recreating...", coin)
+                        next_sl_price = avg_entry if CONFIG.get("move_sl_to_breakeven_after_tp1", False) else sl_price
+                        sl_oid, _ = await _place_trigger_sl(exchange, coin, exit_is_buy, abs_pos, next_sl_price)
+                        if sl_oid: managed_oids.add(sl_oid)
+
+        except Exception as exc:
+            logger.error("%s: active monitoring loop error: %s", coin, exc)
 
         await asyncio.sleep(ORDER_POLL_SECONDS)
 
