@@ -792,6 +792,37 @@ async def _execute_setup(
     )
 
 
+async def _execute_and_record(
+    exchange: Exchange,
+    info: Info,
+    address: str,
+    coin: str,
+    direction: str,
+    signal_price: float,
+    signal_ts: pd.Timestamp,
+    margin: float,
+    atr_5m: float,
+    risk: RiskState,
+) -> None:
+    try:
+        result = await _execute_setup(
+            exchange, info, address, coin,
+            direction, signal_price, signal_ts, margin,
+            atr_5m,
+        )
+        if result is not None:
+            risk.record_trade(result)
+            logger.info(
+                "%s: recorded — win=%s pnl=%.4f | day_pnl=%.4f | trades_today=%d",
+                coin, result.win, result.net_pnl,
+                risk.pnl_today.get((coin, result.entry_time.date()), 0.0),
+                risk.trades_today.get((coin, result.entry_time.date()), 0),
+            )
+    except Exception as exc:
+        logger.error("%s: _execute_setup error: %s", coin, exc)
+        _clear_active_entry(coin)
+
+
 async def _scan_coin(
     exchange: Exchange,
     info: Info,
@@ -915,23 +946,16 @@ async def _scan_coin(
         # ── FIX #1: Set active entry guard NGAY KHI quyết định trade ──
         # Từ đây đến khi _execute_setup hoàn thành, mọi poll cycle sẽ bị chặn.
         _active_entry[coin] = time.time()
-        logger.info("%s: active entry guard SET — executing trade", coin)
+        logger.info("%s: active entry guard SET — executing trade in background", coin)
 
-        result = await _execute_setup(
-            exchange, info, address, coin,
-            setup["direction"], current_price, signal_ts, margin,
-            setup.get("atr_5m", 0.0),
-        )
-        # _execute_setup sẽ gọi _clear_active_entry khi hoàn thành hoặc abort
-
-        if result is not None:
-            risk.record_trade(result)
-            logger.info(
-                "%s: recorded — win=%s pnl=%.4f | day_pnl=%.4f | trades_today=%d",
-                coin, result.win, result.net_pnl,
-                risk.pnl_today.get((coin, result.entry_time.date()), 0.0),
-                risk.trades_today.get((coin, result.entry_time.date()), 0),
+        asyncio.create_task(
+            _execute_and_record(
+                exchange, info, address, coin,
+                setup["direction"], current_price, signal_ts, margin,
+                setup.get("atr_5m", 0.0),
+                risk
             )
+        )
 
 
 async def run_bot_async():
