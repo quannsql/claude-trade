@@ -839,27 +839,20 @@ async def _scan_coin(
         direction = setup["direction"]
 
         # LIVE GUARD: Order Book Imbalance Check
-        # Adjusted to unlock higher frequency:
-        # If score is very strong (>= 50), we trust technicals and don't require strict OBI.
-        # If score is 40-49, we require a slight orderbook advantage (0.05 instead of 0.15).
-        if score >= 50:
-            min_obi = 0.0
-        else:
-            min_obi = 0.05
-
+        min_obi = 0.15 # Minimum required imbalance
         obi = await _call(_get_orderbook_imbalance, info, coin)
         setup["obi"] = obi # Save for logging
 
         if direction == "long" and obi < min_obi:
             logger.info(
-                "%s %s: setup LONG (score %d) blocked by Orderbook Imbalance: %.2f (requires >= %.2f)",
-                coin, signal_ts, score, obi, min_obi
+                "%s %s: setup LONG (score %d) blocked by Orderbook Imbalance: %.2f (Sellers dominating)",
+                coin, signal_ts, score, obi
             )
             return
         elif direction == "short" and obi > -min_obi:
             logger.info(
-                "%s %s: setup SHORT (score %d) blocked by Orderbook Imbalance: %.2f (requires <= -%.2f)",
-                coin, signal_ts, score, obi, min_obi
+                "%s %s: setup SHORT (score %d) blocked by Orderbook Imbalance: %.2f (Buyers dominating)",
+                coin, signal_ts, score, obi
             )
             return
         logger.info(
