@@ -89,7 +89,7 @@ button {
 .topbar h1 {
     margin: 3px 0 0;
     color: var(--ink);
-    font-size: clamp(26px, 3vw, 42px);
+    font-size: clamp(20px, 2.5vw, 32px);
     line-height: 1.04;
     letter-spacing: 0;
 }
@@ -291,6 +291,7 @@ button {
     flex: 1;
     min-height: 0;
     height: 258px;
+    max-height: 258px;
     padding: 13px 15px;
     overflow-y: auto;
     background: var(--terminal);
@@ -492,6 +493,7 @@ button {
     .chart-frame,
     .terminal-content {
         height: 236px;
+        max-height: 236px;
     }
 }
 
@@ -501,7 +503,7 @@ button {
     }
 
     .topbar h1 {
-        font-size: 30px;
+        font-size: 22px;
     }
 
     .data-table th,

@@ -615,6 +615,142 @@ def _load_backtest_payload(symbol: str, symbols: list[str]) -> dict[str, Any]:
     }
 
 
+def _load_live_chart_payload(address: str, symbols: list[str]) -> dict[str, Any]:
+    init_storage()
+    if not storage_initialized or not address:
+        return _empty_backtest_payload(symbols, "LIVE")
+
+    snapshots = []
+    fills = []
+    
+    if _storage_backend() == "postgres":
+        with psycopg.connect(_database_url()) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT captured_at, account_value FROM account_snapshots WHERE address = %s ORDER BY captured_at ASC", (address,))
+                snapshots = cur.fetchall()
+                cur.execute("SELECT fill_time, coin, dir, px, sz, closed_pnl FROM fills WHERE address = %s ORDER BY fill_time ASC", (address,))
+                fills = cur.fetchall()
+    else:
+        with sqlite3.connect(LOCAL_DB_PATH) as conn:
+            snapshots = conn.execute("SELECT captured_at, account_value FROM account_snapshots WHERE address = ? ORDER BY captured_at ASC", (address,)).fetchall()
+            fills = conn.execute("SELECT fill_time, coin, dir, px, sz, closed_pnl FROM fills WHERE address = ? ORDER BY fill_time ASC", (address,)).fetchall()
+
+    equity_series = []
+    drawdown_series = []
+    running_max = STARTING_EQUITY
+    final_equity = STARTING_EQUITY
+    
+    for row in snapshots:
+        dt = _parse_datetime(row[0])
+        val = _safe_float(row[1])
+        if dt and val > 0:
+            final_equity = val
+            running_max = max(running_max, val)
+            dd = ((val - running_max) / running_max * 100) if running_max else 0.0
+            equity_series.append({"time": int(dt.timestamp()), "value": round(val, 4)})
+            drawdown_series.append({"time": int(dt.timestamp()), "value": round(dd, 4)})
+
+    if not equity_series:
+        baseline_time = int(datetime.now().timestamp())
+        equity_series.append({"time": baseline_time, "value": STARTING_EQUITY})
+        drawdown_series.append({"time": baseline_time, "value": 0.0})
+    
+    pnl_series = []
+    daily_pnl = {}
+    table_rows = []
+    net_values = []
+    wins = 0
+    parsed_times = []
+    
+    for index, row in enumerate(fills, start=1):
+        dt = _parse_datetime(row[0])
+        coin = row[1]
+        direction = row[2]
+        px = _safe_float(row[3])
+        sz = _safe_float(row[4])
+        pnl = _safe_float(row[5])
+        
+        if dt:
+            parsed_times.append(dt)
+            day_key = dt.date().isoformat()
+            ts = int(dt.timestamp())
+        else:
+            day_key = str(index)
+            ts = int(datetime.now().timestamp())
+            
+        daily_pnl[day_key] = daily_pnl.get(day_key, 0.0) + pnl
+        is_win = pnl > 0
+        if is_win:
+            wins += 1
+            
+        net_values.append(pnl)
+        
+        pnl_series.append({
+            "time": ts,
+            "value": round(pnl, 6),
+            "color": "#15803d" if pnl >= 0 else "#dc2626",
+        })
+        
+        table_rows.append({
+            "index": index,
+            "symbol": coin,
+            "direction": direction,
+            "entry_time": "",
+            "exit_time": dt.isoformat() if dt else "",
+            "entry_price": 0,
+            "exit_price": px,
+            "exit_reason": "live_fill",
+            "score": 0,
+            "net_pnl": round(pnl, 6),
+            "equity_after": 0,
+            "win": is_win,
+        })
+        
+    losses = len(fills) - wins
+    gross_profit = sum(v for v in net_values if v > 0)
+    gross_loss = -sum(v for v in net_values if v < 0)
+    profit_factor = gross_profit / gross_loss if gross_loss > 0 else None
+    max_drawdown = min((point["value"] for point in drawdown_series), default=0.0)
+
+    days_span = 1
+    if parsed_times:
+        span = max(parsed_times) - min(parsed_times)
+        days_span = max(span.days, 1)
+        
+    daily_series = [
+        {"time": day, "value": round(value, 6), "color": "#15803d" if value >= 0 else "#dc2626"}
+        for day, value in sorted(daily_pnl.items())
+    ]
+    
+    return {
+        "symbols": ["LIVE"] + symbols,
+        "selected_symbol": "LIVE",
+        "metrics": {
+            "total_trades": len(fills),
+            "win_rate_pct": round(wins / len(fills) * 100, 2) if fills else 0,
+            "losses": losses,
+            "net_pnl_usd": round(sum(net_values), 4),
+            "profit_factor": round(profit_factor, 2) if profit_factor is not None else None,
+            "max_drawdown_pct": round(max_drawdown, 2),
+            "final_equity_usd": round(final_equity, 4),
+            "trades_per_day": round(len(fills) / days_span, 2),
+            "total_fees_usd": 0,
+            "expectancy_usd": round(sum(net_values) / len(fills), 6) if fills else 0,
+            "best_trade_usd": round(max(net_values), 6) if net_values else 0,
+            "worst_trade_usd": round(min(net_values), 6) if net_values else 0,
+        },
+        "series": {
+            "equity": equity_series,
+            "drawdown": drawdown_series,
+            "pnl": pnl_series,
+            "daily_pnl": daily_series,
+        },
+        "exit_reason_counts": {"live_fill": len(fills)} if fills else {},
+        "trades": list(reversed(table_rows[-80:])),
+        "chart_image": None,
+    }
+
+
 # ---------------------------------------------------------
 # Background Task
 # ---------------------------------------------------------
@@ -667,6 +803,12 @@ def get_backtest(symbol: Optional[str] = Query(default=None)):
 
     selected_symbol = symbol if symbol in symbols else symbols[0]
     return _load_backtest_payload(selected_symbol, symbols)
+
+
+@app.get("/api/live_chart")
+def get_live_chart():
+    symbols = _discover_symbols()
+    return _load_live_chart_payload(user_address, symbols)
 
 
 @app.get("/api/history")

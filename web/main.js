@@ -398,25 +398,44 @@ function renderReportImage(chartImage) {
 
 async function updateBacktest(symbol = state.currentSymbol) {
     try {
-        const url = new URL('/api/backtest', window.location.origin);
-        if (symbol) url.searchParams.set('symbol', symbol);
+        const isLive = symbol === 'LIVE' || !symbol;
+        const endpoint = isLive ? '/api/live_chart' : '/api/backtest';
+        const url = new URL(endpoint, window.location.origin);
+        if (symbol && symbol !== 'LIVE') url.searchParams.set('symbol', symbol);
 
         const data = await fetchJson(url.toString());
-        state.currentSymbol = data.selected_symbol;
+        state.currentSymbol = data.selected_symbol || 'LIVE';
+        
+        let symbolsList = data.symbols || [];
+        if (!symbolsList.includes('LIVE')) {
+            symbolsList = ['LIVE', ...symbolsList];
+        }
 
-        renderSymbolOptions(data.symbols, data.selected_symbol);
+        renderSymbolOptions(symbolsList, state.currentSymbol);
         renderMetrics(data.metrics || {});
         renderCharts(data.series || {});
         renderExitReasons(data.exit_reason_counts || {});
         renderBacktestTable(data.trades || []);
         renderReportImage(data.chart_image);
 
-        setText('chart-source', data.selected_symbol ? `${data.selected_symbol}_trades.csv` : 'No result CSV');
-        setText('equity-note', 'CSV backtest');
+        const isLiveMode = state.currentSymbol === 'LIVE';
+        setText('chart-source', isLiveMode ? 'Live Database' : (data.selected_symbol ? `${data.selected_symbol}_trades.csv` : 'No result CSV'));
+        setText('equity-note', isLiveMode ? 'Live Database' : 'CSV backtest');
+        
+        const tradesTitle = document.querySelector('#trades .panel-header strong');
+        if (tradesTitle) {
+            tradesTitle.textContent = isLiveMode ? 'Recent Live Fills' : 'Recent Simulated Trades';
+        }
+        
+        const tradesSpan = document.querySelector('#trades .panel-header span');
+        if (tradesSpan) {
+            tradesSpan.textContent = isLiveMode ? 'Live' : 'Backtest';
+        }
+
         setText('last-update', new Date().toLocaleTimeString('en-GB'));
     } catch (error) {
         console.error('Failed to fetch backtest:', error);
-        setText('chart-source', 'Backtest API offline');
+        setText('chart-source', 'API offline');
     }
 }
 
