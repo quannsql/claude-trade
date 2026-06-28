@@ -5,14 +5,17 @@ import json
 import logging
 import os
 import sqlite3
+import collections
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
+import secrets
+import base64
 
 import eth_account
 from eth_account.signers.local import LocalAccount
-from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect, Request
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from hyperliquid.info import Info
 
@@ -36,20 +39,52 @@ AUTO_START_BOT = os.environ.get("AUTO_START_BOT", "1").strip().lower() not in {
     "no",
 }
 STARTING_EQUITY = 100.0
+DASHBOARD_USERNAME = os.environ.get("DASHBOARD_USERNAME", "admin")
+DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "")
 
 app = FastAPI()
+
+@app.middleware("http")
+async def basic_auth_middleware(request: Request, call_next):
+    if not DASHBOARD_PASSWORD:
+        return await call_next(request)
+        
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Basic "):
+        return Response(
+            content="Unauthorized", 
+            status_code=401, 
+            headers={"WWW-Authenticate": "Basic"}
+        )
+        
+    encoded_credentials = auth_header.split(" ", 1)[1]
+    try:
+        decoded_credentials = base64.b64decode(encoded_credentials).decode("utf-8")
+        username, password = decoded_credentials.split(":", 1)
+    except Exception:
+        return Response(content="Invalid credentials", status_code=401, headers={"WWW-Authenticate": "Basic"})
+        
+    is_correct_username = secrets.compare_digest(username.encode("utf8"), DASHBOARD_USERNAME.encode("utf8"))
+    is_correct_password = secrets.compare_digest(password.encode("utf8"), DASHBOARD_PASSWORD.encode("utf8"))
+    
+    if not (is_correct_username and is_correct_password):
+        return Response(content="Invalid credentials", status_code=401, headers={"WWW-Authenticate": "Basic"})
+        
+    return await call_next(request)
 
 
 # ---------------------------------------------------------
 # Logging setup for WebSockets
 # ---------------------------------------------------------
 class WebSocketLogHandler(logging.Handler):
-    def __init__(self):
+    def __init__(self, capacity=200):
         super().__init__()
         self.connected_websockets = set()
+        self.history = collections.deque(maxlen=capacity)
 
     def emit(self, record):
         log_entry = self.format(record)
+        self.history.append(log_entry)
         for ws in list(self.connected_websockets):
             try:
                 asyncio.create_task(ws.send_text(log_entry))
@@ -495,6 +530,7 @@ def _load_backtest_payload(symbol: str, symbols: list[str]) -> dict[str, Any]:
 
     equity_series = [{"time": baseline_time, "value": round(STARTING_EQUITY, 4)}]
     drawdown_series = [{"time": baseline_time, "value": 0.0}]
+    cum_pnl_series = [{"time": baseline_time, "value": 0.0}]
     pnl_series = []
     daily_pnl: dict[str, float] = {}
     exit_reason_counts: dict[str, int] = {}
@@ -540,6 +576,7 @@ def _load_backtest_payload(symbol: str, symbols: list[str]) -> dict[str, Any]:
 
         equity_series.append({"time": chart_time, "value": round(equity, 4)})
         drawdown_series.append({"time": chart_time, "value": round(drawdown_pct, 4)})
+        cum_pnl_series.append({"time": chart_time, "value": round(equity - STARTING_EQUITY, 4)})
         pnl_series.append(
             {
                 "time": chart_time,
@@ -604,6 +641,7 @@ def _load_backtest_payload(symbol: str, symbols: list[str]) -> dict[str, Any]:
         "series": {
             "equity": equity_series,
             "drawdown": drawdown_series,
+            "cum_pnl": cum_pnl_series,
             "pnl": pnl_series,
             "daily_pnl": daily_series,
         },
@@ -639,6 +677,7 @@ def _load_live_chart_payload(address: str, symbols: list[str]) -> dict[str, Any]
     drawdown_series = []
     running_max = STARTING_EQUITY
     final_equity = STARTING_EQUITY
+    last_chart_time = 0
     
     for row in snapshots:
         dt = _parse_datetime(row[0])
@@ -647,8 +686,13 @@ def _load_live_chart_payload(address: str, symbols: list[str]) -> dict[str, Any]
             final_equity = val
             running_max = max(running_max, val)
             dd = ((val - running_max) / running_max * 100) if running_max else 0.0
-            equity_series.append({"time": int(dt.timestamp()), "value": round(val, 4)})
-            drawdown_series.append({"time": int(dt.timestamp()), "value": round(dd, 4)})
+            ts = int(dt.timestamp())
+            if ts <= last_chart_time:
+                ts = last_chart_time + 1
+            last_chart_time = ts
+            
+            equity_series.append({"time": ts, "value": round(val, 4)})
+            drawdown_series.append({"time": ts, "value": round(dd, 4)})
 
     if not equity_series:
         baseline_time = int(datetime.now().timestamp())
@@ -656,11 +700,14 @@ def _load_live_chart_payload(address: str, symbols: list[str]) -> dict[str, Any]
         drawdown_series.append({"time": baseline_time, "value": 0.0})
     
     pnl_series = []
+    cum_pnl_series = []
+    cumulative_pnl = 0.0
     daily_pnl = {}
     table_rows = []
     net_values = []
     wins = 0
     parsed_times = []
+    last_fill_time = 0
     
     for index, row in enumerate(fills, start=1):
         dt = _parse_datetime(row[0])
@@ -678,12 +725,22 @@ def _load_live_chart_payload(address: str, symbols: list[str]) -> dict[str, Any]
             day_key = str(index)
             ts = int(datetime.now().timestamp())
             
+        if ts <= last_fill_time:
+            ts = last_fill_time + 1
+        last_fill_time = ts
+            
         daily_pnl[day_key] = daily_pnl.get(day_key, 0.0) + pnl
         is_win = pnl > 0
         if is_win:
             wins += 1
             
         net_values.append(pnl)
+        cumulative_pnl += pnl
+        
+        cum_pnl_series.append({
+            "time": ts,
+            "value": round(cumulative_pnl, 6)
+        })
         
         pnl_series.append({
             "time": ts,
@@ -742,6 +799,7 @@ def _load_live_chart_payload(address: str, symbols: list[str]) -> dict[str, Any]
         "series": {
             "equity": equity_series,
             "drawdown": drawdown_series,
+            "cum_pnl": cum_pnl_series,
             "pnl": pnl_series,
             "daily_pnl": daily_series,
         },
@@ -818,8 +876,34 @@ def get_history(limit: int = Query(default=200, ge=1, le=500)):
 
 @app.websocket("/ws/logs")
 async def websocket_logs(websocket: WebSocket):
+    if DASHBOARD_PASSWORD:
+        auth_header = websocket.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Basic "):
+            await websocket.close(code=1008)
+            return
+            
+        encoded_credentials = auth_header.split(" ", 1)[1]
+        try:
+            decoded_credentials = base64.b64decode(encoded_credentials).decode("utf-8")
+            username, password = decoded_credentials.split(":", 1)
+            
+            is_correct_username = secrets.compare_digest(username.encode("utf8"), DASHBOARD_USERNAME.encode("utf8"))
+            is_correct_password = secrets.compare_digest(password.encode("utf8"), DASHBOARD_PASSWORD.encode("utf8"))
+            
+            if not (is_correct_username and is_correct_password):
+                await websocket.close(code=1008)
+                return
+        except Exception:
+            await websocket.close(code=1008)
+            return
+
     await websocket.accept()
     ws_handler.connected_websockets.add(websocket)
+    for log_entry in ws_handler.history:
+        try:
+            await websocket.send_text(log_entry)
+        except Exception:
+            pass
     try:
         while True:
             await websocket.receive_text()

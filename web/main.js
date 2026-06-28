@@ -288,6 +288,19 @@ function renderCharts(series) {
         pnlSeries.setData(series.pnl || []);
         pnlChart.timeScale().fitContent();
     }
+
+    const cumPnlChart = makeChart('cum-pnl-chart');
+    if (cumPnlChart) {
+        const cumPnlSeries = cumPnlChart.addAreaSeries({
+            lineColor: palette.green,
+            topColor: palette.greenSoft,
+            bottomColor: 'rgba(21, 128, 61, 0.01)',
+            lineWidth: 2,
+            priceFormat: { type: 'price', precision: 4, minMove: 0.0001 },
+        });
+        cumPnlSeries.setData(series.cum_pnl || []);
+        cumPnlChart.timeScale().fitContent();
+    }
 }
 
 function renderSymbolOptions(symbols, selected) {

@@ -64,7 +64,8 @@ if not logger.handlers:
 
 
 PRIVATE_KEY = os.environ.get("HL_PRIVATE_KEY", "")
-API_URL = constants.TESTNET_API_URL
+HL_NETWORK = os.environ.get("HL_NETWORK", "TESTNET").strip().upper()
+API_URL = constants.MAINNET_API_URL if HL_NETWORK == "MAINNET" else constants.TESTNET_API_URL
 
 SIGNAL_POLL_SECONDS = int(os.environ.get("HL_SIGNAL_POLL_SECONDS", "15"))
 ORDER_POLL_SECONDS = int(os.environ.get("HL_ORDER_POLL_SECONDS", "5"))
