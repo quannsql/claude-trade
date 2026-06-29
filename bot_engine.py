@@ -387,7 +387,7 @@ def _align_index(ts: pd.Timestamp, df: pd.DataFrame) -> int:
     return int(max(idx, 0))
 
 
-def _latest_setup(info: Info, coin: str) -> tuple[dict[str, Any], float, pd.Timestamp] | None:
+def _latest_setup(info: Info, coin: str, obi: float = 0.0) -> tuple[dict[str, Any], float, pd.Timestamp] | None:
     asof_ms = _now_ms()
     df15 = fetch_hyperliquid_candles(info, coin, "15m", LOOKBACK_15M, asof_ms)
     df5 = fetch_hyperliquid_candles(info, coin, "5m", LOOKBACK_5M, asof_ms)
@@ -399,7 +399,7 @@ def _latest_setup(info: Info, coin: str) -> tuple[dict[str, Any], float, pd.Time
     signal_ts = df1.iloc[i1]["timestamp"]
     i5 = _align_index(signal_ts, df5)
     i15 = _align_index(signal_ts, df15)
-    setup = score_setup(i15, df15, i5, df5, i1, df1, hour_utc=signal_ts.hour, cfg=CONFIG)
+    setup = score_setup(i15, df15, i5, df5, i1, df1, hour_utc=signal_ts.hour, cfg=CONFIG, obi=obi)
     current_price = float(df1.iloc[i1]["close"])
     return setup, current_price, signal_ts
 
@@ -943,7 +943,8 @@ async def _scan_coin(
                 last_guard_log[coin] = now_utc
             return
 
-        latest = await _call(_latest_setup, info, coin)
+        obi = await _call(_get_orderbook_imbalance, info, coin, 10)
+        latest = await _call(_latest_setup, info, coin, obi)
         if latest is None:
             return
         setup, current_price, signal_ts = latest
@@ -959,36 +960,8 @@ async def _scan_coin(
 
         score = setup["score"]
         direction = setup["direction"]
-
-        # Order Book Imbalance check
-        # Nới lỏng: Cho phép bắt đáy/đỉnh trừ khi sổ lệnh chống lại quá mạnh
-        block_obi = -0.25
-        strong_obi = 0.3
-        obi = await _call(_get_orderbook_imbalance, info, coin)
-        setup["obi"] = obi
-
-        if direction == "long":
-            if obi < block_obi:
-                logger.info(
-                    "%s %s: LONG (score %d) blocked — OBI=%.2f (sellers extremely dominant)",
-                    coin, signal_ts, score, obi,
-                )
-                return
-            elif obi > strong_obi:
-                score += 15
-                setup.setdefault("score_details", {})["obi_bonus"] = 15
-        elif direction == "short":
-            if obi > -block_obi:  # Tương đương obi > 0.25
-                logger.info(
-                    "%s %s: SHORT (score %d) blocked — OBI=%.2f (buyers extremely dominant)",
-                    coin, signal_ts, score, obi,
-                )
-                return
-            elif obi < -strong_obi:
-                score += 15
-                setup.setdefault("score_details", {})["obi_bonus"] = 15
         
-        # Cập nhật lại confidence do score có thể tăng
+        # Cập nhật lại confidence
         setup["score"] = score
         if score >= 100:
             setup["confidence"] = "A+"

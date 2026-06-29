@@ -190,7 +190,8 @@ def score_setup(i15: int, df15: pd.DataFrame,
                  i1: int, df1: pd.DataFrame,
                  consecutive_losses: int = 0,
                  hour_utc: int = 12,
-                 cfg: dict | None = None) -> dict:
+                 cfg: dict | None = None,
+                 obi: float = 0.0) -> dict:
     """
     Scoring Engine v2 — Apply tất cả module scoring tại candle indices
     i15, i5, i1 trên 3 timeframes.
@@ -607,6 +608,48 @@ def score_setup(i15: int, df15: pd.DataFrame,
             details["time_filter"] = 0
     else:
         details["time_filter"] = 0
+
+    # --------------------------------------------------
+    # MODULE 10 (NEW): DUAL-REGIME / MOMENTUM FLIP
+    # --------------------------------------------------
+    # Nếu đang đánh Mean-Reversion nhưng OBI báo dòng tiền cực mạnh thuận xu hướng đột phá
+    # -> Lật mặt (Flip) đánh Đu Trend!
+    if direction is not None and obi != 0.0:
+        flip_obi = 0.35
+        block_obi = -0.25
+        vol_climax = details.get("volume_climax", 0) > 0
+
+        if direction == "long":
+            # Đang định bắt đáy (Long)
+            if obi <= -flip_obi and vol_climax:
+                # OBI cực âm + Volume to -> Lực xả quá mạnh, lật sang Short ăn hôi
+                direction = "short"
+                score += 20
+                details["momentum_flip"] = 20
+            elif obi < block_obi:
+                # OBI âm vừa phải, chặn bắt đáy
+                result["block_reasons"].append(f"OBI={obi:.2f} (sellers extremely dominant)")
+                result["hard_block"] = True
+            elif obi > 0.3:
+                # OBI ủng hộ bắt đáy
+                score += 15
+                details["obi_bonus"] = 15
+
+        elif direction == "short":
+            # Đang định bắt đỉnh (Short)
+            if obi >= flip_obi and vol_climax:
+                # OBI cực dương + Volume to -> Lực fomo quá mạnh, lật sang Long đu đỉnh
+                direction = "long"
+                score += 20
+                details["momentum_flip"] = 20
+            elif obi > -block_obi:  # Tương đương obi > 0.25
+                # OBI dương vừa phải, chặn bắt đỉnh
+                result["block_reasons"].append(f"OBI={obi:.2f} (buyers extremely dominant)")
+                result["hard_block"] = True
+            elif obi < -0.3:
+                # OBI ủng hộ bắt đỉnh
+                score += 15
+                details["obi_bonus"] = 15
 
     # --------------------------------------------------
     # COOLDOWN CHECK (giữ nguyên — hard block duy nhất)
