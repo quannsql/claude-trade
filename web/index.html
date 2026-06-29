@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,14 +8,14 @@
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="/static/style.css">
     <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/google-sans">
-    <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body>
     <main class="page-shell">
         <header class="topbar">
             <div class="title-group">
                 <div class="eyebrow">Hyperliquid monitor</div>
-                <h1>Trading Performance Dashboard</h1>
             </div>
             <div class="topbar-actions">
                 <div class="status-pill">
@@ -26,21 +27,9 @@
         </header>
 
         <section class="control-strip" id="overview">
-            <label class="select-field" for="symbol-select">
-                <span>Symbol</span>
-                <select id="symbol-select"></select>
-            </label>
             <div class="control-stat">
                 <span>Wallet</span>
                 <strong id="wallet-address">Not configured</strong>
-            </div>
-            <div class="control-stat">
-                <span>Storage</span>
-                <strong id="storage-status">Checking...</strong>
-            </div>
-            <div class="control-stat">
-                <span>Chart source</span>
-                <strong id="chart-source">Waiting for data</strong>
             </div>
             <div class="control-stat">
                 <span>Last update</span>
@@ -123,16 +112,7 @@
                 <div class="chart-frame" id="cum-pnl-chart"></div>
             </article>
 
-            <article class="panel chart-panel" id="terminal-panel">
-                <div class="panel-header">
-                    <div>
-                        <span>Runtime</span>
-                        <strong>Live Terminal</strong>
-                    </div>
-                    <span class="terminal-led"></span>
-                </div>
-                <div class="terminal-content" id="terminal"></div>
-            </article>
+
         </section>
 
         <section class="data-grid" aria-label="Trading data">
@@ -161,11 +141,36 @@
             <article class="panel">
                 <div class="panel-header">
                     <div>
-                        <span>Exits</span>
-                        <strong>Reason Mix</strong>
+                        <span>Live</span>
+                        <strong>Open Positions</strong>
                     </div>
                 </div>
-                <div class="reason-list" id="exit-reasons"></div>
+                <div class="table-wrap small-table">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Coin</th>
+                                <th>Size</th>
+                                <th>Entry Px</th>
+                                <th>Mark Px</th>
+                                <th>Margin</th>
+                                <th>UPnL</th>
+                            </tr>
+                        </thead>
+                        <tbody id="positions-tbody"></tbody>
+                    </table>
+                </div>
+            </article>
+
+            <article class="panel" id="terminal-panel">
+                <div class="panel-header">
+                    <div>
+                        <span>Runtime</span>
+                        <strong>Live Terminal</strong>
+                    </div>
+                    <span class="terminal-led"></span>
+                </div>
+                <div class="terminal-content" id="terminal"></div>
             </article>
 
             <article class="panel">
@@ -221,4 +226,5 @@
 
     <script src="/static/main.js"></script>
 </body>
+
 </html>

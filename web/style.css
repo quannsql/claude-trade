@@ -133,10 +133,13 @@ button {
 }
 
 .control-strip {
-    display: grid;
-    grid-template-columns: minmax(150px, 0.8fr) minmax(170px, 1.05fr) minmax(150px, 0.85fr) minmax(180px, 1fr) minmax(135px, 0.7fr);
-    gap: 10px;
-    margin-bottom: 12px;
+    display: flex;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.control-strip > * {
+    flex: 1;
 }
 
 .select-field,
@@ -171,7 +174,6 @@ button {
 
 .control-stat #wallet-address {
     color: var(--cyan);
-    font-family: "Google Sans", Consolas, monospace;
 }
 
 .kpi-grid {
@@ -226,7 +228,7 @@ button {
 
 .data-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
 }
 
@@ -285,7 +287,6 @@ button {
 
 #terminal-panel {
     background: var(--surface-strong);
-    grid-column: 1 / -1;
 }
 
 .terminal-content {
@@ -297,7 +298,6 @@ button {
     overflow-y: auto;
     background: var(--terminal);
     color: #f5f7fb;
-    font-family: "Google Sans", Consolas, monospace;
     font-size: 13px;
     line-height: 1.52;
     border-top: 1px solid #000;

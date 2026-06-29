@@ -835,12 +835,14 @@ def get_state():
         open_orders = info.open_orders(user_address)
         fills = info.user_fills(user_address) or []
         margin_summary = user_state.get("marginSummary", {})
+        positions = user_state.get("assetPositions", [])
 
         persist_dashboard_state(user_address, margin_summary, fills[:200])
 
         return {
             "address": user_address,
             "margin_summary": margin_summary,
+            "positions": positions,
             "open_orders": open_orders,
             "fills": fills[:50],
             "storage": {

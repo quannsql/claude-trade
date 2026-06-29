@@ -93,11 +93,31 @@ function fetchJson(url) {
     });
 }
 
-function renderStorage(storage) {
-    const backend = storage?.backend || storage?.storage || 'sqlite';
-    const ready = storage?.ready ?? storage?.storage_ready;
-    const text = ready === false ? `${backend} unavailable` : `${backend} ready`;
-    setText('storage-status', text);
+function renderPositions(positions) {
+    const tbody = $('positions-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!positions || positions.length === 0) {
+        tableEmpty(tbody, 6, 'No open positions');
+        return;
+    }
+
+    tbody.innerHTML = positions.map((posInfo) => {
+        const p = posInfo.position || posInfo;
+        const upnl = numberValue(p.unrealizedPnl);
+        const upnlClass = upnl > 0 ? 'buy-text' : upnl < 0 ? 'sell-text' : '';
+        return `
+            <tr>
+                <td>${escapeHtml(p.coin)}</td>
+                <td>${escapeHtml(p.szi)}</td>
+                <td>${formatNumber(p.entryPx, 4)}</td>
+                <td>${formatNumber(p.markPx, 4)}</td>
+                <td>${formatNumber(p.marginUsed, 2)}</td>
+                <td class="${upnlClass}">${upnl > 0 ? '+' : ''}${formatCurrency(upnl, 4)}</td>
+            </tr>
+        `;
+    }).join('');
 }
 
 function renderOrders(orders) {
@@ -158,9 +178,9 @@ async function updateState() {
 
         if (data.error) {
             setText('live-status', data.error);
-            if (data.storage) renderStorage(data.storage);
             renderOrders([]);
             renderFills([]);
+            renderPositions([]);
             return;
         }
 
@@ -177,39 +197,11 @@ async function updateState() {
         setText('val-margin', formatCurrency(available));
         renderOrders(data.open_orders || []);
         renderFills(data.fills || []);
-        renderStorage(data.storage);
+        renderPositions(data.positions || []);
     } catch (error) {
         setText('live-status', 'API offline');
         console.error('Failed to fetch state:', error);
     }
-}
-
-function chartOptions(container) {
-    return {
-        width: Math.max(container.clientWidth, 320),
-        height: Math.max(container.clientHeight, 220),
-        layout: {
-            background: { type: 'solid', color: 'transparent' },
-            textColor: palette.muted,
-            fontFamily: '"Google Sans", Arial, sans-serif',
-            fontSize: 12,
-        },
-        grid: {
-            vertLines: { color: 'rgba(115, 123, 137, 0.12)' },
-            horzLines: { color: 'rgba(115, 123, 137, 0.12)' },
-        },
-        rightPriceScale: {
-            borderColor: palette.line,
-        },
-        timeScale: {
-            borderColor: palette.line,
-            timeVisible: true,
-            secondsVisible: false,
-        },
-        crosshair: {
-            mode: LightweightCharts.CrosshairMode.Normal,
-        },
-    };
 }
 
 function clearCharts() {
@@ -217,35 +209,11 @@ function clearCharts() {
     state.chartCleanups = [];
 }
 
-function makeChart(containerId) {
-    const container = $(containerId);
-    if (!container || !window.LightweightCharts) return null;
-    container.innerHTML = '';
-
-    const chart = LightweightCharts.createChart(container, chartOptions(container));
-    const resizeObserver = new ResizeObserver((entries) => {
-        if (!entries.length) return;
-        const rect = entries[0].contentRect;
-        chart.applyOptions({
-            width: Math.max(Math.floor(rect.width), 320),
-            height: Math.max(Math.floor(rect.height), 220),
-        });
-    });
-    resizeObserver.observe(container);
-
-    state.chartCleanups.push(() => {
-        resizeObserver.disconnect();
-        chart.remove();
-    });
-
-    return chart;
-}
-
 function renderCharts(series) {
     clearCharts();
 
-    if (!window.LightweightCharts) {
-        ['equity-chart', 'drawdown-chart', 'pnl-chart'].forEach((id) => {
+    if (!window.Chart) {
+        ['equity-chart', 'drawdown-chart', 'pnl-chart', 'cum-pnl-chart'].forEach((id) => {
             const container = $(id);
             if (container) {
                 container.innerHTML = '<div class="empty-state">Chart library unavailable.</div>';
@@ -254,70 +222,95 @@ function renderCharts(series) {
         return;
     }
 
-    const equityChart = makeChart('equity-chart');
-    if (equityChart) {
-        const equitySeries = equityChart.addAreaSeries({
-            lineColor: palette.cyan,
-            topColor: palette.cyanSoft,
-            bottomColor: 'rgba(8, 145, 178, 0.01)',
-            lineWidth: 2,
-            priceFormat: { type: 'price', precision: 4, minMove: 0.0001 },
-        });
-        equitySeries.setData(series.equity || []);
-        equityChart.timeScale().fitContent();
-    }
+    const getLabels = (data) => (data || []).map(d => formatDateTime(d.time * 1000));
+    const getValues = (data) => (data || []).map(d => d.value);
 
-    const drawdownChart = makeChart('drawdown-chart');
-    if (drawdownChart) {
-        const drawdownSeries = drawdownChart.addAreaSeries({
-            lineColor: palette.red,
-            topColor: 'rgba(220, 38, 38, 0.02)',
-            bottomColor: palette.redSoft,
-            lineWidth: 2,
-            priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
-        });
-        drawdownSeries.setData(series.drawdown || []);
-        drawdownChart.timeScale().fitContent();
-    }
+    const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            x: { display: false },
+            y: {
+                position: 'right',
+                grid: { display: false },
+                border: { display: false },
+                ticks: { color: palette.muted, font: { family: '"Google Sans", Arial, sans-serif' } }
+            }
+        },
+        interaction: {
+            intersect: false,
+            mode: 'index',
+        },
+    };
 
-    const pnlChart = makeChart('pnl-chart');
-    if (pnlChart) {
-        const pnlSeries = pnlChart.addHistogramSeries({
-            priceFormat: { type: 'price', precision: 4, minMove: 0.0001 },
+    const makeChartJs = (containerId, type, dataConfig, extraOptions = {}) => {
+        const container = $(containerId);
+        if (!container) return;
+        container.innerHTML = `<canvas id="${containerId}-canvas"></canvas>`;
+        const ctx = document.getElementById(`${containerId}-canvas`).getContext('2d');
+        
+        const chart = new Chart(ctx, {
+            type: type,
+            data: dataConfig,
+            options: { ...commonOptions, ...extraOptions }
         });
-        pnlSeries.setData(series.pnl || []);
-        pnlChart.timeScale().fitContent();
-    }
+        state.chartCleanups.push(() => chart.destroy());
+    };
 
-    const cumPnlChart = makeChart('cum-pnl-chart');
-    if (cumPnlChart) {
-        const cumPnlSeries = cumPnlChart.addAreaSeries({
-            lineColor: palette.green,
-            topColor: palette.greenSoft,
-            bottomColor: 'rgba(21, 128, 61, 0.01)',
-            lineWidth: 2,
-            priceFormat: { type: 'price', precision: 4, minMove: 0.0001 },
-        });
-        cumPnlSeries.setData(series.cum_pnl || []);
-        cumPnlChart.timeScale().fitContent();
-    }
+    makeChartJs('equity-chart', 'line', {
+        labels: getLabels(series.equity),
+        datasets: [{
+            data: getValues(series.equity),
+            borderColor: palette.cyan,
+            backgroundColor: palette.cyanSoft,
+            borderWidth: 2,
+            fill: true,
+            pointRadius: 0,
+            pointHoverRadius: 4
+        }]
+    });
+
+    makeChartJs('drawdown-chart', 'line', {
+        labels: getLabels(series.drawdown),
+        datasets: [{
+            data: getValues(series.drawdown),
+            borderColor: palette.red,
+            backgroundColor: palette.redSoft,
+            borderWidth: 2,
+            fill: true,
+            pointRadius: 0,
+            pointHoverRadius: 4
+        }]
+    });
+
+    const pnlData = series.pnl || [];
+    makeChartJs('pnl-chart', 'bar', {
+        labels: getLabels(pnlData),
+        datasets: [{
+            data: getValues(pnlData),
+            backgroundColor: pnlData.map(d => d.color || palette.cyan),
+            borderRadius: 2
+        }]
+    });
+
+    makeChartJs('cum-pnl-chart', 'line', {
+        labels: getLabels(series.cum_pnl),
+        datasets: [{
+            data: getValues(series.cum_pnl),
+            borderColor: palette.green,
+            backgroundColor: palette.greenSoft,
+            borderWidth: 2,
+            fill: true,
+            pointRadius: 0,
+            pointHoverRadius: 4
+        }]
+    });
 }
 
-function renderSymbolOptions(symbols, selected) {
-    const select = $('symbol-select');
-    if (!select) return;
 
-    if (!symbols || symbols.length === 0) {
-        select.innerHTML = '<option>No results</option>';
-        select.disabled = true;
-        return;
-    }
-
-    select.disabled = false;
-    select.innerHTML = symbols.map((symbol) => (
-        `<option value="${escapeHtml(symbol)}"${symbol === selected ? ' selected' : ''}>${escapeHtml(symbol)}</option>`
-    )).join('');
-}
 
 function renderMetrics(metrics) {
     const pnl = numberValue(metrics.net_pnl_usd);
@@ -336,32 +329,7 @@ function renderMetrics(metrics) {
     setText('metric-expectancy', `Expectancy ${formatCurrency(metrics.expectancy_usd, 4)}`);
 }
 
-function renderExitReasons(counts) {
-    const container = $('exit-reasons');
-    if (!container) return;
 
-    const entries = Object.entries(counts || {});
-    const total = entries.reduce((sum, [, count]) => sum + Number(count), 0);
-    if (!entries.length || total === 0) {
-        container.innerHTML = '<div class="empty-state">No exit reason data yet.</div>';
-        return;
-    }
-
-    container.innerHTML = entries.map(([reason, count]) => {
-        const percent = (Number(count) / total) * 100;
-        return `
-            <div class="reason-row">
-                <header>
-                    <span>${escapeHtml(reason)}</span>
-                    <span>${count} / ${formatNumber(percent, 1)}%</span>
-                </header>
-                <div class="reason-track">
-                    <div class="reason-fill" style="width:${Math.max(percent, 3)}%"></div>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
 
 function renderBacktestTable(trades) {
     const tbody = $('backtest-tbody');
@@ -424,15 +392,12 @@ async function updateBacktest(symbol = state.currentSymbol) {
             symbolsList = ['LIVE', ...symbolsList];
         }
 
-        renderSymbolOptions(symbolsList, state.currentSymbol);
         renderMetrics(data.metrics || {});
         renderCharts(data.series || {});
-        renderExitReasons(data.exit_reason_counts || {});
         renderBacktestTable(data.trades || []);
         renderReportImage(data.chart_image);
 
         const isLiveMode = state.currentSymbol === 'LIVE';
-        setText('chart-source', isLiveMode ? 'Live Database' : (data.selected_symbol ? `${data.selected_symbol}_trades.csv` : 'No result CSV'));
         setText('equity-note', isLiveMode ? 'Live Database' : 'CSV backtest');
         
         const tradesTitle = document.querySelector('#trades .panel-header strong');
