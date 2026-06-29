@@ -958,21 +958,41 @@ async def _scan_coin(
 
         # Order Book Imbalance check
         min_obi = 0.15
+        strong_obi = 0.3
         obi = await _call(_get_orderbook_imbalance, info, coin)
         setup["obi"] = obi
 
-        if direction == "long" and obi < min_obi:
-            logger.info(
-                "%s %s: LONG (score %d) blocked — OBI=%.2f (sellers dominate)",
-                coin, signal_ts, score, obi,
-            )
-            return
-        elif direction == "short" and obi > -min_obi:
-            logger.info(
-                "%s %s: SHORT (score %d) blocked — OBI=%.2f (buyers dominate)",
-                coin, signal_ts, score, obi,
-            )
-            return
+        if direction == "long":
+            if obi < min_obi:
+                logger.info(
+                    "%s %s: LONG (score %d) blocked — OBI=%.2f (sellers dominate)",
+                    coin, signal_ts, score, obi,
+                )
+                return
+            elif obi > strong_obi:
+                score += 15
+                setup.setdefault("score_details", {})["obi_bonus"] = 15
+        elif direction == "short":
+            if obi > -min_obi:
+                logger.info(
+                    "%s %s: SHORT (score %d) blocked — OBI=%.2f (buyers dominate)",
+                    coin, signal_ts, score, obi,
+                )
+                return
+            elif obi < -strong_obi:
+                score += 15
+                setup.setdefault("score_details", {})["obi_bonus"] = 15
+        
+        # Cập nhật lại confidence do score có thể tăng
+        setup["score"] = score
+        if score >= 100:
+            setup["confidence"] = "A+"
+        elif score >= 80:
+            setup["confidence"] = "A"
+        elif score >= 60:
+            setup["confidence"] = "B"
+        else:
+            setup["confidence"] = "C"
 
         logger.info(
             "%s %s: setup %s score=%s conf=%s price=%.4f obi=%.2f bb_w=%.2f%% squeeze=%s",

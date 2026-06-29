@@ -89,28 +89,29 @@ PROFILES = {
         "leverage": 20,
         "margin_full": 100.0,
         "margin_half": 50.0,
-        "min_score_half": 45,
-        "min_score_full": 55,
+        "min_score_half": 40,
+        "min_score_full": 60,
 
-        "tp1_pct": 0.20,
-        "tp2_pct": 0.40,
-        "sl_pct": 0.25,
+        "tp1_pct": 0.15,
+        "tp2_pct": 0.30,
+        "sl_pct": 0.20,
         "time_stop_minutes": 30,
 
         # Hard dollar SL override: thoát ngay nếu lỗ quá $3 (không phụ thuộc %)
         "max_loss_per_trade_usd": 3.0,
 
+        "move_sl_to_breakeven_after_tp1": True,
         "use_dynamic_tp_sl": False,
 
         "entry_order_type": "limit",
         "use_maker_for_entry": True,
         "use_maker_for_tp": True,
         "limit_offset_pct": 0.0,
-        "limit_timeout_bars": 2,
+        "limit_timeout_bars": 1,
         "slippage_pct": 0.0,
 
         "allowed_hours_utc": list(range(0, 24)),
-        "max_trades_per_day": 40,
+        "max_trades_per_day": 60,
         "daily_loss_limit_usd": 8.0,
         "cooldown_minutes": 5,
         "max_consecutive_losses": 3,
