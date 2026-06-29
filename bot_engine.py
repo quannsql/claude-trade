@@ -563,7 +563,9 @@ async def _wait_for_position_flat(info: Info, address: str, coin: str, timeout_s
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
         pos_size, _ = await _call(_position_for_coin, info, address, coin)
-        if abs(pos_size) <= POSITION_EPSILON:
+        # Bỏ qua dust position (< $10)
+        # Giả định giá BTC ~ 60k -> $10 ~ 0.00016. Tạm dùng ngưỡng 0.0002 (khoảng $12) làm dust cho BTC.
+        if abs(pos_size) <= 0.0002: 
             return True
         await asyncio.sleep(ORDER_POLL_SECONDS)
     return False
@@ -727,7 +729,9 @@ async def _execute_setup(
                 await _wait_for_position_flat(info, address, coin)
                 break
 
-            if abs_pos <= POSITION_EPSILON:
+            if abs_pos <= 0.0002:  # Bỏ qua dust (< $12)
+                if abs_pos > POSITION_EPSILON:
+                    logger.warning("%s: dust position detected (size=%.8f) — ignoring to prevent $10 limit error", coin, abs_pos)
                 exit_reason = "SL_or_external_flat" if stage != "tp2_done" else "TP2"
                 break
 
@@ -926,20 +930,21 @@ async def _scan_coin(
         open_orders = await _call(_open_orders_for_coin, info, address, coin)
 
         # Dọn dẹp stale orders
-        if abs(pos_size) <= POSITION_EPSILON and len(open_orders) > 0:
-            logger.info("%s: %d stale orders without position → cancelling", coin, len(open_orders))
+        if abs(pos_size) <= 0.0002 and len(open_orders) > 0:
+            logger.info("%s: %d stale orders without valid position → cancelling", coin, len(open_orders))
             for order in open_orders:
                 oid = order.get("oid")
                 if oid:
                     await _call(exchange.cancel, coin, int(oid))
             open_orders = await _call(_open_orders_for_coin, info, address, coin)
 
-        if abs(pos_size) > POSITION_EPSILON or open_orders:
+        # Bỏ qua dust position (< 0.0002 BTC) khi check existing exposure
+        if abs(pos_size) > 0.0002 or open_orders:
             last_log = last_guard_log.get(coin)
             if not last_log or (now_utc - last_log).total_seconds() >= 60:
                 logger.warning(
-                    "%s: existing exposure (pos=%.8f entry=%s orders=%d) — skipping",
-                    coin, pos_size, pos_entry, len(open_orders),
+                    "%s: existing exposure (pos=%.8f orders=%d) — skipping",
+                    coin, pos_size, len(open_orders),
                 )
                 last_guard_log[coin] = now_utc
             return
