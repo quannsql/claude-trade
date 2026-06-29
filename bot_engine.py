@@ -957,15 +957,16 @@ async def _scan_coin(
         direction = setup["direction"]
 
         # Order Book Imbalance check
-        min_obi = 0.15
+        # Nới lỏng: Cho phép bắt đáy/đỉnh trừ khi sổ lệnh chống lại quá mạnh
+        block_obi = -0.25
         strong_obi = 0.3
         obi = await _call(_get_orderbook_imbalance, info, coin)
         setup["obi"] = obi
 
         if direction == "long":
-            if obi < min_obi:
+            if obi < block_obi:
                 logger.info(
-                    "%s %s: LONG (score %d) blocked — OBI=%.2f (sellers dominate)",
+                    "%s %s: LONG (score %d) blocked — OBI=%.2f (sellers extremely dominant)",
                     coin, signal_ts, score, obi,
                 )
                 return
@@ -973,9 +974,9 @@ async def _scan_coin(
                 score += 15
                 setup.setdefault("score_details", {})["obi_bonus"] = 15
         elif direction == "short":
-            if obi > -min_obi:
+            if obi > -block_obi:  # Tương đương obi > 0.25
                 logger.info(
-                    "%s %s: SHORT (score %d) blocked — OBI=%.2f (buyers dominate)",
+                    "%s %s: SHORT (score %d) blocked — OBI=%.2f (buyers extremely dominant)",
                     coin, signal_ts, score, obi,
                 )
                 return
