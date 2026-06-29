@@ -92,8 +92,8 @@ PROFILES = {
         "min_score_half": 40,
         "min_score_full": 60,
 
-        "tp1_pct": 0.15,
-        "tp2_pct": 0.30,
+        "tp1_pct": 0.10,
+        "tp2_pct": 0.20,
         "sl_pct": 0.20,
         "time_stop_minutes": 30,
 
@@ -101,7 +101,7 @@ PROFILES = {
         "max_loss_per_trade_usd": 3.0,
 
         "move_sl_to_breakeven_after_tp1": True,
-        "use_dynamic_tp_sl": True,
+        "use_dynamic_tp_sl": False,
         "tp1_atr_mult": 1.5,
         "tp2_atr_mult": 3.0,
         "sl_atr_mult": 1.2,
