@@ -359,8 +359,32 @@ def score_setup(i15: int, df15: pd.DataFrame,
             details["vwap_stretch"] = 0
 
     else:
-        # Not touching BB extremes -> No signal for mean-reversion
-        return result
+        # Base Signal 2: RSI Extreme (Bắt đáy/đỉnh khi RSI cực hạn, dù chưa chạm BB)
+        if rsi1 < 25:
+            direction = "long"
+            score += 35
+            details["rsi_extreme_touch"] = 35
+        elif rsi1 > 75:
+            direction = "short"
+            score += 35
+            details["rsi_extreme_touch"] = 35
+        # Base Signal 3: EMA Reversion (Kéo ngược về EMA khi giá tăng/giảm sốc)
+        else:
+            ema9_1 = row1.get("ema9")
+            if not pd.isna(ema9_1) and ema9_1 > 0:
+                dist_pct = (price1 - ema9_1) / ema9_1 * 100
+                if dist_pct < -0.25:  # Giá tụt > 0.25% so với EMA9
+                    direction = "long"
+                    score += 30
+                    details["ema_reversion"] = 30
+                elif dist_pct > 0.25: # Giá tăng quá mạnh
+                    direction = "short"
+                    score += 30
+                    details["ema_reversion"] = 30
+                else:
+                    return result
+            else:
+                return result
 
     # --------------------------------------------------
     # MODULE 2: RSI CONFIRMATION (1m and 5m) — giữ nguyên

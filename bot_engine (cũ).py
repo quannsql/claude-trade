@@ -67,29 +67,19 @@ PRIVATE_KEY = os.environ.get("HL_PRIVATE_KEY", "")
 HL_NETWORK = os.environ.get("HL_NETWORK", "TESTNET").strip().upper()
 API_URL = constants.MAINNET_API_URL if HL_NETWORK == "MAINNET" else constants.TESTNET_API_URL
 
-SIGNAL_POLL_SECONDS = int(os.environ.get("HL_SIGNAL_POLL_SECONDS", "3"))
-ORDER_POLL_SECONDS = int(os.environ.get("HL_ORDER_POLL_SECONDS", "3"))
+SIGNAL_POLL_SECONDS = int(os.environ.get("HL_SIGNAL_POLL_SECONDS", "15"))
+ORDER_POLL_SECONDS = int(os.environ.get("HL_ORDER_POLL_SECONDS", "5"))
 LOOKBACK_1M = int(os.environ.get("HL_LOOKBACK_1M", "300"))
 LOOKBACK_5M = int(os.environ.get("HL_LOOKBACK_5M", "160"))
 LOOKBACK_15M = int(os.environ.get("HL_LOOKBACK_15M", "260"))
 MARKET_CLOSE_SLIPPAGE = float(os.environ.get("HL_MARKET_CLOSE_SLIPPAGE", "0.002"))
 POSITION_EPSILON = 1e-8
 
-# ── ETH bị loại bỏ hoàn toàn — chỉ trade BTC ──
-# Lý do: ETH thua -$32 trong 2 ngày (28–29/6) do downtrend không có regime filter.
-# Sẽ thêm lại ETH sau khi implement và verify regime filter hoạt động đúng.
-DISABLED_COINS: set[str] = {"ETH"}
-
 # ── FIX #2: Cooldown nhỏ sau mỗi lần thua đơn lẻ ──
 SL_SINGLE_COOLDOWN_MINUTES = int(os.environ.get("HL_SL_COOLDOWN_MINUTES", "10"))
 
 # ── FIX #3: Giới hạn tổng margin usage ──
 MAX_MARGIN_USAGE_PCT = float(os.environ.get("HL_MAX_MARGIN_PCT", "0.70"))  # max 70% account dùng làm margin
-
-# ── HARD DOLLAR SL: đóng ngay nếu unrealized loss vượt ngưỡng này ──
-# Tránh tình huống như ETH -$7 vì price trượt dài không chạm % SL
-HARD_DOLLAR_SL_USD = float(os.environ.get("HL_HARD_DOLLAR_SL", "3.0"))
-HARD_DOLLAR_SL_CHECK_INTERVAL = int(os.environ.get("HL_HARD_SL_INTERVAL", "5"))  # check mỗi N giây
 
 # ── FIX #1: Track active entry orders để chống stacking ──
 # key = coin, value = timestamp khi entry order được gửi đi
@@ -328,7 +318,7 @@ def _fills_by_oid(info: Info, address: str, start_ms: int, coin: str, oid: int |
     return [fill for fill in fills if fill.get("coin") == coin and int(fill.get("oid", -1)) == oid]
 
 
-def _get_orderbook_imbalance(info: Info, coin: str, depth: int = 10) -> float:
+def _get_orderbook_imbalance(info: Info, coin: str, depth: int = 50) -> float:
     try:
         l2 = info.l2_snapshot(coin)
         if not l2 or "levels" not in l2 or len(l2["levels"]) < 2:
@@ -584,7 +574,6 @@ async def _execute_setup(
     signal_price: float,
     signal_ts: pd.Timestamp,
     margin: float,
-    score: int,
     atr_5m: float = 0.0,
 ) -> TradeResult | None:
     leverage = CONFIG["leverage"]
@@ -621,9 +610,7 @@ async def _execute_setup(
         _clear_active_entry(coin)
         return None
 
-    if CONFIG.get("entry_order_type") == "market" or score >= 80:
-        if score >= 80:
-            logger.info("%s: score >= 80 (A/A+) -> overriding to MARKET order to guarantee fill", coin)
+    if CONFIG.get("entry_order_type") == "market":
         response = await _call(
             exchange.market_open, coin, is_entry_buy, size, signal_price,
             CONFIG.get("slippage_pct", 0.0) / 100,
@@ -710,12 +697,11 @@ async def _execute_setup(
     stage = "tp1"
     exit_reason = "unknown"
     tp2_oid: int | None = None
-    _last_hard_sl_check = time.monotonic()
 
     while True:
         try:
             now = datetime.now(timezone.utc)
-            pos_size, pos_entry_px = await _call(_position_for_coin, info, address, coin)
+            pos_size, _ = await _call(_position_for_coin, info, address, coin)
             abs_pos = abs(pos_size)
 
             if now >= deadline:
@@ -728,36 +714,6 @@ async def _execute_setup(
 
             if abs_pos <= POSITION_EPSILON:
                 exit_reason = "SL_or_external_flat" if stage != "tp2_done" else "TP2"
-                break
-
-            # ── HARD DOLLAR SL: kiểm tra mỗi HARD_DOLLAR_SL_CHECK_INTERVAL giây ──
-            # Thoát ngay nếu unrealized loss vượt HARD_DOLLAR_SL_USD
-            # Bảo vệ khỏi tình huống giá trượt dài không chạm % SL
-            elapsed_since_check = time.monotonic() - _last_hard_sl_check
-            if elapsed_since_check >= HARD_DOLLAR_SL_CHECK_INTERVAL and abs_pos > POSITION_EPSILON:
-                _last_hard_sl_check = time.monotonic()
-                try:
-                    # Lấy giá hiện tại từ mark price
-                    state = await _call(info.user_state, address)
-                    for item in state.get("assetPositions", []):
-                        pos = item.get("position", {})
-                        if pos.get("coin") == coin:
-                            unrealized_pnl = _to_float(pos.get("unrealizedPnl"))
-                            if unrealized_pnl < -HARD_DOLLAR_SL_USD:
-                                logger.warning(
-                                    "%s: HARD DOLLAR SL triggered! unrealized_pnl=%.4f < -%.2f — emergency close",
-                                    coin, unrealized_pnl, HARD_DOLLAR_SL_USD,
-                                )
-                                exit_reason = "hard_dollar_sl"
-                                for oid in (tp1_oid, tp2_oid, sl_oid):
-                                    await _cancel_if_open(exchange, info, address, coin, oid)
-                                await _market_close_remaining(exchange, info, address, coin, managed_oids)
-                                await _wait_for_position_flat(info, address, coin)
-                            break
-                except Exception as exc:
-                    logger.warning("%s: hard dollar SL check failed: %s", coin, exc)
-
-            if exit_reason in ("hard_dollar_sl",):
                 break
 
             open_orders = await _call(_open_orders_for_coin, info, address, coin)
@@ -840,7 +796,6 @@ async def _execute_and_record(
     signal_price: float,
     signal_ts: pd.Timestamp,
     margin: float,
-    score: int,
     atr_5m: float,
     risk: RiskState,
 ) -> None:
@@ -848,7 +803,7 @@ async def _execute_and_record(
         result = await _execute_setup(
             exchange, info, address, coin,
             direction, signal_price, signal_ts, margin,
-            score, atr_5m,
+            atr_5m,
         )
         if result is not None:
             risk.record_trade(result)
@@ -879,11 +834,6 @@ async def _scan_coin(
         return
 
     async with _coin_locks[coin]:
-        # ── DISABLED_COINS guard: bỏ qua hoàn toàn ETH và các coin bị disable ──
-        if coin in DISABLED_COINS:
-            logger.debug("%s: coin disabled — skipping", coin)
-            return
-
         # ── FIX #1: Active entry guard — kiểm tra TRƯỚC khi gọi API ──
         # Nếu đã gửi entry order trong ACTIVE_ENTRY_TIMEOUT_SEC giây qua,
         # KHÔNG được mở lệnh mới bất kể API trả về gì.
@@ -961,56 +911,27 @@ async def _scan_coin(
         direction = setup["direction"]
 
         # Order Book Imbalance check
-        # Nới lỏng: Cho phép bắt đáy/đỉnh trừ khi sổ lệnh chống lại quá mạnh
-        block_obi = -0.25
-        strong_obi = 0.3
+        min_obi = 0.15
         obi = await _call(_get_orderbook_imbalance, info, coin)
         setup["obi"] = obi
 
-        if direction == "long":
-            if obi < block_obi:
-                logger.info(
-                    "%s %s: LONG (score %d) blocked — OBI=%.2f (sellers extremely dominant)",
-                    coin, signal_ts, score, obi,
-                )
-                return
-            elif obi > strong_obi:
-                score += 15
-                setup.setdefault("score_details", {})["obi_bonus"] = 15
-        elif direction == "short":
-            if obi > -block_obi:  # Tương đương obi > 0.25
-                logger.info(
-                    "%s %s: SHORT (score %d) blocked — OBI=%.2f (buyers extremely dominant)",
-                    coin, signal_ts, score, obi,
-                )
-                return
-            elif obi < -strong_obi:
-                score += 15
-                setup.setdefault("score_details", {})["obi_bonus"] = 15
-        
-        # Cập nhật lại confidence do score có thể tăng
-        setup["score"] = score
-        if score >= 100:
-            setup["confidence"] = "A+"
-        elif score >= 80:
-            setup["confidence"] = "A"
-        elif score >= 60:
-            setup["confidence"] = "B"
-        else:
-            setup["confidence"] = "C"
+        if direction == "long" and obi < min_obi:
+            logger.info(
+                "%s %s: LONG (score %d) blocked — OBI=%.2f (sellers dominate)",
+                coin, signal_ts, score, obi,
+            )
+            return
+        elif direction == "short" and obi > -min_obi:
+            logger.info(
+                "%s %s: SHORT (score %d) blocked — OBI=%.2f (buyers dominate)",
+                coin, signal_ts, score, obi,
+            )
+            return
 
         logger.info(
-            "%s %s: setup %s score=%s conf=%s price=%.4f obi=%.2f bb_w=%.2f%% squeeze=%s",
-            coin, signal_ts, direction.upper(), score, setup.get("confidence", "?"),
-            current_price, obi,
-            setup.get("bb_width_pct", 0), setup.get("bb_squeeze", False),
+            "%s %s: setup %s score=%s price=%.4f obi=%.2f",
+            coin, signal_ts, direction.upper(), score, current_price, obi,
         )
-        # Log score breakdown cho debug
-        score_details = setup.get("score_details", {})
-        if score_details:
-            parts = [f"{k}={v:+d}" for k, v in score_details.items() if v != 0]
-            if parts:
-                logger.info("%s: score breakdown: %s", coin, " | ".join(parts))
 
         if score < CONFIG["min_score_half"]:
             return
@@ -1026,7 +947,7 @@ async def _scan_coin(
             _execute_and_record(
                 exchange, info, address, coin,
                 setup["direction"], current_price, signal_ts, margin,
-                score, setup.get("atr_5m", 0.0),
+                setup.get("atr_5m", 0.0),
                 risk
             )
         )
@@ -1034,7 +955,7 @@ async def _scan_coin(
 
 async def run_bot_async():
     logger.info("=" * 60)
-    logger.info("STARTING BOT ENGINE — BTC ONLY MODE")
+    logger.info("STARTING IMPROVED BOT ENGINE")
     logger.info("=" * 60)
     logger.info(
         "Profile=%s | entry=%s | TP1=%.3f%% | TP2=%.3f%% | SL=%.3f%% | time_stop=%sm",
@@ -1045,11 +966,6 @@ async def run_bot_async():
     logger.info(
         "FIX #1: Active entry guard=%ds | FIX #2: SL cooldown=%dm | FIX #3: Max margin=%.0f%%",
         ACTIVE_ENTRY_TIMEOUT_SEC, SL_SINGLE_COOLDOWN_MINUTES, MAX_MARGIN_USAGE_PCT * 100,
-    )
-    logger.info(
-        "HARD DOLLAR SL=%.2f USD | DISABLED COINS=%s | daily_loss_limit=%.2f USD | max_trades/day=%d",
-        HARD_DOLLAR_SL_USD, ",".join(DISABLED_COINS) if DISABLED_COINS else "none",
-        CONFIG.get("daily_loss_limit_usd", 0), CONFIG.get("max_trades_per_day", 0),
     )
 
     if not PRIVATE_KEY:
