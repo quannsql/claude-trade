@@ -624,9 +624,10 @@ async def _execute_setup(
     if CONFIG.get("entry_order_type") == "market" or score >= 80:
         if score >= 80:
             logger.info("%s: score >= 80 (A/A+) -> overriding to MARKET order to guarantee fill", coin)
+        slippage = max(CONFIG.get("slippage_pct", 0.0) / 100, 0.002) # Tối thiểu 0.2% slippage để đảm bảo khớp lệnh Market
         response = await _call(
             exchange.market_open, coin, is_entry_buy, size, signal_price,
-            CONFIG.get("slippage_pct", 0.0) / 100,
+            slippage,
         )
         entry_oid = _extract_oid(response)
         timeout_seconds = 30
