@@ -75,11 +75,21 @@ LOOKBACK_15M = int(os.environ.get("HL_LOOKBACK_15M", "260"))
 MARKET_CLOSE_SLIPPAGE = float(os.environ.get("HL_MARKET_CLOSE_SLIPPAGE", "0.002"))
 POSITION_EPSILON = 1e-8
 
+# ── ETH bị loại bỏ hoàn toàn — chỉ trade BTC ──
+# Lý do: ETH thua -$32 trong 2 ngày (28–29/6) do downtrend không có regime filter.
+# Sẽ thêm lại ETH sau khi implement và verify regime filter hoạt động đúng.
+DISABLED_COINS: set[str] = {"ETH"}
+
 # ── FIX #2: Cooldown nhỏ sau mỗi lần thua đơn lẻ ──
 SL_SINGLE_COOLDOWN_MINUTES = int(os.environ.get("HL_SL_COOLDOWN_MINUTES", "10"))
 
 # ── FIX #3: Giới hạn tổng margin usage ──
 MAX_MARGIN_USAGE_PCT = float(os.environ.get("HL_MAX_MARGIN_PCT", "0.70"))  # max 70% account dùng làm margin
+
+# ── HARD DOLLAR SL: đóng ngay nếu unrealized loss vượt ngưỡng này ──
+# Tránh tình huống như ETH -$7 vì price trượt dài không chạm % SL
+HARD_DOLLAR_SL_USD = float(os.environ.get("HL_HARD_DOLLAR_SL", "3.0"))
+HARD_DOLLAR_SL_CHECK_INTERVAL = int(os.environ.get("HL_HARD_SL_INTERVAL", "5"))  # check mỗi N giây
 
 # ── FIX #1: Track active entry orders để chống stacking ──
 # key = coin, value = timestamp khi entry order được gửi đi
@@ -697,11 +707,12 @@ async def _execute_setup(
     stage = "tp1"
     exit_reason = "unknown"
     tp2_oid: int | None = None
+    _last_hard_sl_check = time.monotonic()
 
     while True:
         try:
             now = datetime.now(timezone.utc)
-            pos_size, _ = await _call(_position_for_coin, info, address, coin)
+            pos_size, pos_entry_px = await _call(_position_for_coin, info, address, coin)
             abs_pos = abs(pos_size)
 
             if now >= deadline:
@@ -714,6 +725,36 @@ async def _execute_setup(
 
             if abs_pos <= POSITION_EPSILON:
                 exit_reason = "SL_or_external_flat" if stage != "tp2_done" else "TP2"
+                break
+
+            # ── HARD DOLLAR SL: kiểm tra mỗi HARD_DOLLAR_SL_CHECK_INTERVAL giây ──
+            # Thoát ngay nếu unrealized loss vượt HARD_DOLLAR_SL_USD
+            # Bảo vệ khỏi tình huống giá trượt dài không chạm % SL
+            elapsed_since_check = time.monotonic() - _last_hard_sl_check
+            if elapsed_since_check >= HARD_DOLLAR_SL_CHECK_INTERVAL and abs_pos > POSITION_EPSILON:
+                _last_hard_sl_check = time.monotonic()
+                try:
+                    # Lấy giá hiện tại từ mark price
+                    state = await _call(info.user_state, address)
+                    for item in state.get("assetPositions", []):
+                        pos = item.get("position", {})
+                        if pos.get("coin") == coin:
+                            unrealized_pnl = _to_float(pos.get("unrealizedPnl"))
+                            if unrealized_pnl < -HARD_DOLLAR_SL_USD:
+                                logger.warning(
+                                    "%s: HARD DOLLAR SL triggered! unrealized_pnl=%.4f < -%.2f — emergency close",
+                                    coin, unrealized_pnl, HARD_DOLLAR_SL_USD,
+                                )
+                                exit_reason = "hard_dollar_sl"
+                                for oid in (tp1_oid, tp2_oid, sl_oid):
+                                    await _cancel_if_open(exchange, info, address, coin, oid)
+                                await _market_close_remaining(exchange, info, address, coin, managed_oids)
+                                await _wait_for_position_flat(info, address, coin)
+                            break
+                except Exception as exc:
+                    logger.warning("%s: hard dollar SL check failed: %s", coin, exc)
+
+            if exit_reason in ("hard_dollar_sl",):
                 break
 
             open_orders = await _call(_open_orders_for_coin, info, address, coin)
@@ -834,6 +875,11 @@ async def _scan_coin(
         return
 
     async with _coin_locks[coin]:
+        # ── DISABLED_COINS guard: bỏ qua hoàn toàn ETH và các coin bị disable ──
+        if coin in DISABLED_COINS:
+            logger.debug("%s: coin disabled — skipping", coin)
+            return
+
         # ── FIX #1: Active entry guard — kiểm tra TRƯỚC khi gọi API ──
         # Nếu đã gửi entry order trong ACTIVE_ENTRY_TIMEOUT_SEC giây qua,
         # KHÔNG được mở lệnh mới bất kể API trả về gì.
@@ -929,9 +975,17 @@ async def _scan_coin(
             return
 
         logger.info(
-            "%s %s: setup %s score=%s price=%.4f obi=%.2f",
-            coin, signal_ts, direction.upper(), score, current_price, obi,
+            "%s %s: setup %s score=%s conf=%s price=%.4f obi=%.2f bb_w=%.2f%% squeeze=%s",
+            coin, signal_ts, direction.upper(), score, setup.get("confidence", "?"),
+            current_price, obi,
+            setup.get("bb_width_pct", 0), setup.get("bb_squeeze", False),
         )
+        # Log score breakdown cho debug
+        score_details = setup.get("score_details", {})
+        if score_details:
+            parts = [f"{k}={v:+d}" for k, v in score_details.items() if v != 0]
+            if parts:
+                logger.info("%s: score breakdown: %s", coin, " | ".join(parts))
 
         if score < CONFIG["min_score_half"]:
             return
@@ -955,7 +1009,7 @@ async def _scan_coin(
 
 async def run_bot_async():
     logger.info("=" * 60)
-    logger.info("STARTING IMPROVED BOT ENGINE")
+    logger.info("STARTING BOT ENGINE — BTC ONLY MODE")
     logger.info("=" * 60)
     logger.info(
         "Profile=%s | entry=%s | TP1=%.3f%% | TP2=%.3f%% | SL=%.3f%% | time_stop=%sm",
@@ -966,6 +1020,11 @@ async def run_bot_async():
     logger.info(
         "FIX #1: Active entry guard=%ds | FIX #2: SL cooldown=%dm | FIX #3: Max margin=%.0f%%",
         ACTIVE_ENTRY_TIMEOUT_SEC, SL_SINGLE_COOLDOWN_MINUTES, MAX_MARGIN_USAGE_PCT * 100,
+    )
+    logger.info(
+        "HARD DOLLAR SL=%.2f USD | DISABLED COINS=%s | daily_loss_limit=%.2f USD | max_trades/day=%d",
+        HARD_DOLLAR_SL_USD, ",".join(DISABLED_COINS) if DISABLED_COINS else "none",
+        CONFIG.get("daily_loss_limit_usd", 0), CONFIG.get("max_trades_per_day", 0),
     )
 
     if not PRIVATE_KEY:

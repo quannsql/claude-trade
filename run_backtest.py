@@ -22,25 +22,30 @@ from indicators import add_indicators, score_setup
 from filters import compute_dynamic_levels
 
 # ---------------------------------------------------------
-# BACKTEST CONFIGURATION - 2 PROFILES for direct comparison
+# BACKTEST CONFIGURATION — BTC ONLY (ETH đã bị loại bỏ)
 # ---------------------------------------------------------
-# PROFILE "scalp_1usd": original, target ~$1/trade, many trades/day
-# PROFILE "swing_5usd": new, target ~$5/trade, fewer trades/day,
-#                        prioritizes limit order (maker) to reduce fees
+# ETH bị loại vì downtrend loss quá lớn (-$32 trong 2 ngày 28–29/6).
+# Sẽ thêm lại ETH sau khi regime filter được implement và verify.
 #
-# Change ACTIVE_PROFILE to select the config to run. Run both times (change
-# profile then run again) to compare actual results on the same data.
+# Thay đổi so với bản cũ:
+#   - ACTIVE_PROFILE = "btc_high_freq" (chỉ BTC, trade nhiều hơn)
+#   - symbols = ["BTCUSDT"] trong BASE_CONFIG
+#   - Thêm max_loss_per_trade_usd (hard dollar SL)
+#   - Tăng max_trades_per_day lên 40 để bù lượng thiếu từ việc bỏ ETH
+#   - Giảm daily_loss_limit_usd xuống 8
+# ---------------------------------------------------------
 
-ACTIVE_PROFILE = "high_freq_scalp"
+ACTIVE_PROFILE = "btc_high_freq"
 
 BASE_CONFIG = {
-    "symbols": ["BTCUSDT", "ETHUSDT"],
+    # ETH đã bị loại bỏ hoàn toàn
+    "symbols": ["BTCUSDT"],
     "leverage": 20,
     "min_score_half": 50,
     "min_score_full": 65,
 
-    "taker_fee_pct": 0.045,   # Hyperliquid taker
-    "maker_fee_pct": 0.015,   # Hyperliquid maker
+    "taker_fee_pct": 0.045,
+    "maker_fee_pct": 0.015,
 
     "max_consecutive_losses": 3,
     "cooldown_minutes": 30,
@@ -48,7 +53,6 @@ BASE_CONFIG = {
     "min_equity_usd": 80.0,
     "starting_equity": 100.0,
 
-    # Optional strict filters applied inside score_setup. None means disabled.
     "allowed_hours_utc": None,
     "max_entry_volume_ratio": 5.0,
     "max_entry_bb_width_pct": None,
@@ -56,94 +60,32 @@ BASE_CONFIG = {
     "max_5m_ema21_distance_pct": None,
     "move_sl_to_breakeven_after_tp1": False,
 
+    # ── Scoring Engine v2 config ──
+    "bb_width_max_pct": 1.0,         # BB width > này → soft penalty nặng (-15)
+    "bb_width_warn_pct": 0.6,        # BB width > này → soft penalty nhẹ (-5)
+    "bb_pct_b_deep_threshold": 0.15, # %B phá qua sâu hơn threshold → penalty
+    "use_time_filter": True,         # Soft penalty Asia session, bonus London/NY
+    "use_rsi_divergence": True,      # RSI divergence check (+15 nếu phát hiện)
+    "use_stoch_cross": True,         # StochRSI %K/%D cross check (+15)
+    "use_macd_momentum": True,       # MACD histogram momentum check (+10)
+    "use_candle_5m": True,           # 5m candlestick pattern bonus (+10)
+    "use_bb_width_filter": True,     # BB width soft penalty (không hard block)
+    "use_bb_pct_b": True,            # BB %B depth bonus/penalty
+
+    # Hard dollar stop-loss: đóng ngay nếu unrealized loss vượt ngưỡng này
+    # Bảo vệ khỏi loss lớn không chạm % SL (ví dụ ETH -$7)
+    "max_loss_per_trade_usd": 3.0,
+
     "data_dir": "data",
     "output_dir": "results",
 }
 
 PROFILES = {
-    # ---- Original: small target, many trades, mostly taker ----
-    "scalp_1usd": {
-        "margin_full": 50.0,
-        "margin_half": 25.0,
-        "tp1_pct": 0.08,
-        "tp2_pct": 0.15,
-        "sl_pct": 0.25,
-        "time_stop_minutes": 5,
-        "daily_loss_limit_usd": 3.0,
-
-        "entry_order_type": "market",   # market = enter immediately, always taker
-        "use_maker_for_entry": False,
-        "use_maker_for_tp": True,
-        "limit_offset_pct": 0.0,
-        "limit_timeout_bars": 0,
-        "slippage_pct": 0.02,
-    },
-
-    # ---- New: larger target, fewer trades, prioritize maker ----
-    "swing_5usd": {
-        "margin_full": 50.0,
-        "margin_half": 25.0,
-        # TP/SL are much wider to target ~$5 profit per winning trade (full size):
-        # $50 margin x 20x = $1000 notional. +0.4% x $1000 = $4 gross,
-        # cumulative TP1+TP2 averages out to ~$5 after lower fees.
-        "tp1_pct": 0.30,     # close 50% at +0.30%
-        "tp2_pct": 0.55,     # close remaining 50% at +0.55%
-        "sl_pct": 0.40,      # wider SL proportionally (keeps R:R ~1:1.4-2.6)
-        "time_stop_minutes": 30,   # gives price more time to move larger distances
-
-        # Entry via LIMIT order placed at current price (wait to be filled, no chasing).
-        # If not filled within N subsequent candles -> CANCEL, skip setup (as per
-        # the "no chasing price" rule in the original version).
-        "entry_order_type": "limit",
-        "use_maker_for_entry": True,    # passive limit fill = maker
-        "use_maker_for_tp": True,       # TP always placed as limit = maker
-        "limit_offset_pct": 0.0,        # placed exactly at current price
-        "limit_timeout_bars": 1,        # wait max 1 1m candle, if not filled -> skip
-        "slippage_pct": 0.0,            # limit fills at exact price, no slippage on ENTRY
-        "daily_loss_limit_usd": 8.0,    # wider because SL/trade is larger than old $3
-    },
-
-    # ---- Safer testnet executor profile ----
-    # This does not magically create edge; it removes the worst classes of
-    # trades found after fixing lookahead/overlap bias and cuts position size
-    # so live/testnet drawdown is not dominated by a few SLs.
-    "conservative_testnet": {
+    # ── BTC ONLY HIGH FREQUENCY (Profile chính) ──────────────────────────────
+    # Phương châm: trade nhiều lệnh BTC nhỏ, lãi ít mỗi lệnh nhưng tổng dương.
+    # ETH bị loại. Bù đắp bằng max_trades_per_day=40 và min_score_half=45.
+    "btc_high_freq": {
         "symbols": ["BTCUSDT"],
-        "leverage": 10,
-        "margin_full": 10.0,
-        "margin_half": 5.0,
-        "min_score_half": 65,
-        "min_score_full": 75,
-
-        "tp1_pct": 0.30,
-        "tp2_pct": 0.55,
-        "sl_pct": 0.40,
-        "time_stop_minutes": 30,
-
-        "entry_order_type": "limit",
-        "use_maker_for_entry": True,
-        "use_maker_for_tp": True,
-        "limit_offset_pct": 0.0,
-        "limit_timeout_bars": 1,
-        "slippage_pct": 0.0,
-
-        "allowed_hours_utc": list(range(8, 22)),
-        "max_entry_volume_ratio": 2.0,
-        "max_entry_bb_width_pct": 0.45,
-        "move_sl_to_breakeven_after_tp1": False,
-        "max_trades_per_day": 6,
-        "daily_loss_limit_usd": 2.0,
-        "cooldown_minutes": 60,
-        "min_equity_usd": 50.0,
-
-        # New filters (Module 6+7)
-        "use_regime_filter": True,
-        "use_momentum_filter": True,
-    },
-
-    # ---- High Frequency Scalping Profile ----
-    "high_freq_scalp": {
-        "symbols": ["BTCUSDT", "ETHUSDT"],
         "leverage": 20,
         "margin_full": 100.0,
         "margin_half": 50.0,
@@ -155,6 +97,9 @@ PROFILES = {
         "sl_pct": 0.25,
         "time_stop_minutes": 30,
 
+        # Hard dollar SL override: thoát ngay nếu lỗ quá $3 (không phụ thuộc %)
+        "max_loss_per_trade_usd": 3.0,
+
         "use_dynamic_tp_sl": False,
 
         "entry_order_type": "limit",
@@ -165,54 +110,136 @@ PROFILES = {
         "slippage_pct": 0.0,
 
         "allowed_hours_utc": list(range(0, 24)),
-        "max_trades_per_day": 100,
-        "daily_loss_limit_usd": 15.0,
+        "max_trades_per_day": 40,
+        "daily_loss_limit_usd": 8.0,
         "cooldown_minutes": 5,
+        "max_consecutive_losses": 3,
         "min_equity_usd": 50.0,
 
         "use_regime_filter": False,
         "use_momentum_filter": False,
     },
 
-    # ---- SMART profile: higher quality, fewer but better trades ----
-    # Uses dynamic ATR-based TP/SL, trailing stop, stricter scoring,
-    # regime + momentum filters. Designed for higher win rate.
-    "smart": {
-        "symbols": ["BTCUSDT"],
-        "leverage": 10,
-        "margin_full": 10.0,
-        "margin_half": 5.0,
-        "min_score_half": 50,    # Just BB touch is enough for half size
-        "min_score_full": 60,    # BB touch + RSI confirm for full size
+    # ── Scalp nhỏ (giữ để tham khảo) ────────────────────────────────────────
+    "scalp_1usd": {
+        "margin_full": 50.0,
+        "margin_half": 25.0,
+        "tp1_pct": 0.08,
+        "tp2_pct": 0.15,
+        "sl_pct": 0.25,
+        "time_stop_minutes": 5,
+        "daily_loss_limit_usd": 3.0,
+        "entry_order_type": "market",
+        "use_maker_for_entry": False,
+        "use_maker_for_tp": True,
+        "limit_offset_pct": 0.0,
+        "limit_timeout_bars": 0,
+        "slippage_pct": 0.02,
+    },
 
-        # Fixed TP/SL as fallback
-        "tp1_pct": 0.35,
+    # ── Swing target $5/trade ────────────────────────────────────────────────
+    "swing_5usd": {
+        "margin_full": 50.0,
+        "margin_half": 25.0,
+        "tp1_pct": 0.30,
         "tp2_pct": 0.55,
-        "sl_pct": 0.30,
-        "time_stop_minutes": 120,  # Extended to prevent unnecessary market close fees
-
-        # Dynamic ATR-based TP/SL (using 5m ATR)
-        "use_dynamic_tp_sl": True, 
-        "tp1_atr_mult": 2.0,
-        "tp2_atr_mult": 4.0,
-        "sl_atr_mult": 2.0,
-
-        # Trailing stop
-        "use_trailing_stop": False, # Disabled for pure scalping
-
+        "sl_pct": 0.40,
+        "time_stop_minutes": 30,
         "entry_order_type": "limit",
         "use_maker_for_entry": True,
         "use_maker_for_tp": True,
         "limit_offset_pct": 0.0,
         "limit_timeout_bars": 1,
         "slippage_pct": 0.0,
+        "daily_loss_limit_usd": 8.0,
+    },
 
-        "allowed_hours_utc": list(range(0, 24)), # Scalp anytime
-        "max_trades_per_day": 20, # Higher frequency
-        "daily_loss_limit_usd": 5.0,
-        "cooldown_minutes": 15, # Shorter cooldown
+    # ── Conservative testnet ─────────────────────────────────────────────────
+    "conservative_testnet": {
+        "symbols": ["BTCUSDT"],
+        "leverage": 10,
+        "margin_full": 10.0,
+        "margin_half": 5.0,
+        "min_score_half": 65,
+        "min_score_full": 75,
+        "tp1_pct": 0.30,
+        "tp2_pct": 0.55,
+        "sl_pct": 0.40,
+        "time_stop_minutes": 30,
+        "entry_order_type": "limit",
+        "use_maker_for_entry": True,
+        "use_maker_for_tp": True,
+        "limit_offset_pct": 0.0,
+        "limit_timeout_bars": 1,
+        "slippage_pct": 0.0,
+        "allowed_hours_utc": list(range(8, 22)),
+        "max_entry_volume_ratio": 2.0,
+        "max_entry_bb_width_pct": 0.45,
+        "move_sl_to_breakeven_after_tp1": False,
+        "max_trades_per_day": 6,
+        "daily_loss_limit_usd": 2.0,
+        "cooldown_minutes": 60,
         "min_equity_usd": 50.0,
+        "use_regime_filter": True,
+        "use_momentum_filter": True,
+    },
 
+    # ── High freq cũ (có ETH — giữ để tham khảo, không dùng) ────────────────
+    "high_freq_scalp": {
+        "symbols": ["BTCUSDT", "ETHUSDT"],
+        "leverage": 20,
+        "margin_full": 100.0,
+        "margin_half": 50.0,
+        "min_score_half": 45,
+        "min_score_full": 55,
+        "tp1_pct": 0.20,
+        "tp2_pct": 0.40,
+        "sl_pct": 0.25,
+        "time_stop_minutes": 30,
+        "use_dynamic_tp_sl": False,
+        "entry_order_type": "limit",
+        "use_maker_for_entry": True,
+        "use_maker_for_tp": True,
+        "limit_offset_pct": 0.0,
+        "limit_timeout_bars": 2,
+        "slippage_pct": 0.0,
+        "allowed_hours_utc": list(range(0, 24)),
+        "max_trades_per_day": 100,
+        "daily_loss_limit_usd": 15.0,
+        "cooldown_minutes": 5,
+        "min_equity_usd": 50.0,
+        "use_regime_filter": False,
+        "use_momentum_filter": False,
+    },
+
+    # ── Smart / ATR-based ────────────────────────────────────────────────────
+    "smart": {
+        "symbols": ["BTCUSDT"],
+        "leverage": 10,
+        "margin_full": 10.0,
+        "margin_half": 5.0,
+        "min_score_half": 50,
+        "min_score_full": 60,
+        "tp1_pct": 0.35,
+        "tp2_pct": 0.55,
+        "sl_pct": 0.30,
+        "time_stop_minutes": 120,
+        "use_dynamic_tp_sl": True,
+        "tp1_atr_mult": 2.0,
+        "tp2_atr_mult": 4.0,
+        "sl_atr_mult": 2.0,
+        "use_trailing_stop": False,
+        "entry_order_type": "limit",
+        "use_maker_for_entry": True,
+        "use_maker_for_tp": True,
+        "limit_offset_pct": 0.0,
+        "limit_timeout_bars": 1,
+        "slippage_pct": 0.0,
+        "allowed_hours_utc": list(range(0, 24)),
+        "max_trades_per_day": 20,
+        "daily_loss_limit_usd": 5.0,
+        "cooldown_minutes": 15,
+        "min_equity_usd": 50.0,
         "use_regime_filter": False,
         "use_momentum_filter": False,
     },
@@ -220,7 +247,6 @@ PROFILES = {
 
 CONFIG = {**BASE_CONFIG, **PROFILES[ACTIVE_PROFILE]}
 CONFIG["profile_name"] = ACTIVE_PROFILE
-
 
 def load_data(symbol: str, timeframe: str, data_dir: str) -> pd.DataFrame:
     path = os.path.join(data_dir, f"{symbol}_{timeframe}.csv")
@@ -400,10 +426,33 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
             hit_tp1 = (not tp1_hit) and low <= tp1_price
             hit_tp2 = tp1_hit and low <= tp2_price
 
+        # Hard dollar stop-loss: thoát khẩn cấp nếu unrealized loss vượt ngưỡng USD
+        # Kiểm tra dựa trên close của nến hiện tại (conservative estimate)
+        # Bảo vệ khỏi trường hợp giá trượt dài nhưng chưa chạm % SL
+        max_loss_usd = cfg.get("max_loss_per_trade_usd", None)
+        if max_loss_usd is not None and not hit_sl:
+            if direction == "long":
+                unrealized_pct = (close - fill_price) / fill_price
+            else:
+                unrealized_pct = (fill_price - close) / fill_price
+            unrealized_pnl = remaining_notional * unrealized_pct
+            if unrealized_pnl < -max_loss_usd:
+                hit_sl = True  # Kích hoạt thoát — exit_reason sẽ là "hard_dollar_sl"
+
         # SL is checked first (pessimistic assumption: if both SL and TP are hit in same candle, SL triggers)
         if hit_sl:
+            # Xác định lý do thoát
+            if max_loss_usd is not None:
+                if direction == "long":
+                    check_pnl = (close - fill_price) / fill_price
+                else:
+                    check_pnl = (fill_price - close) / fill_price
+                is_hard_dollar = (remaining_notional * check_pnl) < -max_loss_usd
+            else:
+                is_hard_dollar = False
+
             # Determine if this is a trailing stop or original SL
-            if use_trailing and max_favorable_move >= trailing_activate_pct:
+            if use_trailing and max_favorable_move >= trailing_activate_pct and not is_hard_dollar:
                 # Trailing stop: PnL based on actual SL level
                 if direction == "long":
                     actual_pnl_pct = (sl_price - fill_price) / fill_price
@@ -411,6 +460,20 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
                     actual_pnl_pct = (fill_price - sl_price) / fill_price
                 pnl_remaining = remaining_notional * actual_pnl_pct
                 exit_reason = "trailing_stop"
+            elif is_hard_dollar:
+                # Hard dollar SL: exit tại close của nến hiện tại
+                if direction == "long":
+                    pnl_remaining = remaining_notional * (close - fill_price) / fill_price
+                else:
+                    pnl_remaining = remaining_notional * (fill_price - close) / fill_price
+                exit_reason = "hard_dollar_sl"
+                exit_price = close  # Thoát tại close, không phải sl_price
+                exit_time = bar["timestamp"]
+                exit_idx = idx
+                exit_fee = remaining_notional * (cfg["taker_fee_pct"] / 100)
+                realized_pnl += pnl_remaining
+                fees_paid += exit_fee
+                break
             else:
                 pnl_remaining = -remaining_notional * sl_pct
                 exit_reason = "SL"
