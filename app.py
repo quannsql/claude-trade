@@ -824,11 +824,20 @@ async def startup_event():
 # ---------------------------------------------------------
 # API Endpoints
 # ---------------------------------------------------------
+import time
+_state_cache = {}
+_state_cache_time = 0
+
 @app.get("/api/state")
 def get_state():
     """Fetch balance and open orders from Hyperliquid API."""
+    global _state_cache, _state_cache_time
     if not user_address:
         return {"error": "Wallet not configured.", "storage": _query_history(20)}
+
+    now = time.time()
+    if now - _state_cache_time < 4 and _state_cache:
+        return _state_cache
 
     try:
         user_state = info.user_state(user_address)
@@ -839,7 +848,7 @@ def get_state():
 
         persist_dashboard_state(user_address, margin_summary, fills[:200])
 
-        return {
+        _state_cache = {
             "address": user_address,
             "margin_summary": margin_summary,
             "positions": positions,
@@ -851,6 +860,8 @@ def get_state():
                 "error": storage_error,
             },
         }
+        _state_cache_time = now
+        return _state_cache
     except Exception as e:
         return {"error": str(e), "storage": _query_history(20)}
 
