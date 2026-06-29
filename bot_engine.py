@@ -247,7 +247,12 @@ def _round_size(exchange: Exchange, coin: str, size: float) -> float:
 def _order_statuses(response: Any) -> list[dict[str, Any]]:
     if not isinstance(response, dict):
         return []
-    data = response.get("response", {}).get("data", {})
+    resp = response.get("response", {})
+    if not isinstance(resp, dict):
+        return []
+    data = resp.get("data", {})
+    if not isinstance(data, dict):
+        return []
     statuses = data.get("statuses", [])
     return statuses if isinstance(statuses, list) else []
 
@@ -263,8 +268,13 @@ def _extract_oid(response: Any) -> int | None:
 
 def _response_errors(response: Any) -> list[str]:
     errors: list[str] = []
+    if isinstance(response, dict) and response.get("status") == "err":
+        resp_data = response.get("response")
+        if isinstance(resp_data, str):
+            errors.append(resp_data)
+            
     for status in _order_statuses(response):
-        if status.get("error"):
+        if isinstance(status, dict) and status.get("error"):
             errors.append(str(status["error"]))
     return errors
 
