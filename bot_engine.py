@@ -328,7 +328,7 @@ async def _get_cached_margin_summary(info: Info, address: str) -> dict[str, floa
 
     if now - _margin_cache["ts"] > 30:
         ms = await _call(_margin_summary, info, address)
-        if ms["account_value"] > 0:
+        if ms["account_value"] >= 0:
             _margin_cache["data"] = ms
             _margin_cache["ts"] = now
         else:
@@ -1047,7 +1047,7 @@ async def _scan_coin(
         # ── FIX #3: Kiểm tra tổng margin usage ──
         ms = await _get_cached_margin_summary(info, address)
         if ms is None:
-            logger.warning("%s: failed to fetch margin summary (no cache) — skipping for safety (fail-closed)", coin)
+            logger.warning("%s: margin_summary is 0 or failed to fetch (check network/balance) — skipping for safety", coin)
             return
 
         if ms["account_value"] > 0:
