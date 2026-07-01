@@ -1,8 +1,8 @@
 """
-indicators.py — Rule-based Engine
-==================================
-Calculate technical indicators and check entry conditions based on strict rules.
-Stripped down to prioritize speed, liquidity (OBI), and price action.
+indicators.py — High-Frequency Simplified Engine
+================================================
+Tối giản hóa tính toán (BB, RSI) và mở rộng điều kiện (OR logic) 
+giúp bot trade tần suất cao nhưng vẫn có độ chính xác nhờ RSI và OBI.
 """
 
 import pandas as pd
@@ -18,55 +18,28 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df["bb_upper"] = bb.bollinger_hband()
     df["bb_lower"] = bb.bollinger_lband()
     
-    # %B = 0 -> exactly at lower band, %B = 1 -> exactly at upper band
-    # %B < 0 -> piercing lower band, %B > 1 -> piercing upper band
     bb_range = df["bb_upper"] - df["bb_lower"]
     df["bb_pct_b"] = (df["close"] - df["bb_lower"]) / bb_range.replace(0, np.nan)
 
-    # 2. Average True Range (ATR)
+    # 2. RSI
+    df["rsi"] = ta.momentum.RSIIndicator(df["close"], window=14).rsi()
+
+    # 3. Average True Range (ATR) - Fallback
     df["atr"] = ta.volatility.AverageTrueRange(df["high"], df["low"], df["close"], window=14).average_true_range()
 
-    # 3. Volume Average (for climax detection)
+    # 4. Volume Average (for climax detection)
     df["vol_avg20"] = df["volume"].rolling(20).mean()
 
-    # 4. VWAP (Daily UTC reset)
+    # 5. VWAP (Daily UTC reset) - Optional filter
     if "timestamp" in df.columns and not df["timestamp"].isna().all():
         trade_date = df["timestamp"].dt.date
         cum_vol_price = (df["close"] * df["volume"]).groupby(trade_date).cumsum()
         cum_vol = df["volume"].groupby(trade_date).cumsum()
         df["vwap"] = cum_vol_price / cum_vol.replace(0, np.nan)
     else:
-        # Fallback if no timestamp
         df["vwap"] = (df["close"] * df["volume"]).cumsum() / df["volume"].cumsum()
 
     return df
-
-
-def is_pinbar(row: pd.Series, direction: str) -> bool:
-    """
-    Check if the current candle is a pinbar (long wick piercing the band, closing inside).
-    For LONG: long lower wick, closing in the upper half.
-    For SHORT: long upper wick, closing in the lower half.
-    """
-    body_top = max(row["close"], row["open"])
-    body_bottom = min(row["close"], row["open"])
-    body = body_top - body_bottom
-    candle_range = row["high"] - row["low"]
-    
-    if candle_range == 0:
-        return False
-        
-    upper_wick = row["high"] - body_top
-    lower_wick = body_bottom - row["low"]
-    
-    if direction == "long":
-        # Long lower wick, short upper wick
-        return (lower_wick >= 1.5 * body) and (upper_wick < body) and (body > 0)
-    elif direction == "short":
-        # Long upper wick, short lower wick
-        return (upper_wick >= 1.5 * body) and (lower_wick < body) and (body > 0)
-        
-    return False
 
 
 def check_entry_conditions(
@@ -77,74 +50,80 @@ def check_entry_conditions(
     cfg: dict | None = None
 ) -> dict:
     """
-    Strict Rule-based Entry Checker.
-    
-    Returns dict:
-    {
-        'direction': 'long' | 'short' | None,
-        'atr_1m': float,
-        'confidence': str,
-        'block_reasons': list[str]
-    }
+    Simplified High-Frequency OR-logic Checker.
     """
     result = {
         "direction": None,
         "atr_1m": 0.0,
-        "confidence": "C",
+        "confidence": "B",
         "block_reasons": []
     }
     
-    if i15 < 1 or i1 < 20:
+    if i1 < 20:
         result["block_reasons"].append("Not enough data")
         return result
         
-    row15 = df15.iloc[i15]
     row1 = df1.iloc[i1]
     
     price1 = row1["close"]
-    vwap15 = row15.get("vwap")
     bb_pct_b = row1.get("bb_pct_b")
+    bb_lower = row1.get("bb_lower")
+    bb_upper = row1.get("bb_upper")
+    rsi1 = row1.get("rsi")
     vol = row1.get("volume")
     vol_avg = row1.get("vol_avg20")
     
-    if pd.isna(vwap15) or pd.isna(bb_pct_b):
+    if pd.isna(bb_pct_b) or pd.isna(rsi1):
         result["block_reasons"].append("Missing indicators")
         return result
         
     atr_1m = row1.get("atr")
     result["atr_1m"] = float(atr_1m) if not pd.isna(atr_1m) else 0.0
     
-    # Check 1: VWAP Trend Filter & Counter-Trend Override (Giải pháp 2)
-    is_price_above_vwap = price1 > vwap15
-    allow_long = is_price_above_vwap or (obi >= 0.40)  # Counter-trend buy wall
-    allow_short = (not is_price_above_vwap) or (obi <= -0.40) # Counter-trend sell wall
+    # ── OBI FILTER ──
+    # Chặn nếu Order Book hoàn toàn bất lợi (chống xả hàng/bơm thổi mạnh)
+    obi_block_threshold = 0.25
+    allow_long = True
+    allow_short = True
     
-    # Check 2: Order Book Imbalance (Hard Block)
-    if allow_long and obi < -0.15:
+    if obi < -obi_block_threshold:
         allow_long = False
-        result["block_reasons"].append(f"OBI {obi:.2f} too low for LONG")
+        result["block_reasons"].append(f"OBI {obi:.2f} quá thấp, chặn LONG")
         
-    if allow_short and obi > 0.15:
+    if obi > obi_block_threshold:
         allow_short = False
-        result["block_reasons"].append(f"OBI {obi:.2f} too high for SHORT")
+        result["block_reasons"].append(f"OBI {obi:.2f} quá cao, chặn SHORT")
         
     if not allow_long and not allow_short:
-        if not result["block_reasons"]:
-            result["block_reasons"].append(f"Blocked by Trend and OBI filters (Price>VWAP:{is_price_above_vwap}, OBI:{obi:.2f})")
         return result
         
-    # Check 3: Trigger (Price Action + BB)
-    is_vol_climax = (vol is not None and vol_avg is not None and vol > vol_avg)
+    # ── TRIGGER CONDITIONS (OR LOGIC) ──
+    # LONG conditions
+    is_bb_touch_long = (bb_pct_b <= 0 or price1 <= bb_lower)
+    is_vol_climax = (vol is not None and vol_avg is not None and vol > vol_avg * 2.0)
+    is_extreme_vol = (vol is not None and vol_avg is not None and vol > vol_avg * 3.0)
     
-    if allow_long and bb_pct_b < 0 and is_pinbar(row1, "long") and is_vol_climax:
+    setup1_long = is_bb_touch_long and (rsi1 < 40)
+    setup2_long = (rsi1 < 25)
+    setup3_long = is_bb_touch_long and is_vol_climax
+    setup4_long = is_extreme_vol and (obi > 0.3) and (price1 > bb_upper)  # Trend following (Bơm)
+    
+    # SHORT conditions
+    is_bb_touch_short = (bb_pct_b >= 1 or price1 >= bb_upper)
+    setup1_short = is_bb_touch_short and (rsi1 > 60)
+    setup2_short = (rsi1 > 75)
+    setup3_short = is_bb_touch_short and is_vol_climax
+    setup4_short = is_extreme_vol and (obi < -0.3) and (price1 < bb_lower) # Trend following (Xả)
+
+    if allow_long and (setup1_long or setup2_long or setup3_long or setup4_long):
         result["direction"] = "long"
-        result["confidence"] = "A+" if obi_delta > 0 else "A"
+        result["confidence"] = "A" if (setup2_long or setup3_long or setup4_long) else "B"
         
-    elif allow_short and bb_pct_b > 1 and is_pinbar(row1, "short") and is_vol_climax:
+    elif allow_short and (setup1_short or setup2_short or setup3_short or setup4_short):
         result["direction"] = "short"
-        result["confidence"] = "A+" if obi_delta < 0 else "A"
+        result["confidence"] = "A" if (setup2_short or setup3_short or setup4_short) else "B"
         
     else:
-        result["block_reasons"].append("No trigger (need BB pierce + Pinbar + Vol)")
+        result["block_reasons"].append("No trigger matched")
         
     return result

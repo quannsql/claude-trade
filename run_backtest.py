@@ -100,17 +100,7 @@ BASE_CONFIG = {
     "max_5m_ema21_distance_pct": None,
     "move_sl_to_breakeven_after_tp1": False,
 
-    # ── Scoring Engine v2 config ──
-    "bb_width_max_pct": 1.0,         # BB width > này → soft penalty nặng (-15)
-    "bb_width_warn_pct": 0.6,        # BB width > này → soft penalty nhẹ (-5)
-    "bb_pct_b_deep_threshold": 0.15, # %B phá qua sâu hơn threshold → penalty
-    "use_time_filter": True,         # Soft penalty Asia session, bonus London/NY
-    "use_rsi_divergence": True,      # RSI divergence check (+15 nếu phát hiện)
-    "use_stoch_cross": True,         # StochRSI %K/%D cross check (+15)
-    "use_macd_momentum": True,       # MACD histogram momentum check (+10)
-    "use_candle_5m": True,           # 5m candlestick pattern bonus (+10)
-    "use_bb_width_filter": True,     # BB width soft penalty (không hard block)
-    "use_bb_pct_b": True,            # BB %B depth bonus/penalty
+    # Removed legacy Scoring Engine config
 
     # Hard dollar stop-loss: đóng ngay nếu unrealized loss vượt ngưỡng này
     # Bảo vệ khỏi loss lớn không chạm % SL (ví dụ ETH -$7)
@@ -132,22 +122,12 @@ PROFILES = {
         "min_score_half": 50,
         "min_score_full": 70,
 
-        "target_profit_usd": 2.5,
-        "breakeven_pnl_usd": 1.5,
-        "sl_atr_mult": 1.5,
-        "time_stop_minutes": 30,
-
-        # Hard dollar SL override: thoát ngay nếu lỗ quá $3 (không phụ thuộc %)
+        # Target static USD TP/SL
+        "target_profit_usd": 2.0,
         "max_loss_per_trade_usd": 3.0,
-
+        "breakeven_pnl_usd": 1.5,
+        "time_stop_minutes": 30,
         "move_sl_to_breakeven_after_tp1": True,
-        "use_dynamic_tp_sl": True,
-        "tp1_atr_mult": 1.2,
-        "tp2_atr_mult": 2.5,
-        "sl_atr_mult": 1.5,
-        "tp1_pct_max": 0.30,
-        "tp2_pct_max": 0.60,
-        "sl_pct_max": 0.40,
 
         "entry_order_type": "limit",
         "use_maker_for_entry": True,
@@ -369,11 +349,11 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
     
     size = notional / fill_price
     
-    target_profit_usd = cfg.get("target_profit_usd", 2.5)
+    target_profit_usd = cfg.get("target_profit_usd", 2.0)
+    max_loss_usd = cfg.get("max_loss_per_trade_usd", 3.0)
     breakeven_pnl_usd = cfg.get("breakeven_pnl_usd", 1.5)
-    sl_dist = atr_1m * cfg.get("sl_atr_mult", 1.5)
-    if atr_1m <= 0:
-        sl_dist = fill_price * 0.005
+    
+    sl_dist = max_loss_usd / size
     
     tp_dist = target_profit_usd / size
     

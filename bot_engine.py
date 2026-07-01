@@ -77,7 +77,7 @@ POSITION_EPSILON = 1e-8
 
 DISABLED_COINS: set[str] = set()
 # ── FIX #2: Cooldown nhỏ sau mỗi lần thua đơn lẻ ──
-SL_SINGLE_COOLDOWN_MINUTES = int(os.environ.get("HL_SL_COOLDOWN_MINUTES", "10"))
+SL_SINGLE_COOLDOWN_MINUTES = int(os.environ.get("HL_SL_COOLDOWN_MINUTES", "0"))
 
 # ── FIX #3: Giới hạn tổng margin usage ──
 MAX_MARGIN_USAGE_PCT = float(os.environ.get("HL_MAX_MARGIN_PCT", "0.70"))  # max 70% account dùng làm margin
@@ -794,16 +794,12 @@ async def _execute_setup(
     avg_entry = entry_fill.avg_price
     filled_size = _round_size(exchange, coin, entry_fill.size)
 
-    # Dynamic SL/TP based on 1m ATR
-    atr_1m = setup.get("atr_1m", 0.0)
-    if atr_1m <= 0:
-        atr_1m = avg_entry * 0.005 # fallback
-
-    sl_dist = 1.5 * atr_1m
+    # Static SL/TP based on USD target
+    target_profit_usd = cfg.get("target_profit_usd", 2.0)
+    max_loss_usd = cfg.get("max_loss_per_trade_usd", 3.0)
     
-    # Calculate TP price for a $2.5 target profit
-    target_profit_usd = cfg.get("target_profit_usd", 2.5)
     tp_dist = target_profit_usd / filled_size
+    sl_dist = max_loss_usd / filled_size
     
     if direction == "long":
         sl_price = avg_entry - sl_dist
