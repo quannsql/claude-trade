@@ -51,6 +51,11 @@ COIN_CONFIG: dict[str, dict] = {
         "min_score_half": 50,
         "max_loss_per_trade_usd": 3.0,
         "use_regime_filter": False,
+        # Giảm TP để chốt lời ngắn ($2.5 - $3)
+        "tp1_pct_max": 0.15,
+        "tp2_pct_max": 0.30,
+        "tp1_atr_mult": 0.8,
+        "tp2_atr_mult": 1.6,
     },
     "ETH": {
         "tp1_pct": 0.15,
@@ -65,6 +70,11 @@ COIN_CONFIG: dict[str, dict] = {
         "min_score_half": 45,
         "max_loss_per_trade_usd": 3.5,
         "use_regime_filter": True,
+        # ETH margin nhỏ hơn ($1500) nên % nhỉnh hơn để đạt cùng lượng USD
+        "tp1_pct_max": 0.20,
+        "tp2_pct_max": 0.40,
+        "tp1_atr_mult": 1.0,
+        "tp2_atr_mult": 2.0,
     },
 }
 
