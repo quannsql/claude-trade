@@ -1056,7 +1056,7 @@ async def _scan_coin(
             return
         last_signal_ts[coin] = signal_ts
 
-        if setup["hard_block"] or setup["direction"] is None:
+        if len(setup.get("block_reasons", [])) > 0 or setup.get("direction") is None:
             reason_text = setup["block_reasons"][0] if setup["block_reasons"] else "no direction"
             logger.info("%s %s: block: %s (price %.4f)", coin, signal_ts, reason_text, current_price)
             return
