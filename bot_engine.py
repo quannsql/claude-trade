@@ -511,7 +511,22 @@ def _latest_setup(info: Info, coin: str, effective_cfg: dict) -> tuple[dict[str,
 
 
 async def _call(fn, *args, **kwargs):
-    return await asyncio.to_thread(fn, *args, **kwargs)
+    fn_name = getattr(fn, "__name__", "unknown")
+    is_write = fn_name in ("order", "market_close", "cancel")
+    max_retries = 1 if is_write else 3
+    base_delay = 1.0
+
+    for attempt in range(max_retries):
+        try:
+            return await asyncio.to_thread(fn, *args, **kwargs)
+        except Exception as exc:
+            if attempt == max_retries - 1:
+                if not is_write:
+                    logger.warning("API call %s failed after %d attempts: %s", fn_name, max_retries, exc)
+                raise
+            delay = base_delay * (2 ** attempt)
+            logger.info("API call %s failed: %s. Retrying in %ds...", fn_name, exc, delay)
+            await asyncio.sleep(delay)
 
 
 async def _cancel_if_open(exchange: Exchange, info: Info, address: str, coin: str, oid: int | None) -> None:

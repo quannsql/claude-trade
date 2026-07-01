@@ -831,6 +831,10 @@ def score_setup(i15: int, df15: pd.DataFrame,
         result["block_reasons"].append("15m_trend_against + strong_close: high risk")
         result["hard_block"] = True
 
+    if details.get("trend_15m", 0) < 0 and details.get("candle_5m", 0) == 0 and details.get("candle_1m", 0) == 0:
+        result["block_reasons"].append("trend_against without candle reversal: high risk fade")
+        result["hard_block"] = True
+
     # --------------------------------------------------
     # EXPORT RESULTS
     # --------------------------------------------------
