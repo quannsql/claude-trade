@@ -18,7 +18,7 @@ import numpy as np
 import os
 from tabulate import tabulate
 
-from indicators import add_indicators, score_setup
+from indicators import add_indicators, check_entry_conditions
 from filters import compute_dynamic_levels
 
 # ---------------------------------------------------------
@@ -39,9 +39,9 @@ ACTIVE_PROFILE = "btc_high_freq"
 
 COIN_CONFIG: dict[str, dict] = {
     "BTC": {
-        "tp1_pct": 0.10,
-        "tp2_pct": 0.20,
-        "sl_pct": 0.20,
+        "target_profit_usd": 2.5,
+        "breakeven_pnl_usd": 1.5,
+        "sl_atr_mult": 1.5,
         "margin_full": 100.0,
         "margin_half": 50.0,
         "time_stop_minutes": 10,
@@ -58,9 +58,9 @@ COIN_CONFIG: dict[str, dict] = {
         "tp2_atr_mult": 1.6,
     },
     "ETH": {
-        "tp1_pct": 0.15,
-        "tp2_pct": 0.30,
-        "sl_pct": 0.25,
+        "target_profit_usd": 3.0,
+        "breakeven_pnl_usd": 1.5,
+        "sl_atr_mult": 1.5,
         "margin_full": 75.0,
         "margin_half": 35.0,
         "time_stop_minutes": 10,
@@ -132,9 +132,9 @@ PROFILES = {
         "min_score_half": 50,
         "min_score_full": 70,
 
-        "tp1_pct": 0.10,
-        "tp2_pct": 0.20,
-        "sl_pct": 0.20,
+        "target_profit_usd": 2.5,
+        "breakeven_pnl_usd": 1.5,
+        "sl_atr_mult": 1.5,
         "time_stop_minutes": 30,
 
         # Hard dollar SL override: thoát ngay nếu lỗ quá $3 (không phụ thuộc %)
@@ -173,7 +173,7 @@ PROFILES = {
         "margin_half": 25.0,
         "tp1_pct": 0.08,
         "tp2_pct": 0.15,
-        "sl_pct": 0.25,
+        "sl_atr_mult": 1.5,
         "time_stop_minutes": 5,
         "daily_loss_limit_usd": 3.0,
         "entry_order_type": "market",
@@ -241,7 +241,7 @@ PROFILES = {
         "min_score_full": 55,
         "tp1_pct": 0.20,
         "tp2_pct": 0.40,
-        "sl_pct": 0.25,
+        "sl_atr_mult": 1.5,
         "time_stop_minutes": 30,
         "use_dynamic_tp_sl": False,
         "entry_order_type": "limit",
@@ -347,95 +347,52 @@ def try_fill_limit_entry(direction: str, limit_price: float, df1: pd.DataFrame,
 
 def simulate_trade(direction: str, entry_price: float, entry_time,
                     df1: pd.DataFrame, entry_idx: int, margin: float,
-                    cfg: dict, atr_5m: float = 0.0) -> dict:
-    """
-    Simulates 1 trade from entry to close (TP1+TP2, SL, trailing-stop, or
-    time-stop), iterating through 1m candles after entry_idx.
-
-    Supports:
-    - Fixed % TP/SL (original behavior)
-    - Dynamic ATR-based TP/SL (when use_dynamic_tp_sl=True and atr_1m > 0)
-    - Trailing stop (when use_trailing_stop=True)
-
-    Returns dict of trade result, or None if limit order not filled.
-    """
+                    cfg: dict, atr_1m: float = 0.0) -> dict | None:
     leverage = cfg["leverage"]
     notional = margin * leverage
-
-    entry_order_type = cfg.get("entry_order_type", "market")
-
-    if entry_order_type == "limit":
-        offset_pct = cfg.get("limit_offset_pct", 0.0) / 100
-        if direction == "long":
-            limit_price = entry_price * (1 - offset_pct)
-        else:
-            limit_price = entry_price * (1 + offset_pct)
-
-        fill_idx, fill_price = try_fill_limit_entry(
-            direction, limit_price, df1, entry_idx, cfg.get("limit_timeout_bars", 1)
-        )
-        if fill_idx is None:
-            return None  # NOT filled within wait time -> skip, do not chase price
-        entry_idx = fill_idx  # TP/SL/time-stop timer starts from actual fill
+    
+    offset_pct = cfg.get("limit_offset_pct", 0.0) / 100
+    if direction == "long":
+        limit_price = entry_price * (1 - offset_pct)
     else:
-        slippage = cfg["slippage_pct"] / 100
-        if direction == "long":
-            fill_price = entry_price * (1 + slippage)
-        else:
-            fill_price = entry_price * (1 - slippage)
+        limit_price = entry_price * (1 + offset_pct)
 
+    fill_idx, fill_price = try_fill_limit_entry(
+        direction, limit_price, df1, entry_idx, cfg.get("limit_timeout_bars", 1)
+    )
+    if fill_idx is None:
+        return None
+        
+    entry_idx = fill_idx
     entry_fee_pct = cfg["maker_fee_pct"] if cfg["use_maker_for_entry"] else cfg["taker_fee_pct"]
     entry_fee = notional * (entry_fee_pct / 100)
-
-    # ------- Dynamic ATR-based TP/SL or fixed % -------
-    if cfg.get("use_dynamic_tp_sl", False) and atr_5m > 0:
-        levels = compute_dynamic_levels(
-            fill_price, direction, atr_5m,
-            tp1_atr_mult=cfg.get("tp1_atr_mult", 1.5),
-            tp2_atr_mult=cfg.get("tp2_atr_mult", 3.0),
-            sl_atr_mult=cfg.get("sl_atr_mult", 1.2),
-            tp1_pct_max=cfg.get("tp1_pct_max", 0.30),
-            tp2_pct_max=cfg.get("tp2_pct_max", 0.60),
-            sl_pct_max=cfg.get("sl_pct_max", 0.40),
-        )
-        tp1_price = levels["tp1_price"]
-        tp2_price = levels["tp2_price"]
-        sl_price = levels["sl_price"]
-        tp1_pct = levels["tp1_pct"] / 100
-        tp2_pct = levels["tp2_pct"] / 100
-        sl_pct = levels["sl_pct"] / 100
+    
+    size = notional / fill_price
+    
+    target_profit_usd = cfg.get("target_profit_usd", 2.5)
+    breakeven_pnl_usd = cfg.get("breakeven_pnl_usd", 1.5)
+    sl_dist = atr_1m * cfg.get("sl_atr_mult", 1.5)
+    if atr_1m <= 0:
+        sl_dist = fill_price * 0.005
+    
+    tp_dist = target_profit_usd / size
+    
+    if direction == "long":
+        sl_price = fill_price - sl_dist
+        tp_price = fill_price + tp_dist
     else:
-        tp1_pct = cfg["tp1_pct"] / 100
-        tp2_pct = cfg["tp2_pct"] / 100
-        sl_pct = cfg["sl_pct"] / 100
-
-        if direction == "long":
-            tp1_price = fill_price * (1 + tp1_pct)
-            tp2_price = fill_price * (1 + tp2_pct)
-            sl_price = fill_price * (1 - sl_pct)
-        else:
-            tp1_price = fill_price * (1 - tp1_pct)
-            tp2_price = fill_price * (1 - tp2_pct)
-            sl_price = fill_price * (1 + sl_pct)
-
-    # ------- Trailing stop config -------
-    use_trailing = cfg.get("use_trailing_stop", False)
-    trailing_activate_pct = cfg.get("trailing_activate_pct", 0.15) / 100
-    trailing_lock_pct = cfg.get("trailing_lock_pct", 0.50)
-    max_favorable_move = 0.0  # Track best price reached
-
-    remaining_notional = notional
-    realized_pnl = 0.0
-    fees_paid = entry_fee
-    tp1_hit = False
+        sl_price = fill_price + sl_dist
+        tp_price = fill_price - tp_dist
+        
     exit_reason = None
     exit_price = None
     exit_time = None
     exit_idx = None
-
+    breakeven_triggered = False
+    
     max_bars = cfg["time_stop_minutes"]
     n = len(df1)
-
+    
     for offset in range(1, max_bars + 1):
         idx = entry_idx + offset
         if idx >= n:
@@ -447,139 +404,71 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
 
         bar = df1.iloc[idx]
         high, low, close = bar["high"], bar["low"], bar["close"]
-
-        # ------- Update trailing stop -------
-        if use_trailing:
-            if direction == "long":
-                favorable = (high - fill_price) / fill_price
-            else:
-                favorable = (fill_price - low) / fill_price
-
-            max_favorable_move = max(max_favorable_move, favorable)
-
-            if max_favorable_move >= trailing_activate_pct:
-                # Trail: move SL to lock a portion of the best move
-                lock_amount = max_favorable_move * trailing_lock_pct
-                if direction == "long":
-                    trailing_sl = fill_price * (1 + lock_amount)
-                    sl_price = max(sl_price, trailing_sl)
-                else:
-                    trailing_sl = fill_price * (1 - lock_amount)
-                    sl_price = min(sl_price, trailing_sl)
-
+        
+        # Check TP/SL
         if direction == "long":
             hit_sl = low <= sl_price
-            hit_tp1 = (not tp1_hit) and high >= tp1_price
-            hit_tp2 = tp1_hit and high >= tp2_price
+            hit_tp = high >= tp_price
+            unrealized_pnl = (high - fill_price) * size
         else:
             hit_sl = high >= sl_price
-            hit_tp1 = (not tp1_hit) and low <= tp1_price
-            hit_tp2 = tp1_hit and low <= tp2_price
-
-        # Hard dollar stop-loss: thoát khẩn cấp nếu unrealized loss vượt ngưỡng USD
-        # Kiểm tra dựa trên close của nến hiện tại (conservative estimate)
-        # Bảo vệ khỏi trường hợp giá trượt dài nhưng chưa chạm % SL
-        max_loss_usd = cfg.get("max_loss_per_trade_usd", None)
-        if max_loss_usd is not None and not hit_sl:
-            if direction == "long":
-                unrealized_pct = (close - fill_price) / fill_price
-            else:
-                unrealized_pct = (fill_price - close) / fill_price
-            unrealized_pnl = remaining_notional * unrealized_pct
-            if unrealized_pnl < -max_loss_usd:
-                hit_sl = True  # Kích hoạt thoát — exit_reason sẽ là "hard_dollar_sl"
-
-        # SL is checked first (pessimistic assumption: if both SL and TP are hit in same candle, SL triggers)
+            hit_tp = low <= tp_price
+            unrealized_pnl = (fill_price - low) * size
+            
+        # Hard dollar SL check on close
+        if direction == "long":
+            close_pnl = (close - fill_price) * size
+        else:
+            close_pnl = (fill_price - close) * size
+            
+        if not hit_sl and close_pnl < -cfg.get("max_loss_per_trade_usd", 3.0):
+            hit_sl = True
+            is_hard_dollar = True
+        else:
+            is_hard_dollar = False
+            
         if hit_sl:
-            # Xác định lý do thoát
-            if max_loss_usd is not None:
-                if direction == "long":
-                    check_pnl = (close - fill_price) / fill_price
-                else:
-                    check_pnl = (fill_price - close) / fill_price
-                is_hard_dollar = (remaining_notional * check_pnl) < -max_loss_usd
-            else:
-                is_hard_dollar = False
-
-            # Determine if this is a trailing stop or original SL
-            if use_trailing and max_favorable_move >= trailing_activate_pct and not is_hard_dollar:
-                # Trailing stop: PnL based on actual SL level
-                if direction == "long":
-                    actual_pnl_pct = (sl_price - fill_price) / fill_price
-                else:
-                    actual_pnl_pct = (fill_price - sl_price) / fill_price
-                pnl_remaining = remaining_notional * actual_pnl_pct
-                exit_reason = "trailing_stop"
-            elif is_hard_dollar:
-                # Hard dollar SL: exit tại close của nến hiện tại
-                if direction == "long":
-                    pnl_remaining = remaining_notional * (close - fill_price) / fill_price
-                else:
-                    pnl_remaining = remaining_notional * (fill_price - close) / fill_price
+            if is_hard_dollar:
+                exit_price = close
                 exit_reason = "hard_dollar_sl"
-                exit_price = close  # Thoát tại close, không phải sl_price
-                exit_time = bar["timestamp"]
-                exit_idx = idx
-                exit_fee = remaining_notional * (cfg["taker_fee_pct"] / 100)
-                realized_pnl += pnl_remaining
-                fees_paid += exit_fee
-                break
             else:
-                pnl_remaining = -remaining_notional * sl_pct
+                exit_price = sl_price
                 exit_reason = "SL"
-            exit_fee = remaining_notional * (cfg["taker_fee_pct"] / 100)  # SL is always market = taker
-            realized_pnl += pnl_remaining
-            fees_paid += exit_fee
-            exit_price = sl_price
             exit_time = bar["timestamp"]
             exit_idx = idx
             break
-
-        if hit_tp1:
-            half_notional = remaining_notional / 2
-            pnl_half = half_notional * tp1_pct
-            tp_fee_pct = cfg["maker_fee_pct"] if cfg["use_maker_for_tp"] else cfg["taker_fee_pct"]
-            fee_half = half_notional * (tp_fee_pct / 100)
-            realized_pnl += pnl_half
-            fees_paid += fee_half
-            remaining_notional = half_notional
-            tp1_hit = True
-            if cfg.get("move_sl_to_breakeven_after_tp1", False):
-                sl_price = fill_price
-            continue
-
-        if hit_tp2:
-            pnl_rest = remaining_notional * tp2_pct
-            tp_fee_pct = cfg["maker_fee_pct"] if cfg["use_maker_for_tp"] else cfg["taker_fee_pct"]
-            fee_rest = remaining_notional * (tp_fee_pct / 100)
-            realized_pnl += pnl_rest
-            fees_paid += fee_rest
-            exit_reason = "TP2"
-            exit_price = tp2_price
+            
+        if hit_tp:
+            exit_price = tp_price
+            exit_reason = "TP"
             exit_time = bar["timestamp"]
             exit_idx = idx
-            remaining_notional = 0
             break
-
+            
+        # Breakeven Trail
+        if not breakeven_triggered and unrealized_pnl >= breakeven_pnl_usd:
+            breakeven_triggered = True
+            sl_price = fill_price  # Move SL to entry
+            
     if exit_reason is None:
         idx = min(entry_idx + max_bars, n - 1)
         bar = df1.iloc[idx]
-        close_price = bar["close"]
-        if direction == "long":
-            move_pct = (close_price - fill_price) / fill_price
-        else:
-            move_pct = (fill_price - close_price) / fill_price
-        pnl_rest = remaining_notional * move_pct
-        exit_fee = remaining_notional * (cfg["taker_fee_pct"] / 100)
-        realized_pnl += pnl_rest
-        fees_paid += exit_fee
-        exit_reason = "time_stop"
-        exit_price = close_price
+        exit_price = bar["close"]
         exit_time = bar["timestamp"]
         exit_idx = idx
-
-    net_pnl = realized_pnl - fees_paid
-
+        exit_reason = "time_stop"
+        
+    if direction == "long":
+        gross_pnl = (exit_price - fill_price) * size
+    else:
+        gross_pnl = (fill_price - exit_price) * size
+        
+    exit_fee_pct = cfg["maker_fee_pct"] if exit_reason == "TP" and cfg["use_maker_for_tp"] else cfg["taker_fee_pct"]
+    exit_fee = (size * exit_price) * (exit_fee_pct / 100)
+    
+    total_fees = entry_fee + exit_fee
+    net_pnl = gross_pnl - total_fees
+    
     return {
         "direction": direction,
         "entry_time": entry_time,
@@ -589,13 +478,12 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
         "exit_reason": exit_reason,
         "margin": margin,
         "notional": notional,
-        "gross_pnl": realized_pnl,
-        "fees": fees_paid,
+        "gross_pnl": gross_pnl,
+        "fees": total_fees,
         "net_pnl": net_pnl,
         "win": net_pnl > 0,
         "exit_idx": exit_idx,
     }
-
 
 def run_symbol_backtest(symbol: str, cfg: dict) -> pd.DataFrame:
     coin = symbol.replace("USDT", "").replace("/", "")
@@ -640,25 +528,20 @@ def run_symbol_backtest(symbol: str, cfg: dict) -> pd.DataFrame:
         idx5 = align_index(ts, df5, idx5, timeframe_minutes=5)
         idx15 = align_index(ts, df15, idx15, timeframe_minutes=15)
 
-        setup = score_setup(
-            idx15, df15, idx5, df5, i1, df1,
-            consecutive_losses=consecutive_losses,
-            hour_utc=ts.hour,
+        setup = check_entry_conditions(
+            idx15, df15, i1, df1,
+            obi=0.0, obi_delta=0.0,
             cfg=cfg,
         )
 
-        if setup["hard_block"] or setup["direction"] is None:
+        if len(setup["block_reasons"]) > 0 or setup["direction"] is None:
             continue
 
-        score = setup["score"]
-        if score < cfg["min_score_half"]:
-            continue
-
-        margin = cfg["margin_full"] if score >= cfg["min_score_full"] else cfg["margin_half"]
+        margin = cfg["margin_full"] if setup.get("confidence") == "A+" else cfg["margin_half"]
 
         entry_price = df1.iloc[i1]["close"]
-        atr_5m = setup.get("atr_5m", 0.0)
-        trade = simulate_trade(setup["direction"], entry_price, ts, df1, i1, margin, cfg, atr_5m=atr_5m)
+        atr_1m = setup.get("atr_1m", 0.0)
+        trade = simulate_trade(setup["direction"], entry_price, ts, df1, i1, margin, cfg, atr_1m=atr_1m)
 
         if trade is None:
             # Limit order not filled within wait time - according to rule
@@ -668,7 +551,7 @@ def run_symbol_backtest(symbol: str, cfg: dict) -> pd.DataFrame:
             last_trade_exit_idx = i1  # still apply minimum 2 min gap
             continue
 
-        trade["score"] = score
+        trade["score"] = 100 if setup.get('confidence') == 'A+' else 50
         trade["symbol"] = symbol
         trades.append(trade)
 
@@ -765,8 +648,8 @@ def main():
 
     print("\n\n" + "=" * 70)
     print(f" CONSOLIDATED REPORT — Profile: {CONFIG['profile_name']}")
-    print(f" TP1: +{CONFIG['tp1_pct']}% | TP2: +{CONFIG['tp2_pct']}% | SL: -{CONFIG['sl_pct']}% | "
-          f"Entry: {CONFIG['entry_order_type']}")
+    print(f" Target Profit: ${CONFIG.get('target_profit_usd', 0)} | Breakeven SL: ${CONFIG.get('breakeven_pnl_usd', 0)} | SL ATR Mult: {CONFIG.get('sl_atr_mult', 0)}x | "
+          f"Entry: {CONFIG.get('entry_order_type', 'limit')}")
     print("=" * 70)
 
     table_rows = []
