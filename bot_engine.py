@@ -37,6 +37,7 @@ IMPROVEMENT #6 — PARTIAL FILL PNL TRACKING
 import asyncio
 import logging
 import os
+import threading
 import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
@@ -67,13 +68,15 @@ PRIVATE_KEY = os.environ.get("HL_PRIVATE_KEY", "")
 HL_NETWORK = os.environ.get("HL_NETWORK", "TESTNET").strip().upper()
 API_URL = constants.MAINNET_API_URL if HL_NETWORK == "MAINNET" else constants.TESTNET_API_URL
 
-SIGNAL_POLL_SECONDS = int(os.environ.get("HL_SIGNAL_POLL_SECONDS", "3"))
-ORDER_POLL_SECONDS = int(os.environ.get("HL_ORDER_POLL_SECONDS", "3"))
+SIGNAL_POLL_SECONDS = int(os.environ.get("HL_SIGNAL_POLL_SECONDS", "10"))
+ORDER_POLL_SECONDS = int(os.environ.get("HL_ORDER_POLL_SECONDS", "4"))
 LOOKBACK_1M = int(os.environ.get("HL_LOOKBACK_1M", "300"))
 LOOKBACK_5M = int(os.environ.get("HL_LOOKBACK_5M", "160"))
 LOOKBACK_15M = int(os.environ.get("HL_LOOKBACK_15M", "260"))
 MARKET_CLOSE_SLIPPAGE = float(os.environ.get("HL_MARKET_CLOSE_SLIPPAGE", "0.002"))
 POSITION_EPSILON = 1e-8
+API_MIN_INTERVAL_SEC = float(os.environ.get("HL_API_MIN_INTERVAL_SEC", "0.22"))
+SIGNAL_CHECK_INTERVAL_SEC = int(os.environ.get("HL_SIGNAL_CHECK_INTERVAL_SEC", "45"))
 
 
 def _parse_coin_set(raw: str) -> set[str]:
@@ -102,6 +105,10 @@ _coin_locks: dict[str, asyncio.Lock] = {}
 
 # Theo dõi thời gian orphan position của từng coin
 _orphan_timers: dict[str, float] = {}
+_last_signal_check: dict[str, float] = {}
+_api_rate_lock = threading.Lock()
+_last_api_call_ts = 0.0
+_funding_cache: dict[str, tuple[float, float]] = {}
 
 
 @dataclass
@@ -215,6 +222,24 @@ class RiskState:
 
 def _now_ms() -> int:
     return int(time.time() * 1000)
+
+
+def _sync_api_pause() -> None:
+    """Small global throttle for Hyperliquid HTTP calls shared by worker threads."""
+    global _last_api_call_ts
+    if API_MIN_INTERVAL_SEC <= 0:
+        return
+    with _api_rate_lock:
+        now = time.monotonic()
+        wait = API_MIN_INTERVAL_SEC - (now - _last_api_call_ts)
+        if wait > 0:
+            time.sleep(wait)
+        _last_api_call_ts = time.monotonic()
+
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    text = str(exc)
+    return "429" in text or "Too Many Requests" in text
 
 
 def _interval_ms(interval: str) -> int:
@@ -465,10 +490,11 @@ def _get_orderbook_analysis(info: Info, coin: str, current_price: float, depth: 
     }
     try:
         snapshots: list[dict[str, Any]] = []
-        reads = max(1, int(os.environ.get("HL_OB_SNAPSHOTS", "3")))
+        reads = max(1, int(os.environ.get("HL_OB_SNAPSHOTS", "1")))
         delay = max(0.0, float(os.environ.get("HL_OB_SNAPSHOT_DELAY", "0.15")))
 
         for idx in range(reads):
+            _sync_api_pause()
             l2 = info.l2_snapshot(coin)
             if l2 and "levels" in l2 and len(l2["levels"]) >= 2:
                 bids = l2["levels"][0][:depth]
@@ -552,7 +578,13 @@ def _get_orderbook_analysis(info: Info, coin: str, current_price: float, depth: 
 
 def _get_funding_rate(info: Info, coin: str) -> float:
     """Lấy funding rate hiện tại của coin. Trả về 0.0 nếu lỗi."""
+    now = time.time()
+    cached = _funding_cache.get(coin)
+    if cached and now - cached[1] < 300:
+        return cached[0]
+
     try:
+        _sync_api_pause()
         meta = info.meta_and_asset_ctxs()
         if not meta or len(meta) < 2:
             return 0.0
@@ -560,7 +592,9 @@ def _get_funding_rate(info: Info, coin: str) -> float:
         coin_meta = info.name_to_asset(coin)
         if coin_meta < len(asset_ctxs):
             ctx = asset_ctxs[coin_meta]
-            return float(ctx.get("funding", 0.0))
+            rate = float(ctx.get("funding", 0.0))
+            _funding_cache[coin] = (rate, now)
+            return rate
     except Exception:
         return 0.0
     return 0.0
@@ -581,6 +615,7 @@ def fetch_hyperliquid_candles(
         "req": {"coin": coin, "interval": interval, "startTime": start_time, "endTime": end_time},
     }
     try:
+        _sync_api_pause()
         res = info.post("/info", req)
     except Exception as exc:
         logger.warning("%s: candle fetch failed interval=%s: %s", coin, interval, exc)
@@ -640,18 +675,20 @@ def _latest_setup(info: Info, coin: str, effective_cfg: dict) -> tuple[dict[str,
 async def _call(fn, *args, **kwargs):
     fn_name = getattr(fn, "__name__", "unknown")
     is_write = fn_name in ("order", "market_close", "cancel")
-    max_retries = 1 if is_write else 3
+    max_retries = 1 if is_write else 4
     base_delay = 1.0
 
     for attempt in range(max_retries):
         try:
+            _sync_api_pause()
             return await asyncio.to_thread(fn, *args, **kwargs)
         except Exception as exc:
             if attempt == max_retries - 1:
                 if not is_write:
                     logger.warning("API call %s failed after %d attempts: %s", fn_name, max_retries, exc)
                 raise
-            delay = base_delay * (2 ** attempt)
+            delay = (5.0 if _is_rate_limit_error(exc) else base_delay) * (2 ** attempt)
+            delay = min(delay, 20.0)
             logger.info("API call %s failed: %s. Retrying in %ds...", fn_name, exc, delay)
             await asyncio.sleep(delay)
 
@@ -1249,6 +1286,13 @@ async def _scan_coin(
                 _active_entry.pop(coin, None)
 
         effective_cfg = get_effective_config(coin)
+        now_mono = time.monotonic()
+        check_interval = int(effective_cfg.get("signal_check_interval_sec", SIGNAL_CHECK_INTERVAL_SEC))
+        last_check = _last_signal_check.get(coin, 0.0)
+        if now_mono - last_check < check_interval:
+            return
+        _last_signal_check[coin] = now_mono
+
         now_utc = datetime.now(timezone.utc)
         can_trade, reason = risk.can_trade(coin, now_utc, effective_cfg)
         if not can_trade:
@@ -1377,7 +1421,7 @@ async def _scan_coin(
 
 async def run_bot_async():
     logger.info("=" * 60)
-    logger.info("STARTING BOT ENGINE — BTC ONLY MODE")
+    logger.info("STARTING BOT ENGINE - MULTI-ASSET SCALP MODE")
     logger.info("=" * 60)
     logger.info(
         "Profile=%s | entry=%s | TP1=%.3f%% | TP2=%.3f%% | SL=%.3f%% | time_stop=%sm",
@@ -1393,6 +1437,11 @@ async def run_bot_async():
         "HARD DOLLAR SL=%.2f USD | DISABLED COINS=%s | daily_loss_limit=%.2f USD | max_trades/day=%d",
         HARD_DOLLAR_SL_USD, ",".join(DISABLED_COINS) if DISABLED_COINS else "none",
         CONFIG.get("daily_loss_limit_usd", 0), CONFIG.get("max_trades_per_day", 0),
+    )
+    logger.info(
+        "API throttle=%.2fs | signal_loop=%ss | per_coin_signal_check=%ss | OB snapshots=%s",
+        API_MIN_INTERVAL_SEC, SIGNAL_POLL_SECONDS, SIGNAL_CHECK_INTERVAL_SEC,
+        os.environ.get("HL_OB_SNAPSHOTS", "1"),
     )
 
     if not PRIVATE_KEY:
