@@ -29,6 +29,7 @@ import pandas as pd
 import numpy as np
 import ta
 from filters import detect_regime, momentum_strength, price_position_vs_ema
+from strategy_brain import score_strategy_setup
 
 
 def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
@@ -68,6 +69,7 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
     df["atr"] = ta.volatility.AverageTrueRange(df["high"], df["low"], df["close"], window=14).average_true_range()
     df["atr_pct"] = df["atr"] / df["close"] * 100
+    df["adx"] = ta.trend.ADXIndicator(df["high"], df["low"], df["close"], window=14).adx()
 
     # ── FIX: VWAP reset mỗi ngày UTC ──
     # Trước đây: cumsum từ đầu dataset → VWAP tích lũy hàng tuần, mất ý nghĩa intraday
@@ -267,6 +269,16 @@ def score_setup(i15: int, df15: pd.DataFrame,
                  obi: float = 0.0,
                  ob_analysis: dict | None = None,
                  funding_rate: float = 0.0) -> dict:
+    return score_strategy_setup(
+        i15, df15, i5, df5, i1, df1,
+        consecutive_losses=consecutive_losses,
+        hour_utc=hour_utc,
+        cfg=cfg,
+        obi=obi,
+        ob_analysis=ob_analysis,
+        funding_rate=funding_rate,
+    )
+
     """
     Scoring Engine v2 — Apply tất cả module scoring tại candle indices
     i15, i5, i1 trên 3 timeframes.

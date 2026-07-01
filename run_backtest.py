@@ -16,6 +16,7 @@ Usage:
 import pandas as pd
 import numpy as np
 import os
+import json
 from tabulate import tabulate
 
 from indicators import add_indicators, score_setup
@@ -35,7 +36,7 @@ from filters import compute_dynamic_levels
 #   - Giảm daily_loss_limit_usd xuống 8
 # ---------------------------------------------------------
 
-ACTIVE_PROFILE = "btc_high_freq"
+ACTIVE_PROFILE = "multi_asset_scalp"
 
 COIN_CONFIG: dict[str, dict] = {
     "BTC": {
@@ -78,8 +79,107 @@ COIN_CONFIG: dict[str, dict] = {
     },
 }
 
+COIN_CONFIG.update({
+    "BTC": {
+        "tp1_pct": 0.08,
+        "tp2_pct": 0.16,
+        "sl_pct": 0.14,
+        "margin_full": 100.0,
+        "margin_half": 50.0,
+        "time_stop_minutes": 6,
+        "bb_width_max_pct": 1.15,
+        "range_bb_width_pct": 0.95,
+        "fade_bb_width_hard_max_pct": 1.65,
+        "min_score_full": 74,
+        "min_score_half": 58,
+        "max_loss_per_trade_usd": 2.35,
+        "max_spread_pct": 0.018,
+        "tp1_pct_max": 0.12,
+        "tp2_pct_max": 0.22,
+        "sl_pct_max": 0.18,
+        "tp1_pct_min": 0.10,
+        "tp2_pct_min": 0.20,
+        "sl_pct_min": 0.10,
+        "tp1_atr_mult": 0.65,
+        "tp2_atr_mult": 1.25,
+        "sl_atr_mult": 0.95,
+    },
+    "ETH": {
+        "tp1_pct": 0.10,
+        "tp2_pct": 0.20,
+        "sl_pct": 0.17,
+        "margin_full": 75.0,
+        "margin_half": 37.5,
+        "time_stop_minutes": 6,
+        "bb_width_max_pct": 1.45,
+        "range_bb_width_pct": 1.10,
+        "fade_bb_width_hard_max_pct": 2.05,
+        "min_score_full": 74,
+        "min_score_half": 58,
+        "max_loss_per_trade_usd": 2.10,
+        "max_spread_pct": 0.025,
+        "tp1_pct_max": 0.15,
+        "tp2_pct_max": 0.28,
+        "sl_pct_max": 0.22,
+        "tp1_pct_min": 0.12,
+        "tp2_pct_min": 0.24,
+        "sl_pct_min": 0.12,
+        "tp1_atr_mult": 0.75,
+        "tp2_atr_mult": 1.45,
+        "sl_atr_mult": 1.00,
+    },
+    "XRP": {
+        "tp1_pct": 0.12,
+        "tp2_pct": 0.24,
+        "sl_pct": 0.20,
+        "margin_full": 50.0,
+        "margin_half": 25.0,
+        "time_stop_minutes": 5,
+        "bb_width_max_pct": 1.80,
+        "range_bb_width_pct": 1.30,
+        "fade_bb_width_hard_max_pct": 2.45,
+        "min_score_full": 76,
+        "min_score_half": 60,
+        "max_loss_per_trade_usd": 1.75,
+        "max_spread_pct": 0.035,
+        "tp1_pct_max": 0.18,
+        "tp2_pct_max": 0.34,
+        "sl_pct_max": 0.26,
+        "tp1_pct_min": 0.14,
+        "tp2_pct_min": 0.28,
+        "sl_pct_min": 0.14,
+        "tp1_atr_mult": 0.85,
+        "tp2_atr_mult": 1.60,
+        "sl_atr_mult": 1.05,
+    },
+    "BNB": {
+        "tp1_pct": 0.10,
+        "tp2_pct": 0.22,
+        "sl_pct": 0.18,
+        "margin_full": 65.0,
+        "margin_half": 32.5,
+        "time_stop_minutes": 5,
+        "bb_width_max_pct": 1.55,
+        "range_bb_width_pct": 1.15,
+        "fade_bb_width_hard_max_pct": 2.10,
+        "min_score_full": 76,
+        "min_score_half": 60,
+        "max_loss_per_trade_usd": 1.75,
+        "max_spread_pct": 0.030,
+        "tp1_pct_max": 0.16,
+        "tp2_pct_max": 0.32,
+        "sl_pct_max": 0.24,
+        "tp1_pct_min": 0.12,
+        "tp2_pct_min": 0.26,
+        "sl_pct_min": 0.12,
+        "tp1_atr_mult": 0.80,
+        "tp2_atr_mult": 1.55,
+        "sl_atr_mult": 1.05,
+    },
+})
+
 BASE_CONFIG = {
-    "symbols": ["BTCUSDT", "ETHUSDT"],
+    "symbols": ["BTCUSDT", "ETHUSDT", "XRPUSDT", "BNBUSDT"],
     "leverage": 20,
     "min_score_half": 50,
     "min_score_full": 65,
@@ -89,7 +189,9 @@ BASE_CONFIG = {
 
     "max_consecutive_losses": 3,
     "cooldown_minutes": 30,
-    "max_trades_per_day": 20,
+    "single_loss_cooldown_minutes": 3,
+    "max_trades_per_day": 24,
+    "max_total_trades_per_day": 80,
     "min_equity_usd": 80.0,
     "starting_equity": 100.0,
 
@@ -99,6 +201,7 @@ BASE_CONFIG = {
     "max_5m_atr_pct": None,
     "max_5m_ema21_distance_pct": None,
     "move_sl_to_breakeven_after_tp1": False,
+    "use_dynamic_tp_sl": True,
 
     # ── Scoring Engine v2 config ──
     "bb_width_max_pct": 1.0,         # BB width > này → soft penalty nặng (-15)
@@ -111,6 +214,19 @@ BASE_CONFIG = {
     "use_candle_5m": True,           # 5m candlestick pattern bonus (+10)
     "use_bb_width_filter": True,     # BB width soft penalty (không hard block)
     "use_bb_pct_b": True,            # BB %B depth bonus/penalty
+    "use_funding_rate": True,
+    "trend_adx_min": 20.0,
+    "range_adx_max": 24.0,
+    "impulse_momentum_atr": 1.8,
+    "vwap_stretch_min_pct": 0.28,
+    "ema_reversion_min_pct": 0.28,
+    "trend_pullback_max_pct": 0.34,
+    "obi_hard_block": 0.30,
+    "obi_soft_align": 0.12,
+    "min_expected_tp_net_usd": 0.25,
+    "allow_taker_entry_fallback": False,
+    "entry_reprice_attempts": 2,
+    "entry_reprice_delay_sec": 0.4,
 
     # Hard dollar stop-loss: đóng ngay nếu unrealized loss vượt ngưỡng này
     # Bảo vệ khỏi loss lớn không chạm % SL (ví dụ ETH -$7)
@@ -121,6 +237,49 @@ BASE_CONFIG = {
 }
 
 PROFILES = {
+    "multi_asset_scalp": {
+        "symbols": ["BTCUSDT", "ETHUSDT", "XRPUSDT", "BNBUSDT"],
+        "leverage": 20,
+        "margin_full": 45.0,
+        "margin_half": 25.0,
+        "min_score_half": 58,
+        "min_score_full": 74,
+        "tp1_pct": 0.10,
+        "tp2_pct": 0.20,
+        "sl_pct": 0.18,
+        "time_stop_minutes": 6,
+        "max_loss_per_trade_usd": 2.2,
+        "move_sl_to_breakeven_after_tp1": True,
+        "use_dynamic_tp_sl": True,
+        "tp1_atr_mult": 0.75,
+        "tp2_atr_mult": 1.45,
+        "sl_atr_mult": 1.0,
+        "tp1_pct_max": 0.16,
+        "tp2_pct_max": 0.30,
+        "sl_pct_max": 0.24,
+        "tp1_pct_min": 0.12,
+        "tp2_pct_min": 0.24,
+        "sl_pct_min": 0.12,
+        "entry_order_type": "limit",
+        "use_maker_for_entry": True,
+        "use_maker_for_tp": True,
+        "allow_taker_entry_fallback": False,
+        "entry_reprice_attempts": 2,
+        "limit_offset_pct": 0.0,
+        "limit_timeout_bars": 1,
+        "slippage_pct": 0.0,
+        "allowed_hours_utc": list(range(0, 24)),
+        "max_trades_per_day": 24,
+        "max_total_trades_per_day": 80,
+        "daily_loss_limit_usd": 8.0,
+        "cooldown_minutes": 8,
+        "single_loss_cooldown_minutes": 3,
+        "max_consecutive_losses": 2,
+        "min_equity_usd": 50.0,
+        "use_regime_filter": True,
+        "use_momentum_filter": True,
+    },
+
     # ── BTC ONLY HIGH FREQUENCY (Profile chính) ──────────────────────────────
     # Phương châm: trade nhiều lệnh BTC nhỏ, lãi ít mỗi lệnh nhưng tổng dương.
     # ETH bị loại. Bù đắp bằng max_trades_per_day=40 và min_score_half=45.
@@ -394,6 +553,9 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
             tp1_atr_mult=cfg.get("tp1_atr_mult", 1.5),
             tp2_atr_mult=cfg.get("tp2_atr_mult", 3.0),
             sl_atr_mult=cfg.get("sl_atr_mult", 1.2),
+            tp1_pct_min=cfg.get("tp1_pct_min", 0.0),
+            tp2_pct_min=cfg.get("tp2_pct_min", 0.0),
+            sl_pct_min=cfg.get("sl_pct_min", 0.0),
             tp1_pct_max=cfg.get("tp1_pct_max", 0.30),
             tp2_pct_max=cfg.get("tp2_pct_max", 0.60),
             sl_pct_max=cfg.get("sl_pct_max", 0.40),
@@ -604,9 +766,13 @@ def run_symbol_backtest(symbol: str, cfg: dict) -> pd.DataFrame:
 
     print(f"\n{'='*60}\nBacktest {symbol} (coin_cfg={'yes' if coin_overrides else 'base'})\n{'='*60}")
 
-    df1 = add_indicators(load_data(symbol, "1m", cfg["data_dir"]))
-    df5 = add_indicators(load_data(symbol, "5m", cfg["data_dir"]))
-    df15 = add_indicators(load_data(symbol, "15m", cfg["data_dir"]))
+    try:
+        df1 = add_indicators(load_data(symbol, "1m", cfg["data_dir"]))
+        df5 = add_indicators(load_data(symbol, "5m", cfg["data_dir"]))
+        df15 = add_indicators(load_data(symbol, "15m", cfg["data_dir"]))
+    except FileNotFoundError as exc:
+        print(f"  Skipping {symbol}: {exc}")
+        return pd.DataFrame()
 
     print(f"  1m Candles: {len(df1)} | 5m: {len(df5)} | 15m: {len(df15)}")
 
@@ -669,6 +835,13 @@ def run_symbol_backtest(symbol: str, cfg: dict) -> pd.DataFrame:
             continue
 
         trade["score"] = score
+        trade["engine"] = setup.get("engine", "unknown")
+        trade["regime"] = setup.get("regime", "unknown")
+        trade["confidence"] = setup.get("confidence", "C")
+        trade["bb_width_pct"] = setup.get("bb_width_pct", 0.0)
+        trade["atr_1m"] = setup.get("atr_1m", 0.0)
+        trade["atr_5m"] = setup.get("atr_5m", 0.0)
+        trade["score_details"] = json.dumps(setup.get("score_details", {}), ensure_ascii=False)
         trade["symbol"] = symbol
         trades.append(trade)
 
@@ -681,6 +854,9 @@ def run_symbol_backtest(symbol: str, cfg: dict) -> pd.DataFrame:
             consecutive_losses = 0
         else:
             consecutive_losses += 1
+            single_loss_cd = cfg.get("single_loss_cooldown_minutes", 0)
+            if single_loss_cd:
+                cooldown_until = trade["exit_time"] + pd.Timedelta(minutes=single_loss_cd)
             if consecutive_losses >= cfg["max_consecutive_losses"]:
                 cooldown_until = trade["exit_time"] + pd.Timedelta(minutes=cfg["cooldown_minutes"])
                 consecutive_losses = 0
