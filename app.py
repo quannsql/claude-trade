@@ -666,12 +666,12 @@ def _load_live_chart_payload(address: str, symbols: list[str]) -> dict[str, Any]
             with conn.cursor() as cur:
                 cur.execute("SELECT captured_at, account_value FROM account_snapshots WHERE address = %s ORDER BY captured_at ASC", (address,))
                 snapshots = cur.fetchall()
-                cur.execute("SELECT fill_time, coin, dir, px, sz, closed_pnl FROM fills WHERE address = %s ORDER BY fill_time ASC", (address,))
+                cur.execute("SELECT fill_time, coin, dir, px, sz, closed_pnl, payload FROM fills WHERE address = %s ORDER BY fill_time ASC", (address,))
                 fills = cur.fetchall()
     else:
         with sqlite3.connect(LOCAL_DB_PATH) as conn:
             snapshots = conn.execute("SELECT captured_at, account_value FROM account_snapshots WHERE address = ? ORDER BY captured_at ASC", (address,)).fetchall()
-            fills = conn.execute("SELECT fill_time, coin, dir, px, sz, closed_pnl FROM fills WHERE address = ? ORDER BY fill_time ASC", (address,)).fetchall()
+            fills = conn.execute("SELECT fill_time, coin, dir, px, sz, closed_pnl, payload FROM fills WHERE address = ? ORDER BY fill_time ASC", (address,)).fetchall()
 
     equity_series = []
     drawdown_series = []
@@ -715,7 +715,15 @@ def _load_live_chart_payload(address: str, symbols: list[str]) -> dict[str, Any]
         direction = row[2]
         px = _safe_float(row[3])
         sz = _safe_float(row[4])
-        pnl = _safe_float(row[5])
+        gross_pnl = _safe_float(row[5])
+        
+        try:
+            payload = json.loads(row[6]) if row[6] else {}
+            fee = _safe_float(payload.get("fee", 0.0))
+        except Exception:
+            fee = 0.0
+            
+        pnl = gross_pnl - fee  # Tính Net PnL chuẩn
         
         if dt:
             parsed_times.append(dt)
