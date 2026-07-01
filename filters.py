@@ -173,30 +173,45 @@ def compute_dynamic_levels(
     tp1_atr_mult: float = 1.5,
     tp2_atr_mult: float = 3.0,
     sl_atr_mult: float = 1.2,
+    tp1_pct_max: float = 0.30,
+    tp2_pct_max: float = 0.60,
+    sl_pct_max: float = 0.40,
 ) -> dict:
     """
-    Compute ATR-based dynamic TP/SL levels.
+    Compute ATR-based dynamic TP/SL levels with max caps.
 
     Instead of fixed percentage TP/SL, these adapt to current volatility:
     - Low volatility → tighter targets (easier to hit)
     - High volatility → wider targets (captures larger moves)
+    - Max caps → ensure targets don't become unrealistically wide
 
     Returns dict with tp1_price, tp2_price, sl_price.
     """
+    atr_pct = (atr_1m / entry_price * 100) if entry_price > 0 and atr_1m > 0 else 0
+
+    tp1_pct_calc = atr_pct * tp1_atr_mult
+    tp2_pct_calc = atr_pct * tp2_atr_mult
+    sl_pct_calc = atr_pct * sl_atr_mult
+
+    tp1_pct = min(tp1_pct_calc, tp1_pct_max)
+    tp2_pct = min(tp2_pct_calc, tp2_pct_max)
+    sl_pct = min(sl_pct_calc, sl_pct_max)
+
     if direction == "long":
-        tp1_price = entry_price + tp1_atr_mult * atr_1m
-        tp2_price = entry_price + tp2_atr_mult * atr_1m
-        sl_price = entry_price - sl_atr_mult * atr_1m
+        tp1_price = entry_price * (1 + tp1_pct / 100)
+        tp2_price = entry_price * (1 + tp2_pct / 100)
+        sl_price = entry_price * (1 - sl_pct / 100)
     else:
-        tp1_price = entry_price - tp1_atr_mult * atr_1m
-        tp2_price = entry_price - tp2_atr_mult * atr_1m
-        sl_price = entry_price + sl_atr_mult * atr_1m
+        tp1_price = entry_price * (1 - tp1_pct / 100)
+        tp2_price = entry_price * (1 - tp2_pct / 100)
+        sl_price = entry_price * (1 + sl_pct / 100)
 
     return {
         "tp1_price": tp1_price,
         "tp2_price": tp2_price,
         "sl_price": sl_price,
-        "tp1_pct": tp1_atr_mult * atr_1m / entry_price * 100,
-        "tp2_pct": tp2_atr_mult * atr_1m / entry_price * 100,
-        "sl_pct": sl_atr_mult * atr_1m / entry_price * 100,
+        "tp1_pct": tp1_pct,
+        "tp2_pct": tp2_pct,
+        "sl_pct": sl_pct,
     }
+

@@ -1,0 +1,1004 @@
+2026-06-30T00:42:01.428435700Z [err]  00:42:01 - BTC: risk block: cooldown 0m còn lại (đến 00:42)
+2026-06-30T00:42:01.428442912Z [err]  INFO:bot_engine:BTC: risk block: cooldown 0m còn lại (đến 00:42)
+2026-06-30T00:42:04.429961388Z [err]  00:42:04 - BTC: risk block: cooldown 0m còn lại (đến 00:42)
+2026-06-30T00:42:04.429967543Z [err]  INFO:bot_engine:BTC: risk block: cooldown 0m còn lại (đến 00:42)
+2026-06-30T00:42:07.439906050Z [err]  00:42:07 - BTC: risk block: cooldown 0m còn lại (đến 00:42)
+2026-06-30T00:42:07.439912146Z [err]  INFO:bot_engine:BTC: risk block: cooldown 0m còn lại (đến 00:42)
+2026-06-30T00:42:11.431183224Z [err]  00:42:11 - BTC 2026-06-30 00:41:00+00:00: block: no direction (price 59712.0000)
+2026-06-30T00:42:11.431189235Z [err]  INFO:bot_engine:BTC 2026-06-30 00:41:00+00:00: block: no direction (price 59712.0000)
+2026-06-30T00:43:11.519022668Z [err]  00:43:02 - BTC 2026-06-30 00:42:00+00:00: block: no direction (price 59688.0000)
+2026-06-30T00:43:11.519027894Z [err]  INFO:bot_engine:BTC 2026-06-30 00:42:00+00:00: block: no direction (price 59688.0000)
+2026-06-30T00:44:11.525564031Z [err]  00:44:01 - BTC 2026-06-30 00:43:00+00:00: block: no direction (price 59711.0000)
+2026-06-30T00:44:11.525570388Z [err]  INFO:bot_engine:BTC 2026-06-30 00:43:00+00:00: block: no direction (price 59711.0000)
+2026-06-30T00:45:11.514972765Z [err]  00:45:04 - BTC 2026-06-30 00:44:00+00:00: block: no direction (price 59751.0000)
+2026-06-30T00:45:11.514976637Z [err]  INFO:bot_engine:BTC 2026-06-30 00:44:00+00:00: block: no direction (price 59751.0000)
+2026-06-30T00:46:11.642833852Z [err]  00:46:04 - BTC 2026-06-30 00:45:00+00:00: block: no direction (price 59782.0000)
+2026-06-30T00:46:11.642842570Z [err]  INFO:bot_engine:BTC 2026-06-30 00:45:00+00:00: block: no direction (price 59782.0000)
+2026-06-30T00:47:01.595770323Z [err]  00:47:00 - BTC 2026-06-30 00:46:00+00:00: block: no direction (price 59852.0000)
+2026-06-30T00:47:01.595777986Z [err]  INFO:bot_engine:BTC 2026-06-30 00:46:00+00:00: block: no direction (price 59852.0000)
+2026-06-30T00:48:11.620319172Z [err]  00:48:03 - BTC 2026-06-30 00:47:00+00:00: block: no direction (price 59819.0000)
+2026-06-30T00:48:11.620324631Z [err]  INFO:bot_engine:BTC 2026-06-30 00:47:00+00:00: block: no direction (price 59819.0000)
+2026-06-30T00:49:11.648619383Z [err]  00:49:02 - BTC 2026-06-30 00:48:00+00:00: block: no direction (price 59821.0000)
+2026-06-30T00:49:11.648624559Z [err]  INFO:bot_engine:BTC 2026-06-30 00:48:00+00:00: block: no direction (price 59821.0000)
+2026-06-30T00:50:01.672170764Z [err]  00:50:00 - BTC 2026-06-30 00:49:00+00:00: block: no direction (price 59830.0000)
+2026-06-30T00:50:01.672177724Z [err]  INFO:bot_engine:BTC 2026-06-30 00:49:00+00:00: block: no direction (price 59830.0000)
+2026-06-30T00:51:11.967264570Z [err]  00:51:04 - BTC 2026-06-30 00:50:00+00:00: block: no direction (price 59760.0000)
+2026-06-30T00:51:11.967268267Z [err]  INFO:bot_engine:BTC 2026-06-30 00:50:00+00:00: block: no direction (price 59760.0000)
+2026-06-30T00:52:11.996368260Z [err]  00:52:03 - BTC 2026-06-30 00:51:00+00:00: block: no direction (price 59825.0000)
+2026-06-30T00:52:11.996376685Z [err]  INFO:bot_engine:BTC 2026-06-30 00:51:00+00:00: block: no direction (price 59825.0000)
+2026-06-30T00:53:02.118458095Z [err]  00:53:01 - BTC 2026-06-30 00:52:00+00:00: block: no direction (price 59863.0000)
+2026-06-30T00:53:02.118461877Z [err]  INFO:bot_engine:BTC 2026-06-30 00:52:00+00:00: block: no direction (price 59863.0000)
+2026-06-30T00:54:12.272475467Z [err]  00:54:04 - BTC 2026-06-30 00:53:00+00:00: block: no direction (price 59867.0000)
+2026-06-30T00:54:12.272481839Z [err]  INFO:bot_engine:BTC 2026-06-30 00:53:00+00:00: block: no direction (price 59867.0000)
+2026-06-30T00:55:12.275078332Z [err]  00:55:03 - BTC 2026-06-30 00:54:00+00:00: block: no direction (price 59840.0000)
+2026-06-30T00:55:12.275081799Z [err]  INFO:bot_engine:BTC 2026-06-30 00:54:00+00:00: block: no direction (price 59840.0000)
+2026-06-30T00:56:02.285758833Z [err]  00:56:01 - BTC 2026-06-30 00:55:00+00:00: block: no direction (price 59827.0000)
+2026-06-30T00:56:02.285765698Z [err]  INFO:bot_engine:BTC 2026-06-30 00:55:00+00:00: block: no direction (price 59827.0000)
+2026-06-30T00:57:02.510892089Z [err]  00:57:00 - BTC 2026-06-30 00:56:00+00:00: block: no direction (price 59810.0000)
+2026-06-30T00:57:02.510895668Z [err]  INFO:bot_engine:BTC 2026-06-30 00:56:00+00:00: block: no direction (price 59810.0000)
+2026-06-30T00:58:12.482080261Z [err]  00:58:03 - BTC 2026-06-30 00:57:00+00:00: block: no direction (price 59825.0000)
+2026-06-30T00:58:12.482086368Z [err]  INFO:bot_engine:BTC 2026-06-30 00:57:00+00:00: block: no direction (price 59825.0000)
+2026-06-30T00:59:02.485077680Z [err]  00:59:01 - BTC 2026-06-30 00:58:00+00:00: block: no direction (price 59822.0000)
+2026-06-30T00:59:02.485084961Z [err]  INFO:bot_engine:BTC 2026-06-30 00:58:00+00:00: block: no direction (price 59822.0000)
+2026-06-30T01:00:02.843473213Z [err]  01:00:01 - BTC 2026-06-30 00:59:00+00:00: block: no direction (price 59818.0000)
+2026-06-30T01:00:02.843478596Z [err]  INFO:bot_engine:BTC 2026-06-30 00:59:00+00:00: block: no direction (price 59818.0000)
+2026-06-30T01:01:02.791815072Z [err]  01:01:02 - BTC 2026-06-30 01:00:00+00:00: block: no direction (price 59800.0000)
+2026-06-30T01:01:02.791820293Z [err]  INFO:bot_engine:BTC 2026-06-30 01:00:00+00:00: block: no direction (price 59800.0000)
+2026-06-30T01:02:02.833655009Z [err]  01:02:02 - BTC 2026-06-30 01:01:00+00:00: block: no direction (price 59815.0000)
+2026-06-30T01:02:02.833658352Z [err]  INFO:bot_engine:BTC 2026-06-30 01:01:00+00:00: block: no direction (price 59815.0000)
+2026-06-30T01:03:02.842149330Z [err]  01:03:02 - BTC 2026-06-30 01:02:00+00:00: block: no direction (price 59786.0000)
+2026-06-30T01:03:02.842155962Z [err]  INFO:bot_engine:BTC 2026-06-30 01:02:00+00:00: block: no direction (price 59786.0000)
+2026-06-30T01:04:12.979868714Z [err]  01:04:03 - BTC 2026-06-30 01:03:00+00:00: block: no direction (price 59804.0000)
+2026-06-30T01:04:12.979873724Z [err]  INFO:bot_engine:BTC 2026-06-30 01:03:00+00:00: block: no direction (price 59804.0000)
+2026-06-30T01:05:13.011306283Z [err]  01:05:03 - BTC 2026-06-30 01:04:00+00:00: block: no direction (price 59831.0000)
+2026-06-30T01:05:13.011312384Z [err]  INFO:bot_engine:BTC 2026-06-30 01:04:00+00:00: block: no direction (price 59831.0000)
+2026-06-30T01:06:03.052745912Z [err]  01:06:02 - BTC 2026-06-30 01:05:00+00:00: block: no direction (price 59815.0000)
+2026-06-30T01:06:03.052749542Z [err]  INFO:bot_engine:BTC 2026-06-30 01:05:00+00:00: block: no direction (price 59815.0000)
+2026-06-30T01:07:03.100999042Z [err]  01:07:01 - BTC 2026-06-30 01:06:00+00:00: block: no direction (price 59809.0000)
+2026-06-30T01:07:03.101003832Z [err]  INFO:bot_engine:BTC 2026-06-30 01:06:00+00:00: block: no direction (price 59809.0000)
+2026-06-30T01:08:03.099692385Z [err]  01:08:01 - BTC 2026-06-30 01:07:00+00:00: block: no direction (price 59800.0000)
+2026-06-30T01:08:03.099704997Z [err]  INFO:bot_engine:BTC 2026-06-30 01:07:00+00:00: block: no direction (price 59800.0000)
+2026-06-30T01:09:13.088802192Z [err]  01:09:04 - BTC 2026-06-30 01:08:00+00:00: block: no direction (price 59797.0000)
+2026-06-30T01:09:13.088807404Z [err]  INFO:bot_engine:BTC 2026-06-30 01:08:00+00:00: block: no direction (price 59797.0000)
+2026-06-30T01:10:03.370058915Z [err]  INFO:bot_engine:BTC 2026-06-30 01:09:00+00:00: block: no direction (price 59776.0000)
+2026-06-30T01:10:03.370151391Z [err]  01:10:03 - BTC 2026-06-30 01:09:00+00:00: block: no direction (price 59776.0000)
+2026-06-30T01:11:03.407746704Z [err]  01:11:01 - BTC 2026-06-30 01:10:00+00:00: block: no direction (price 59788.0000)
+2026-06-30T01:11:03.407750892Z [err]  INFO:bot_engine:BTC 2026-06-30 01:10:00+00:00: block: no direction (price 59788.0000)
+2026-06-30T01:12:03.519497272Z [err]  01:12:00 - BTC 2026-06-30 01:11:00+00:00: block: no direction (price 59778.0000)
+2026-06-30T01:12:03.519503565Z [err]  INFO:bot_engine:BTC 2026-06-30 01:11:00+00:00: block: no direction (price 59778.0000)
+2026-06-30T01:13:03.543374022Z [err]  01:13:00 - BTC 2026-06-30 01:12:00+00:00: block: no direction (price 59803.0000)
+2026-06-30T01:13:03.543379113Z [err]  INFO:bot_engine:BTC 2026-06-30 01:12:00+00:00: block: no direction (price 59803.0000)
+2026-06-30T01:14:03.628802440Z [err]  01:14:02 - BTC 2026-06-30 01:13:00+00:00: setup LONG score=80 conf=A price=59758.0000 obi=0.53 bb_w=0.13% squeeze=True
+2026-06-30T01:14:03.628807431Z [err]  INFO:bot_engine:BTC 2026-06-30 01:13:00+00:00: setup LONG score=80 conf=A price=59758.0000 obi=0.53 bb_w=0.13% squeeze=True
+2026-06-30T01:14:03.628811602Z [err]  01:14:02 - BTC: score breakdown: bb_touch=+40 | strong_close_penalty=-15 | volume_climax=+10 | ema50_trend=-10 | rsi_5m=+20 | bb_width=+5 | bb_pct_b=+10 | macd_hist=+10 | time_filter=-5 | obi_bonus=+15
+2026-06-30T01:14:03.628816092Z [err]  INFO:bot_engine:BTC: score breakdown: bb_touch=+40 | strong_close_penalty=-15 | volume_climax=+10 | ema50_trend=-10 | rsi_5m=+20 | bb_width=+5 | bb_pct_b=+10 | macd_hist=+10 | time_filter=-5 | obi_bonus=+15
+2026-06-30T01:14:03.628821929Z [err]  01:14:02 - BTC: active entry guard SET — executing trade in background
+2026-06-30T01:14:03.628826566Z [err]  INFO:bot_engine:BTC: active entry guard SET — executing trade in background
+2026-06-30T01:14:03.628830546Z [err]  01:14:02 - BTC: entry LONG score at 59758.0000 | margin=100.00 notional=2000.00 size=0.03346000
+2026-06-30T01:14:03.628835287Z [err]  INFO:bot_engine:BTC: entry LONG score at 59758.0000 | margin=100.00 notional=2000.00 size=0.03346000
+2026-06-30T01:14:03.628839431Z [err]  01:14:02 - BTC: score >= 80 (A/A+) -> overriding to MARKET order to guarantee fill
+2026-06-30T01:14:03.628843415Z [err]  INFO:bot_engine:BTC: score >= 80 (A/A+) -> overriding to MARKET order to guarantee fill
+2026-06-30T01:14:03.818712718Z [err]  01:14:03 - BTC: entry not filled within timeout; setup skipped
+2026-06-30T01:14:03.818719547Z [err]  INFO:bot_engine:BTC: entry not filled within timeout; setup skipped
+2026-06-30T01:14:05.885940622Z [err]  01:14:05 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:14:05.885947563Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:15:15.831939941Z [err]  01:15:08 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:15:15.831947452Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:16:15.924450721Z [err]  01:16:11 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:16:15.924456809Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:17:15.988207780Z [err]  01:17:14 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:17:15.988217402Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:18:26.063282128Z [err]  01:18:16 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:18:26.063285568Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:19:26.112412008Z [err]  01:19:17 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:19:26.112417543Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:20:16.226346208Z [inf]  INFO:     100.64.0.10:62156 - "GET /api/live_chart HTTP/1.1" 401 Unauthorized
+2026-06-30T01:20:16.226350785Z [inf]  INFO:     100.64.0.2:61268 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T01:20:16.226355609Z [err]  INFO:     100.64.0.4:35592 - "WebSocket /ws/logs" 403
+2026-06-30T01:20:16.226359371Z [err]  INFO:     connection rejected (403 Forbidden)
+2026-06-30T01:20:16.226362987Z [err]  INFO:     connection closed
+2026-06-30T01:20:20.315284052Z [err]  01:20:20 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:20:20.315289085Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:20:20.566236266Z [inf]  INFO:     100.64.0.4:49350 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T01:20:20.894945352Z [inf]  INFO:     100.64.0.12:46120 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-06-30T01:20:21.447216220Z [inf]  INFO:     100.64.0.12:46134 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T01:20:21.624983601Z [inf]  INFO:     100.64.0.12:46148 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T01:20:26.070995516Z [inf]  INFO:     100.64.0.12:46148 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T01:20:31.078485578Z [inf]  INFO:     100.64.0.11:31318 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T01:20:36.105688440Z [inf]  INFO:     100.64.0.11:42520 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T01:20:41.061658894Z [inf]  INFO:     100.64.0.11:42526 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T01:20:45.624268482Z [inf]  INFO:     100.64.0.4:61562 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-06-30T01:20:46.129725570Z [inf]  INFO:     100.64.0.12:18444 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T01:20:51.012772263Z [inf]  INFO:     100.64.0.2:21342 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T01:20:56.077207749Z [inf]  INFO:     100.64.0.12:20886 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T01:21:01.059977028Z [inf]  INFO:     100.64.0.7:22750 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T01:21:31.061796489Z [err]  01:21:23 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:21:31.061801490Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:22:31.134377337Z [err]  01:22:23 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:22:31.134382271Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:23:31.170186438Z [err]  01:23:26 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:23:31.170194994Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:24:31.391634730Z [err]  01:24:29 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:24:31.391638945Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:25:41.426584075Z [err]  01:25:31 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:25:41.426589075Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:26:41.481780844Z [err]  01:26:32 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:26:41.481800123Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:27:41.737842256Z [err]  01:27:32 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:27:41.737848247Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:28:41.739211165Z [err]  01:28:33 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:28:41.739217147Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:29:41.766741365Z [err]  01:29:36 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:29:41.766746833Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:30:41.784154069Z [err]  01:30:39 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:30:41.784159471Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:31:51.995075622Z [err]  01:31:42 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:31:51.995081606Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:32:52.116742179Z [err]  01:32:44 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:32:52.116747867Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:33:52.331916963Z [err]  01:33:44 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:33:52.331921189Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:34:52.347107549Z [err]  01:34:44 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:34:52.347113658Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:35:52.674236155Z [err]  01:35:47 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:35:52.674245981Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:36:52.706661439Z [err]  01:36:49 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:36:52.706667252Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:37:52.716248142Z [err]  01:37:52 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:37:52.716264181Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:39:02.654746543Z [err]  01:38:54 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:39:02.654761029Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:40:02.733951325Z [err]  01:39:57 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:40:02.733955410Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:41:02.737375947Z [err]  01:41:00 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:41:02.737381672Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:42:13.028959847Z [err]  01:42:03 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:42:13.028965011Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:43:13.041084840Z [err]  01:43:06 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:43:13.041092960Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:44:13.073699262Z [err]  01:44:08 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:44:13.073704420Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:45:13.100638658Z [err]  01:45:11 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:45:13.100645028Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:46:23.121707038Z [err]  01:46:14 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:46:23.121712579Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:47:23.188848182Z [err]  01:47:17 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:47:23.188857653Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:48:23.350329176Z [err]  01:48:20 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:48:23.350332862Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:49:33.307169591Z [err]  01:49:23 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:49:33.307175344Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:50:33.417154108Z [err]  01:50:26 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:50:33.417160039Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:51:33.374771339Z [err]  01:51:29 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:51:33.374777584Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:52:33.423047717Z [err]  01:52:31 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:52:33.423057714Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:53:43.529656150Z [err]  01:53:33 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:53:43.529663699Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:54:43.570634510Z [err]  01:54:36 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:54:43.570639116Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:55:43.527806255Z [err]  01:55:39 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:55:43.527812640Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:56:43.574706618Z [err]  01:56:42 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:56:43.574711360Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:57:53.557286620Z [err]  01:57:45 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:57:53.557293411Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:58:53.603693047Z [err]  01:58:45 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:58:53.603698666Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:59:53.625265389Z [err]  01:59:47 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T01:59:53.625274210Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:00:53.554999576Z [err]  02:00:48 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:00:53.555005226Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:01:53.580507359Z [err]  02:01:49 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:01:53.580513661Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:02:53.625983422Z [err]  02:02:53 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:02:53.625988399Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:03:53.810538817Z [err]  02:03:53 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:03:53.810546929Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:05:03.873050448Z [err]  02:04:54 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:05:03.873060091Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:06:04.132034258Z [err]  02:05:54 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:06:04.132039194Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:07:04.126169313Z [err]  02:06:55 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:07:04.126175142Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:08:04.320889439Z [err]  02:07:57 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:08:04.320894913Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:09:04.342334973Z [err]  02:09:00 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:09:04.342345225Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:10:04.455637610Z [err]  02:10:02 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:10:04.455641359Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:11:14.421884022Z [err]  02:11:06 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:11:14.421890377Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:12:14.427210138Z [err]  02:12:09 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:12:14.427216235Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:13:14.593808413Z [err]  02:13:08 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:13:14.593814836Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:14:14.603846523Z [err]  02:14:09 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:14:14.603850997Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:15:14.760223833Z [err]  02:15:12 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:15:14.760227451Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:16:24.778585946Z [err]  02:16:15 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:16:24.778595429Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:17:24.815715472Z [err]  02:17:18 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:17:24.815719537Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:18:24.798365686Z [err]  02:18:20 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:18:24.798372504Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:19:24.817508123Z [err]  02:19:23 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:19:24.817512341Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:20:24.663045332Z [err]  02:20:23 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:20:24.663056615Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:21:34.842443717Z [err]  02:21:26 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:21:34.842448424Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:22:34.915564586Z [err]  02:22:28 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:22:34.915569767Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:23:34.959883049Z [err]  02:23:29 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:23:34.959889627Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:24:35.054104923Z [err]  02:24:29 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:24:35.054112255Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:25:35.006512086Z [err]  02:25:30 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:25:35.006519545Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:26:35.064613080Z [err]  02:26:33 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:26:35.064622364Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:27:45.202543834Z [err]  02:27:36 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:27:45.202549972Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:28:45.184128547Z [err]  02:28:36 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:28:45.184133277Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:29:45.237812615Z [err]  02:29:39 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:29:45.237818061Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:30:45.128107219Z [err]  02:30:42 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:30:45.128112315Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:31:45.245677446Z [err]  02:31:42 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:31:45.245684851Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:32:55.150228467Z [err]  02:32:45 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:32:55.150234145Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:33:55.166415133Z [err]  02:33:46 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:33:55.166422830Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:34:55.306650997Z [err]  02:34:46 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:34:55.306657259Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:35:55.325048602Z [err]  INFO:     100.64.0.10:44606 - "WebSocket /ws/logs" 403
+2026-06-30T02:35:55.325058711Z [err]  INFO:     connection rejected (403 Forbidden)
+2026-06-30T02:35:55.325065355Z [err]  INFO:     connection closed
+2026-06-30T02:35:55.325070699Z [inf]  INFO:     100.64.0.6:30288 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:35:55.325075557Z [inf]  INFO:     100.64.0.6:30296 - "GET /api/live_chart HTTP/1.1" 401 Unauthorized
+2026-06-30T02:35:55.325086514Z [err]  02:35:48 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:35:55.325091889Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:35:55.325097575Z [inf]  INFO:     100.64.0.8:57818 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:35:55.325101948Z [inf]  INFO:     100.64.0.8:57818 - "GET /api/live_chart HTTP/1.1" 401 Unauthorized
+2026-06-30T02:35:55.325110326Z [inf]  INFO:     100.64.0.7:45152 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:35:55.325115244Z [inf]  INFO:     100.64.0.11:23568 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:35:56.516887711Z [inf]  INFO:     100.64.0.6:42226 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:35:59.904425068Z [inf]  INFO:     100.64.0.11:39300 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:35:59.904430465Z [inf]  INFO:     100.64.0.11:39310 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:35:59.904434133Z [inf]  INFO:     100.64.0.2:47734 - "GET /api/live_chart HTTP/1.1" 401 Unauthorized
+2026-06-30T02:35:59.904473750Z [inf]  INFO:     100.64.0.5:56324 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:36:01.486680047Z [inf]  INFO:     100.64.0.11:39310 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:36:06.501771129Z [inf]  INFO:     100.64.0.11:51440 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:36:08.090027545Z [inf]  INFO:     100.64.0.11:51440 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:36:08.092417405Z [inf]  INFO:     100.64.0.6:27862 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:36:08.092423399Z [inf]  INFO:     100.64.0.6:27874 - "GET /api/live_chart HTTP/1.1" 401 Unauthorized
+2026-06-30T02:36:08.093502485Z [inf]  INFO:     100.64.0.8:33596 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:36:08.099156473Z [inf]  INFO:     100.64.0.3:22342 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:36:08.099161248Z [inf]  INFO:     100.64.0.3:22344 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:36:11.487062975Z [inf]  INFO:     100.64.0.3:22344 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:36:16.485695248Z [inf]  INFO:     100.64.0.6:35240 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:36:16.485707765Z [inf]  INFO:     100.64.0.11:53168 - "GET /api/live_chart HTTP/1.1" 401 Unauthorized
+2026-06-30T02:36:18.311723294Z [inf]  INFO:     100.64.0.8:53790 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-06-30T02:36:18.351503775Z [inf]  INFO:     100.64.0.3:14162 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-06-30T02:36:18.858964956Z [inf]  INFO:     100.64.0.11:53168 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:36:18.968490934Z [inf]  INFO:     100.64.0.6:35240 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:36:19.151463313Z [inf]  INFO:     100.64.0.7:53244 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:36:19.329802221Z [inf]  INFO:     100.64.0.11:53178 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:36:19.600252879Z [inf]  INFO:     100.64.0.3:14176 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:36:19.870170808Z [inf]  INFO:     100.64.0.4:62788 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:36:19.967205329Z [inf]  INFO:     100.64.0.2:13846 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:36:20.602770578Z [inf]  INFO:     100.64.0.7:53244 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:36:20.671173565Z [inf]  INFO:     100.64.0.3:14176 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-06-30T02:36:21.486329575Z [inf]  INFO:     100.64.0.11:53178 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:36:27.130192689Z [inf]  INFO:     100.64.0.3:18904 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:36:32.013517968Z [inf]  INFO:     100.64.0.11:29412 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:36:36.995735816Z [inf]  INFO:     100.64.0.2:46116 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:36:41.959311147Z [inf]  INFO:     100.64.0.6:62218 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:36:51.510434950Z [err]  02:36:51 - BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:36:51.510440802Z [err]  WARNING:bot_engine:BTC: existing exposure (pos=0.03346000 orders=0) — skipping
+2026-06-30T02:37:41.521289414Z [err]  02:37:35 - BTC 2026-06-30 02:36:00+00:00: block: no direction (price 59954.0000)
+2026-06-30T02:37:41.521294822Z [err]  INFO:bot_engine:BTC 2026-06-30 02:36:00+00:00: block: no direction (price 59954.0000)
+2026-06-30T02:38:11.520186971Z [err]  02:38:02 - BTC 2026-06-30 02:37:00+00:00: block: no direction (price 59969.0000)
+2026-06-30T02:38:11.520192102Z [err]  INFO:bot_engine:BTC 2026-06-30 02:37:00+00:00: block: no direction (price 59969.0000)
+2026-06-30T02:39:11.543033505Z [err]  02:39:02 - BTC 2026-06-30 02:38:00+00:00: block: no direction (price 59991.0000)
+2026-06-30T02:39:11.543040885Z [err]  INFO:bot_engine:BTC 2026-06-30 02:38:00+00:00: block: no direction (price 59991.0000)
+2026-06-30T02:39:41.561501378Z [inf]  INFO:     100.64.0.4:57488 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-06-30T02:39:41.561513536Z [inf]  INFO:     100.64.0.2:58022 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:39:41.561519710Z [inf]  INFO:     100.64.0.5:17006 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:39:41.871347135Z [inf]  INFO:     100.64.0.7:34256 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:39:46.861929421Z [inf]  INFO:     100.64.0.12:10740 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:39:51.840809375Z [inf]  INFO:     100.64.0.12:10742 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:39:57.029595856Z [inf]  INFO:     100.64.0.7:35194 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:40:01.067203560Z [err]  02:40:01 - BTC 2026-06-30 02:39:00+00:00: block: no direction (price 59992.0000)
+2026-06-30T02:40:01.067212120Z [err]  INFO:bot_engine:BTC 2026-06-30 02:39:00+00:00: block: no direction (price 59992.0000)
+2026-06-30T02:41:11.083603154Z [err]  02:41:03 - BTC 2026-06-30 02:40:00+00:00: block: no direction (price 60000.0000)
+2026-06-30T02:41:11.083609156Z [err]  INFO:bot_engine:BTC 2026-06-30 02:40:00+00:00: block: no direction (price 60000.0000)
+2026-06-30T02:42:11.090712549Z [err]  02:42:01 - BTC 2026-06-30 02:41:00+00:00: block: no direction (price 59999.0000)
+2026-06-30T02:42:11.090719621Z [err]  INFO:bot_engine:BTC 2026-06-30 02:41:00+00:00: block: no direction (price 59999.0000)
+2026-06-30T02:43:11.199084080Z [err]  02:43:03 - BTC 2026-06-30 02:42:00+00:00: block: no direction (price 59999.0000)
+2026-06-30T02:43:11.199089296Z [err]  INFO:bot_engine:BTC 2026-06-30 02:42:00+00:00: block: no direction (price 59999.0000)
+2026-06-30T02:44:11.113235396Z [err]  02:44:01 - BTC 2026-06-30 02:43:00+00:00: block: no direction (price 59992.0000)
+2026-06-30T02:44:11.113242784Z [err]  INFO:bot_engine:BTC 2026-06-30 02:43:00+00:00: block: no direction (price 59992.0000)
+2026-06-30T02:45:11.120473109Z [err]  02:45:04 - BTC 2026-06-30 02:44:00+00:00: block: no direction (price 59993.0000)
+2026-06-30T02:45:11.120479241Z [err]  INFO:bot_engine:BTC 2026-06-30 02:44:00+00:00: block: no direction (price 59993.0000)
+2026-06-30T02:46:11.129934746Z [err]  02:46:02 - BTC 2026-06-30 02:45:00+00:00: block: no direction (price 59997.0000)
+2026-06-30T02:46:11.129943690Z [err]  INFO:bot_engine:BTC 2026-06-30 02:45:00+00:00: block: no direction (price 59997.0000)
+2026-06-30T02:47:11.159580234Z [err]  02:47:04 - BTC 2026-06-30 02:46:00+00:00: block: no direction (price 59998.0000)
+2026-06-30T02:47:11.159586745Z [err]  INFO:bot_engine:BTC 2026-06-30 02:46:00+00:00: block: no direction (price 59998.0000)
+2026-06-30T02:47:31.154955646Z [err]  INFO:     100.64.0.13:12954 - "WebSocket /ws/logs" 403
+2026-06-30T02:47:31.154961478Z [err]  INFO:     connection rejected (403 Forbidden)
+2026-06-30T02:47:31.154965611Z [err]  INFO:     connection closed
+2026-06-30T02:47:31.154970307Z [inf]  INFO:     100.64.0.11:47254 - "GET /api/live_chart HTTP/1.1" 401 Unauthorized
+2026-06-30T02:47:31.154973740Z [inf]  INFO:     100.64.0.9:14478 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:47:31.154977219Z [inf]  INFO:     100.64.0.6:22496 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:48:11.050589905Z [err]  02:48:02 - BTC 2026-06-30 02:47:00+00:00: block: no direction (price 59999.0000)
+2026-06-30T02:48:11.050598373Z [err]  INFO:bot_engine:BTC 2026-06-30 02:47:00+00:00: block: no direction (price 59999.0000)
+2026-06-30T02:48:11.050602501Z [inf]  INFO:     100.64.0.10:18860 - "GET /api/live_chart HTTP/1.1" 401 Unauthorized
+2026-06-30T02:48:11.050606120Z [inf]  INFO:     100.64.0.7:41966 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:49:11.077507952Z [err]  02:49:01 - BTC 2026-06-30 02:48:00+00:00: block: no direction (price 59998.0000)
+2026-06-30T02:49:11.077518959Z [err]  INFO:bot_engine:BTC 2026-06-30 02:48:00+00:00: block: no direction (price 59998.0000)
+2026-06-30T02:50:11.248058404Z [err]  02:50:04 - BTC 2026-06-30 02:49:00+00:00: block: no direction (price 59999.0000)
+2026-06-30T02:50:11.248063667Z [err]  INFO:bot_engine:BTC 2026-06-30 02:49:00+00:00: block: no direction (price 59999.0000)
+2026-06-30T02:51:11.182356015Z [err]  02:51:02 - BTC 2026-06-30 02:50:00+00:00: block: no direction (price 59997.0000)
+2026-06-30T02:51:11.182361703Z [err]  INFO:bot_engine:BTC 2026-06-30 02:50:00+00:00: block: no direction (price 59997.0000)
+2026-06-30T02:52:11.188493570Z [err]  02:52:01 - BTC 2026-06-30 02:51:00+00:00: block: no direction (price 59994.0000)
+2026-06-30T02:52:11.188501112Z [err]  INFO:bot_engine:BTC 2026-06-30 02:51:00+00:00: block: no direction (price 59994.0000)
+2026-06-30T02:53:11.344597254Z [err]  02:53:04 - BTC 2026-06-30 02:52:00+00:00: block: no direction (price 59996.0000)
+2026-06-30T02:53:11.344604112Z [err]  INFO:bot_engine:BTC 2026-06-30 02:52:00+00:00: block: no direction (price 59996.0000)
+2026-06-30T02:54:11.300780455Z [err]  02:54:02 - BTC 2026-06-30 02:53:00+00:00: block: no direction (price 60003.0000)
+2026-06-30T02:54:11.300786043Z [err]  INFO:bot_engine:BTC 2026-06-30 02:53:00+00:00: block: no direction (price 60003.0000)
+2026-06-30T02:55:11.341416137Z [err]  02:55:02 - BTC 2026-06-30 02:54:00+00:00: block: no direction (price 60002.0000)
+2026-06-30T02:55:11.341423717Z [err]  INFO:bot_engine:BTC 2026-06-30 02:54:00+00:00: block: no direction (price 60002.0000)
+2026-06-30T02:56:11.452206264Z [err]  02:56:01 - BTC 2026-06-30 02:55:00+00:00: block: no direction (price 59995.0000)
+2026-06-30T02:56:11.452211186Z [err]  INFO:bot_engine:BTC 2026-06-30 02:55:00+00:00: block: no direction (price 59995.0000)
+2026-06-30T02:56:51.398038234Z [inf]  INFO:     100.64.0.9:44454 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:56:51.398047554Z [inf]  INFO:     100.64.0.12:48356 - "GET /api/live_chart HTTP/1.1" 401 Unauthorized
+2026-06-30T02:56:51.398051665Z [err]  INFO:     100.64.0.12:48368 - "WebSocket /ws/logs" 403
+2026-06-30T02:56:51.398055123Z [err]  INFO:     connection rejected (403 Forbidden)
+2026-06-30T02:56:51.398059593Z [err]  INFO:     connection closed
+2026-06-30T02:56:55.200692708Z [inf]  INFO:     100.64.0.4:46834 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T02:56:56.079188684Z [inf]  INFO:     100.64.0.13:20002 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-06-30T02:56:56.642196992Z [inf]  INFO:     100.64.0.7:54790 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:56:56.731168205Z [inf]  INFO:     100.64.0.2:58132 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:57:00.858663198Z [inf]  INFO:     100.64.0.8:50100 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:57:03.754025024Z [err]  02:57:03 - BTC 2026-06-30 02:56:00+00:00: setup LONG score=30 conf=C price=59957.0000 obi=0.73 bb_w=0.07% squeeze=True
+2026-06-30T02:57:03.754030504Z [err]  INFO:bot_engine:BTC 2026-06-30 02:56:00+00:00: setup LONG score=30 conf=C price=59957.0000 obi=0.73 bb_w=0.07% squeeze=True
+2026-06-30T02:57:03.754036066Z [err]  02:57:03 - BTC: score breakdown: bb_touch=+40 | strong_close_penalty=-15 | ema50_trend=-10 | bb_width=+5 | bb_pct_b=-10 | candle_5m=+10 | time_filter=-5 | obi_bonus=+15
+2026-06-30T02:57:03.754040733Z [err]  INFO:bot_engine:BTC: score breakdown: bb_touch=+40 | strong_close_penalty=-15 | ema50_trend=-10 | bb_width=+5 | bb_pct_b=-10 | candle_5m=+10 | time_filter=-5 | obi_bonus=+15
+2026-06-30T02:57:05.757478486Z [inf]  INFO:     100.64.0.13:42472 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:57:10.823822045Z [inf]  INFO:     100.64.0.4:12596 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:57:10.824592856Z [inf]  INFO:     100.64.0.4:12596 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:57:10.887650023Z [inf]  INFO:     100.64.0.12:38008 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-06-30T02:57:11.508900677Z [inf]  INFO:     100.64.0.7:30408 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:57:11.561494461Z [inf]  INFO:     100.64.0.12:38008 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-06-30T02:57:15.913721791Z [inf]  INFO:     100.64.0.4:12600 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:57:20.274589931Z [inf]  INFO:     100.64.0.2:21698 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-06-30T02:57:20.694484039Z [inf]  INFO:     100.64.0.13:17286 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:57:25.711943772Z [inf]  INFO:     100.64.0.10:41500 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:57:30.703167014Z [inf]  INFO:     100.64.0.9:49914 - "GET /api/state HTTP/1.1" 200 OK
+2026-06-30T02:58:10.710290177Z [err]  02:58:03 - BTC 2026-06-30 02:57:00+00:00: block: OBI=-0.42 (sellers extremely dominant) (price 59955.0000)
+2026-06-30T02:58:10.710296992Z [err]  INFO:bot_engine:BTC 2026-06-30 02:57:00+00:00: block: OBI=-0.42 (sellers extremely dominant) (price 59955.0000)
+2026-06-30T02:59:11.049068240Z [err]  02:59:03 - BTC 2026-06-30 02:58:00+00:00: block: OBI=-0.99 (sellers extremely dominant) (price 59920.0000)
+2026-06-30T02:59:11.049074180Z [err]  INFO:bot_engine:BTC 2026-06-30 02:58:00+00:00: block: OBI=-0.99 (sellers extremely dominant) (price 59920.0000)
+2026-06-30T03:00:10.979360471Z [err]  03:00:01 - BTC 2026-06-30 02:59:00+00:00: setup LONG score=40 conf=C price=59915.0000 obi=0.07 bb_w=0.17% squeeze=False
+2026-06-30T03:00:10.979367698Z [err]  INFO:bot_engine:BTC 2026-06-30 02:59:00+00:00: setup LONG score=40 conf=C price=59915.0000 obi=0.07 bb_w=0.17% squeeze=False
+2026-06-30T03:00:10.979373387Z [err]  03:00:01 - BTC: score breakdown: bb_touch=+40 | volume_climax=+10 | ema50_trend=-10 | rsi_1m=+10 | bb_width=+5 | bb_pct_b=-10 | time_filter=-5
+2026-06-30T03:00:10.979378665Z [err]  INFO:bot_engine:BTC: score breakdown: bb_touch=+40 | volume_climax=+10 | ema50_trend=-10 | rsi_1m=+10 | bb_width=+5 | bb_pct_b=-10 | time_filter=-5
+2026-06-30T03:00:10.979385417Z [err]  03:00:01 - BTC: active entry guard SET — executing trade in background
+2026-06-30T03:00:10.979391273Z [err]  INFO:bot_engine:BTC: active entry guard SET — executing trade in background
+2026-06-30T03:00:10.979398830Z [err]  03:00:01 - BTC: entry LONG score at 59915.0000 | margin=50.00 notional=1000.00 size=0.01669000
+2026-06-30T03:00:10.979410131Z [err]  INFO:bot_engine:BTC: entry LONG score at 59915.0000 | margin=50.00 notional=1000.00 size=0.01669000
+2026-06-30T03:00:10.979416014Z [err]  03:00:06 - BTC: entry not filled within timeout; setup skipped
+2026-06-30T03:00:10.979421969Z [err]  INFO:bot_engine:BTC: entry not filled within timeout; setup skipped
+2026-06-30T03:00:10.979427124Z [err]  03:00:08 - BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:00:10.979432448Z [err]  INFO:bot_engine:BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:00:11.761247046Z [err]  03:00:11 - BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:00:11.761257145Z [err]  INFO:bot_engine:BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:00:14.896175379Z [err]  03:00:14 - BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:00:14.896181249Z [err]  INFO:bot_engine:BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:00:18.010674812Z [err]  03:00:18 - BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:00:18.010682523Z [err]  INFO:bot_engine:BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:00:21.197298596Z [err]  03:00:21 - BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:00:21.197306214Z [err]  INFO:bot_engine:BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:00:24.412061454Z [err]  03:00:24 - BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:24.412067254Z [err]  INFO:bot_engine:BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:27.404104947Z [err]  03:00:27 - BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:27.404108532Z [err]  INFO:bot_engine:BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:30.472838775Z [err]  03:00:30 - BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:30.472845503Z [err]  INFO:bot_engine:BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:33.558531819Z [err]  03:00:33 - BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:33.558538730Z [err]  INFO:bot_engine:BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:36.785446239Z [err]  03:00:36 - BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:36.785452249Z [err]  INFO:bot_engine:BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:39.867011693Z [err]  03:00:39 - BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:39.867017368Z [err]  INFO:bot_engine:BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:42.954264805Z [err]  03:00:42 - BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:42.954279972Z [err]  INFO:bot_engine:BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:46.086680827Z [err]  03:00:46 - BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:46.086688414Z [err]  INFO:bot_engine:BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:49.174984632Z [err]  03:00:49 - BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:49.174989591Z [err]  INFO:bot_engine:BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:52.284570637Z [err]  03:00:52 - BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:52.284576885Z [err]  INFO:bot_engine:BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:55.470295725Z [err]  03:00:55 - BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:55.470299536Z [err]  INFO:bot_engine:BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:58.506784856Z [err]  03:00:58 - BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:00:58.506790949Z [err]  INFO:bot_engine:BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:01:01.594050665Z [err]  03:01:01 - BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:01:01.594057444Z [err]  INFO:bot_engine:BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:01:04.712399422Z [err]  03:01:04 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:04.712407161Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:07.798385545Z [err]  03:01:07 - BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:01:07.798390721Z [err]  INFO:bot_engine:BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:01:10.890539293Z [err]  03:01:10 - BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:01:10.890545052Z [err]  INFO:bot_engine:BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:01:13.983469384Z [err]  03:01:13 - BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:01:13.983476202Z [err]  INFO:bot_engine:BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:01:17.068599643Z [err]  03:01:17 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:17.068605190Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:20.170226315Z [err]  03:01:20 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:20.170240466Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:23.269042056Z [err]  03:01:23 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:23.269048205Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:26.366659899Z [err]  03:01:26 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:26.366665327Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:29.577332103Z [err]  03:01:29 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:29.577430665Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:32.589779787Z [err]  03:01:32 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:32.589784249Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:35.644814785Z [err]  03:01:35 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:35.644822525Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:38.778940053Z [err]  03:01:38 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:01:38.778945621Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:01:41.877525717Z [err]  03:01:41 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:01:41.877529288Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:01:45.123726308Z [err]  03:01:45 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:45.123731386Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:48.229407707Z [err]  03:01:48 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:48.229412584Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:51.337214187Z [err]  03:01:51 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:51.337221367Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:54.439372451Z [err]  03:01:54 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:54.439377978Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:57.686126370Z [err]  03:01:57 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:01:57.686132621Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:02:00.768124724Z [err]  03:02:00 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:02:00.768132517Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:02:03.999244042Z [err]  03:02:03 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:02:03.999249919Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:02:07.084033425Z [err]  03:02:07 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:02:07.084040293Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:02:10.176780809Z [err]  03:02:10 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:02:10.176788828Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:02:13.279329308Z [err]  03:02:13 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:02:13.279336183Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:02:16.370675008Z [err]  03:02:16 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:02:16.370681061Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:02:19.459083771Z [err]  03:02:19 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:02:19.459088999Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:02:22.545168357Z [err]  03:02:22 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:02:22.545175514Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:02:25.631867266Z [err]  03:02:25 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:02:25.631872928Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:02:28.836116402Z [err]  03:02:28 - BTC: margin usage 99.0% > limit 70.0% — skipping
+2026-06-30T03:02:28.836123180Z [err]  INFO:bot_engine:BTC: margin usage 99.0% > limit 70.0% — skipping
+2026-06-30T03:02:31.922525652Z [err]  03:02:31 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:02:31.922535282Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:02:35.010442148Z [err]  03:02:35 - BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:02:35.010448391Z [err]  INFO:bot_engine:BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:02:38.096993819Z [err]  03:02:38 - BTC: margin usage 98.6% > limit 70.0% — skipping
+2026-06-30T03:02:38.097000298Z [err]  INFO:bot_engine:BTC: margin usage 98.6% > limit 70.0% — skipping
+2026-06-30T03:02:41.182343210Z [err]  03:02:41 - BTC: margin usage 98.6% > limit 70.0% — skipping
+2026-06-30T03:02:41.182348925Z [err]  INFO:bot_engine:BTC: margin usage 98.6% > limit 70.0% — skipping
+2026-06-30T03:02:44.283098901Z [err]  03:02:44 - BTC: margin usage 98.6% > limit 70.0% — skipping
+2026-06-30T03:02:44.283104781Z [err]  INFO:bot_engine:BTC: margin usage 98.6% > limit 70.0% — skipping
+2026-06-30T03:02:47.370560563Z [err]  03:02:47 - BTC: margin usage 98.6% > limit 70.0% — skipping
+2026-06-30T03:02:47.370566007Z [err]  INFO:bot_engine:BTC: margin usage 98.6% > limit 70.0% — skipping
+2026-06-30T03:02:50.460201026Z [err]  03:02:50 - BTC: margin usage 98.6% > limit 70.0% — skipping
+2026-06-30T03:02:50.460208090Z [err]  INFO:bot_engine:BTC: margin usage 98.6% > limit 70.0% — skipping
+2026-06-30T03:02:53.665302555Z [err]  03:02:53 - BTC: margin usage 98.6% > limit 70.0% — skipping
+2026-06-30T03:02:53.665309749Z [err]  INFO:bot_engine:BTC: margin usage 98.6% > limit 70.0% — skipping
+2026-06-30T03:02:56.752316407Z [err]  03:02:56 - BTC: margin usage 98.6% > limit 70.0% — skipping
+2026-06-30T03:02:56.752323977Z [err]  INFO:bot_engine:BTC: margin usage 98.6% > limit 70.0% — skipping
+2026-06-30T03:02:59.930957371Z [err]  03:02:59 - BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:02:59.930962907Z [err]  INFO:bot_engine:BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:03:02.933350899Z [err]  03:03:02 - BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:03:02.933354413Z [err]  INFO:bot_engine:BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:03:06.014451393Z [err]  03:03:06 - BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:03:06.014460587Z [err]  INFO:bot_engine:BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:03:09.433123590Z [err]  03:03:09 - BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:03:09.433129994Z [err]  INFO:bot_engine:BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:03:12.525517337Z [err]  03:03:12 - BTC: margin usage 98.5% > limit 70.0% — skipping
+2026-06-30T03:03:12.525526743Z [err]  INFO:bot_engine:BTC: margin usage 98.5% > limit 70.0% — skipping
+2026-06-30T03:03:15.615426789Z [err]  03:03:15 - BTC: margin usage 98.3% > limit 70.0% — skipping
+2026-06-30T03:03:15.615433316Z [err]  INFO:bot_engine:BTC: margin usage 98.3% > limit 70.0% — skipping
+2026-06-30T03:03:18.710199153Z [err]  03:03:18 - BTC: margin usage 98.3% > limit 70.0% — skipping
+2026-06-30T03:03:18.710205275Z [err]  INFO:bot_engine:BTC: margin usage 98.3% > limit 70.0% — skipping
+2026-06-30T03:03:21.799579092Z [err]  03:03:21 - BTC: margin usage 98.3% > limit 70.0% — skipping
+2026-06-30T03:03:21.799585329Z [err]  INFO:bot_engine:BTC: margin usage 98.3% > limit 70.0% — skipping
+2026-06-30T03:03:24.883428299Z [err]  03:03:24 - BTC: margin usage 98.3% > limit 70.0% — skipping
+2026-06-30T03:03:24.883433961Z [err]  INFO:bot_engine:BTC: margin usage 98.3% > limit 70.0% — skipping
+2026-06-30T03:03:28.099281087Z [err]  03:03:28 - BTC: margin usage 98.3% > limit 70.0% — skipping
+2026-06-30T03:03:28.099287516Z [err]  INFO:bot_engine:BTC: margin usage 98.3% > limit 70.0% — skipping
+2026-06-30T03:03:31.183690074Z [err]  03:03:31 - BTC: margin usage 98.3% > limit 70.0% — skipping
+2026-06-30T03:03:31.183695132Z [err]  INFO:bot_engine:BTC: margin usage 98.3% > limit 70.0% — skipping
+2026-06-30T03:03:34.551347644Z [err]  03:03:34 - BTC: margin usage 98.3% > limit 70.0% — skipping
+2026-06-30T03:03:34.551357930Z [err]  INFO:bot_engine:BTC: margin usage 98.3% > limit 70.0% — skipping
+2026-06-30T03:03:37.669673151Z [err]  03:03:37 - BTC: margin usage 98.3% > limit 70.0% — skipping
+2026-06-30T03:03:37.669677481Z [err]  INFO:bot_engine:BTC: margin usage 98.3% > limit 70.0% — skipping
+2026-06-30T03:03:40.730858918Z [err]  03:03:40 - BTC: margin usage 98.3% > limit 70.0% — skipping
+2026-06-30T03:03:40.730864281Z [err]  INFO:bot_engine:BTC: margin usage 98.3% > limit 70.0% — skipping
+2026-06-30T03:03:43.816734546Z [err]  03:03:43 - BTC: margin usage 98.3% > limit 70.0% — skipping
+2026-06-30T03:03:43.816740481Z [err]  INFO:bot_engine:BTC: margin usage 98.3% > limit 70.0% — skipping
+2026-06-30T03:03:46.908869575Z [err]  03:03:46 - BTC: margin usage 98.5% > limit 70.0% — skipping
+2026-06-30T03:03:46.908874518Z [err]  INFO:bot_engine:BTC: margin usage 98.5% > limit 70.0% — skipping
+2026-06-30T03:03:50.030627993Z [err]  03:03:49 - BTC: margin usage 98.5% > limit 70.0% — skipping
+2026-06-30T03:03:50.030643683Z [err]  INFO:bot_engine:BTC: margin usage 98.5% > limit 70.0% — skipping
+2026-06-30T03:03:53.087040872Z [err]  03:03:53 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:03:53.087048190Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:03:56.254106591Z [err]  03:03:56 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:03:56.254111691Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:03:59.766332762Z [err]  03:03:59 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:03:59.766340147Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:04:02.889183967Z [err]  03:04:02 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:04:02.889215168Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:04:05.985044610Z [err]  03:04:05 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:04:05.985053159Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:04:09.128386466Z [err]  03:04:09 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:04:09.128395585Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:04:12.296185291Z [err]  03:04:12 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:04:12.296193598Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:04:15.358061846Z [err]  03:04:15 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:04:15.358065195Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:04:18.456933273Z [err]  03:04:18 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:04:18.456940215Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:04:21.662512792Z [err]  03:04:21 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:04:21.662529538Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:04:24.746742814Z [err]  03:04:24 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:04:24.746748566Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:04:27.844084171Z [err]  03:04:27 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:04:27.844092438Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:04:30.926550942Z [err]  03:04:30 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:04:30.926559368Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:04:34.011507770Z [err]  03:04:34 - BTC: margin usage 99.0% > limit 70.0% — skipping
+2026-06-30T03:04:34.011513369Z [err]  INFO:bot_engine:BTC: margin usage 99.0% > limit 70.0% — skipping
+2026-06-30T03:04:37.099042532Z [err]  03:04:37 - BTC: margin usage 99.0% > limit 70.0% — skipping
+2026-06-30T03:04:37.099046669Z [err]  INFO:bot_engine:BTC: margin usage 99.0% > limit 70.0% — skipping
+2026-06-30T03:04:40.188765292Z [err]  03:04:40 - BTC: margin usage 99.1% > limit 70.0% — skipping
+2026-06-30T03:04:40.188771100Z [err]  INFO:bot_engine:BTC: margin usage 99.1% > limit 70.0% — skipping
+2026-06-30T03:04:43.305453797Z [err]  03:04:43 - BTC: margin usage 99.2% > limit 70.0% — skipping
+2026-06-30T03:04:43.305459123Z [err]  INFO:bot_engine:BTC: margin usage 99.2% > limit 70.0% — skipping
+2026-06-30T03:04:46.451289339Z [err]  03:04:46 - BTC: margin usage 99.2% > limit 70.0% — skipping
+2026-06-30T03:04:46.451292947Z [err]  INFO:bot_engine:BTC: margin usage 99.2% > limit 70.0% — skipping
+2026-06-30T03:04:49.586655848Z [err]  03:04:49 - BTC: margin usage 99.2% > limit 70.0% — skipping
+2026-06-30T03:04:49.586667543Z [err]  INFO:bot_engine:BTC: margin usage 99.2% > limit 70.0% — skipping
+2026-06-30T03:04:52.663589865Z [err]  03:04:52 - BTC: margin usage 99.2% > limit 70.0% — skipping
+2026-06-30T03:04:52.663595039Z [err]  INFO:bot_engine:BTC: margin usage 99.2% > limit 70.0% — skipping
+2026-06-30T03:04:55.752423887Z [err]  03:04:55 - BTC: margin usage 99.2% > limit 70.0% — skipping
+2026-06-30T03:04:55.752430867Z [err]  INFO:bot_engine:BTC: margin usage 99.2% > limit 70.0% — skipping
+2026-06-30T03:04:58.839265883Z [err]  03:04:58 - BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:04:58.839274315Z [err]  INFO:bot_engine:BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:05:01.929731213Z [err]  03:05:01 - BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:05:01.929737682Z [err]  INFO:bot_engine:BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:05:05.017885380Z [err]  03:05:05 - BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:05:05.017896102Z [err]  INFO:bot_engine:BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:05:08.121327909Z [err]  03:05:08 - BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:05:08.121335299Z [err]  INFO:bot_engine:BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:05:11.218460070Z [err]  03:05:11 - BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:05:11.218465862Z [err]  INFO:bot_engine:BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:05:14.311533020Z [err]  03:05:14 - BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:05:14.311541310Z [err]  INFO:bot_engine:BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:05:17.398744358Z [err]  03:05:17 - BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:05:17.398748367Z [err]  INFO:bot_engine:BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:05:20.564529642Z [err]  03:05:20 - BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:05:20.564536063Z [err]  INFO:bot_engine:BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:05:23.586442424Z [err]  03:05:23 - BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:05:23.586446635Z [err]  INFO:bot_engine:BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:05:26.664331563Z [err]  03:05:26 - BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:05:26.664339569Z [err]  INFO:bot_engine:BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:05:30.174208059Z [err]  03:05:30 - BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:05:30.174213092Z [err]  INFO:bot_engine:BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:05:33.250279115Z [err]  03:05:33 - BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:05:33.250285946Z [err]  INFO:bot_engine:BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:05:36.341819321Z [err]  03:05:36 - BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:05:36.341830596Z [err]  INFO:bot_engine:BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:05:39.443775389Z [err]  03:05:39 - BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:05:39.443782792Z [err]  INFO:bot_engine:BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:05:42.648652231Z [err]  03:05:42 - BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:05:42.648656994Z [err]  INFO:bot_engine:BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:05:45.656938246Z [err]  INFO:bot_engine:BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:05:45.657057294Z [err]  03:05:45 - BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:05:48.729619783Z [err]  03:05:48 - BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:05:48.729626484Z [err]  INFO:bot_engine:BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:05:51.817953740Z [err]  03:05:51 - BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:05:51.817957864Z [err]  INFO:bot_engine:BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:05:55.008311764Z [err]  03:05:55 - BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:05:55.008334232Z [err]  INFO:bot_engine:BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:05:58.100584543Z [err]  03:05:58 - BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:05:58.100590115Z [err]  INFO:bot_engine:BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:06:01.198741013Z [err]  03:06:01 - BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:06:01.198746863Z [err]  INFO:bot_engine:BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:06:04.307524826Z [err]  03:06:04 - BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:06:04.307531438Z [err]  INFO:bot_engine:BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:06:07.398872710Z [err]  03:06:07 - BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:06:07.398877676Z [err]  INFO:bot_engine:BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:06:10.492140065Z [err]  03:06:10 - BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:06:10.492147398Z [err]  INFO:bot_engine:BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:06:13.583706725Z [err]  03:06:13 - BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:06:13.583712093Z [err]  INFO:bot_engine:BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:06:16.671015868Z [err]  03:06:16 - BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:06:16.671021692Z [err]  INFO:bot_engine:BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:06:19.819853691Z [err]  03:06:19 - BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:06:19.819857896Z [err]  INFO:bot_engine:BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:06:22.847611722Z [err]  03:06:22 - BTC: margin usage 99.2% > limit 70.0% — skipping
+2026-06-30T03:06:22.847620155Z [err]  INFO:bot_engine:BTC: margin usage 99.2% > limit 70.0% — skipping
+2026-06-30T03:06:25.941975473Z [err]  03:06:25 - BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:06:25.941982222Z [err]  INFO:bot_engine:BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:06:29.020221157Z [err]  03:06:29 - BTC: margin usage 99.2% > limit 70.0% — skipping
+2026-06-30T03:06:29.020226526Z [err]  INFO:bot_engine:BTC: margin usage 99.2% > limit 70.0% — skipping
+2026-06-30T03:06:32.108241185Z [err]  03:06:32 - BTC: margin usage 99.1% > limit 70.0% — skipping
+2026-06-30T03:06:32.108250076Z [err]  INFO:bot_engine:BTC: margin usage 99.1% > limit 70.0% — skipping
+2026-06-30T03:06:35.367022180Z [err]  03:06:35 - BTC: margin usage 99.1% > limit 70.0% — skipping
+2026-06-30T03:06:35.367029925Z [err]  INFO:bot_engine:BTC: margin usage 99.1% > limit 70.0% — skipping
+2026-06-30T03:06:38.452553638Z [err]  03:06:38 - BTC: margin usage 99.1% > limit 70.0% — skipping
+2026-06-30T03:06:38.452557594Z [err]  INFO:bot_engine:BTC: margin usage 99.1% > limit 70.0% — skipping
+2026-06-30T03:06:41.543846757Z [err]  03:06:41 - BTC: margin usage 99.1% > limit 70.0% — skipping
+2026-06-30T03:06:41.543852885Z [err]  INFO:bot_engine:BTC: margin usage 99.1% > limit 70.0% — skipping
+2026-06-30T03:06:44.640832345Z [err]  03:06:44 - BTC: margin usage 99.1% > limit 70.0% — skipping
+2026-06-30T03:06:44.640842437Z [err]  INFO:bot_engine:BTC: margin usage 99.1% > limit 70.0% — skipping
+2026-06-30T03:06:47.734617303Z [err]  03:06:47 - BTC: margin usage 99.1% > limit 70.0% — skipping
+2026-06-30T03:06:47.734622449Z [err]  INFO:bot_engine:BTC: margin usage 99.1% > limit 70.0% — skipping
+2026-06-30T03:06:50.942386146Z [err]  03:06:50 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:06:50.942390600Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:06:54.000424857Z [err]  03:06:53 - BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:06:54.000430781Z [err]  INFO:bot_engine:BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:06:57.095970592Z [err]  03:06:57 - BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:06:57.095983037Z [err]  INFO:bot_engine:BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:00.332690543Z [err]  03:07:00 - BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:00.332698701Z [err]  INFO:bot_engine:BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:03.420944940Z [err]  03:07:03 - BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:03.420952518Z [err]  INFO:bot_engine:BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:06.508688273Z [err]  03:07:06 - BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:06.508694708Z [err]  INFO:bot_engine:BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:09.596101708Z [err]  03:07:09 - BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:09.596110244Z [err]  INFO:bot_engine:BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:12.687296111Z [err]  03:07:12 - BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:12.687301559Z [err]  INFO:bot_engine:BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:16.183194897Z [err]  03:07:16 - BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:16.183201412Z [err]  INFO:bot_engine:BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:19.265548054Z [err]  03:07:19 - BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:19.265555279Z [err]  INFO:bot_engine:BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:22.363539335Z [err]  03:07:22 - BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:22.363544874Z [err]  INFO:bot_engine:BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:25.444348279Z [err]  03:07:25 - BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:25.444354099Z [err]  INFO:bot_engine:BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:28.528434430Z [err]  03:07:28 - BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:28.528439854Z [err]  INFO:bot_engine:BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:31.618571271Z [err]  03:07:31 - BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:31.618576896Z [err]  INFO:bot_engine:BTC: margin usage 98.7% > limit 70.0% — skipping
+2026-06-30T03:07:34.714080342Z [err]  03:07:34 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:07:34.714086887Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:07:37.801552158Z [err]  03:07:37 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:07:37.801564801Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:07:40.989614254Z [err]  03:07:40 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:07:40.989621917Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:07:44.075306189Z [err]  03:07:44 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:07:44.075312322Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:07:47.167346928Z [err]  03:07:47 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:07:47.167355558Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:07:50.304466326Z [err]  03:07:50 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:07:50.304470997Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:07:53.341546826Z [err]  03:07:53 - BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:07:53.341550618Z [err]  INFO:bot_engine:BTC: margin usage 98.8% > limit 70.0% — skipping
+2026-06-30T03:07:56.423940934Z [err]  03:07:56 - BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:07:56.423944902Z [err]  INFO:bot_engine:BTC: margin usage 98.9% > limit 70.0% — skipping
+2026-06-30T03:07:59.520230589Z [err]  03:07:59 - BTC: margin usage 99.0% > limit 70.0% — skipping
+2026-06-30T03:07:59.520238390Z [err]  INFO:bot_engine:BTC: margin usage 99.0% > limit 70.0% — skipping
+2026-06-30T03:08:02.620469080Z [err]  03:08:02 - BTC: margin usage 99.1% > limit 70.0% — skipping
+2026-06-30T03:08:02.620476500Z [err]  INFO:bot_engine:BTC: margin usage 99.1% > limit 70.0% — skipping
+2026-06-30T03:08:05.750531434Z [err]  03:08:05 - BTC: margin usage 99.1% > limit 70.0% — skipping
+2026-06-30T03:08:05.750540717Z [err]  INFO:bot_engine:BTC: margin usage 99.1% > limit 70.0% — skipping
+2026-06-30T03:08:08.898268036Z [err]  03:08:08 - BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:08:08.898273642Z [err]  INFO:bot_engine:BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-06-30T03:08:12.022160388Z [err]  03:08:11 - BTC: margin usage 100.5% > limit 70.0% — skipping
+2026-06-30T03:08:12.022172553Z [err]  INFO:bot_engine:BTC: margin usage 100.5% > limit 70.0% — skipping
+2026-06-30T03:08:15.086379115Z [err]  03:08:15 - BTC: margin usage 101.5% > limit 70.0% — skipping
+2026-06-30T03:08:15.086386491Z [err]  INFO:bot_engine:BTC: margin usage 101.5% > limit 70.0% — skipping
+2026-06-30T03:08:18.186779577Z [err]  03:08:18 - BTC: margin usage 101.6% > limit 70.0% — skipping
+2026-06-30T03:08:18.186786145Z [err]  INFO:bot_engine:BTC: margin usage 101.6% > limit 70.0% — skipping
+2026-06-30T03:08:21.275364378Z [err]  03:08:21 - BTC: margin usage 101.4% > limit 70.0% — skipping
+2026-06-30T03:08:21.275370572Z [err]  INFO:bot_engine:BTC: margin usage 101.4% > limit 70.0% — skipping
+2026-06-30T03:08:24.366603741Z [err]  03:08:24 - BTC: margin usage 101.4% > limit 70.0% — skipping
+2026-06-30T03:08:24.366608235Z [err]  INFO:bot_engine:BTC: margin usage 101.4% > limit 70.0% — skipping
+2026-06-30T03:08:27.531830805Z [err]  03:08:27 - BTC: margin usage 101.4% > limit 70.0% — skipping
+2026-06-30T03:08:27.531835875Z [err]  INFO:bot_engine:BTC: margin usage 101.4% > limit 70.0% — skipping
+2026-06-30T03:08:30.573405996Z [err]  03:08:30 - BTC: margin usage 101.5% > limit 70.0% — skipping
+2026-06-30T03:08:30.573412056Z [err]  INFO:bot_engine:BTC: margin usage 101.5% > limit 70.0% — skipping
+2026-06-30T03:08:33.670633298Z [err]  03:08:33 - BTC: margin usage 101.9% > limit 70.0% — skipping
+2026-06-30T03:08:33.670638901Z [err]  INFO:bot_engine:BTC: margin usage 101.9% > limit 70.0% — skipping
+2026-06-30T03:08:36.747780253Z [err]  03:08:36 - BTC: margin usage 101.9% > limit 70.0% — skipping
+2026-06-30T03:08:36.747787043Z [err]  INFO:bot_engine:BTC: margin usage 101.9% > limit 70.0% — skipping
+2026-06-30T03:08:39.831600590Z [err]  03:08:39 - BTC: margin usage 102.0% > limit 70.0% — skipping
+2026-06-30T03:08:39.831608800Z [err]  INFO:bot_engine:BTC: margin usage 102.0% > limit 70.0% — skipping
+2026-06-30T03:08:42.922624600Z [err]  03:08:42 - BTC: margin usage 102.0% > limit 70.0% — skipping
+2026-06-30T03:08:42.922630400Z [err]  INFO:bot_engine:BTC: margin usage 102.0% > limit 70.0% — skipping
+2026-06-30T03:08:46.023245693Z [err]  03:08:46 - BTC: margin usage 102.0% > limit 70.0% — skipping
+2026-06-30T03:08:46.023253765Z [err]  INFO:bot_engine:BTC: margin usage 102.0% > limit 70.0% — skipping
+2026-06-30T03:08:49.113711929Z [err]  03:08:49 - BTC: margin usage 102.1% > limit 70.0% — skipping
+2026-06-30T03:08:49.113718740Z [err]  INFO:bot_engine:BTC: margin usage 102.1% > limit 70.0% — skipping
+2026-06-30T03:08:52.201047520Z [err]  03:08:52 - BTC: margin usage 102.1% > limit 70.0% — skipping
+2026-06-30T03:08:52.201052845Z [err]  INFO:bot_engine:BTC: margin usage 102.1% > limit 70.0% — skipping
+2026-06-30T03:08:55.293629784Z [err]  03:08:55 - BTC: margin usage 101.8% > limit 70.0% — skipping
+2026-06-30T03:08:55.293636468Z [err]  INFO:bot_engine:BTC: margin usage 101.8% > limit 70.0% — skipping
+2026-06-30T03:08:58.379688295Z [err]  03:08:58 - BTC: margin usage 101.8% > limit 70.0% — skipping
+2026-06-30T03:08:58.379693877Z [err]  INFO:bot_engine:BTC: margin usage 101.8% > limit 70.0% — skipping
+2026-06-30T03:09:01.506287305Z [err]  03:09:01 - BTC: margin usage 101.8% > limit 70.0% — skipping
+2026-06-30T03:09:01.506292618Z [err]  INFO:bot_engine:BTC: margin usage 101.8% > limit 70.0% — skipping
+2026-06-30T03:09:04.704960803Z [err]  03:09:04 - BTC: margin usage 101.7% > limit 70.0% — skipping
+2026-06-30T03:09:04.704969182Z [err]  INFO:bot_engine:BTC: margin usage 101.7% > limit 70.0% — skipping
+2026-06-30T03:09:07.714046858Z [err]  03:09:07 - BTC: margin usage 101.7% > limit 70.0% — skipping
+2026-06-30T03:09:07.714050477Z [err]  INFO:bot_engine:BTC: margin usage 101.7% > limit 70.0% — skipping
+2026-06-30T03:09:10.762733984Z [err]  03:09:10 - BTC: margin usage 101.5% > limit 70.0% — skipping
+2026-06-30T03:09:10.762741049Z [err]  INFO:bot_engine:BTC: margin usage 101.5% > limit 70.0% — skipping
+2026-06-30T03:09:13.847659156Z [err]  03:09:13 - BTC: margin usage 101.5% > limit 70.0% — skipping
+2026-06-30T03:09:13.847664206Z [err]  INFO:bot_engine:BTC: margin usage 101.5% > limit 70.0% — skipping
+2026-06-30T03:09:16.945829479Z [err]  03:09:16 - BTC: margin usage 101.2% > limit 70.0% — skipping
+2026-06-30T03:09:16.945832977Z [err]  INFO:bot_engine:BTC: margin usage 101.2% > limit 70.0% — skipping
+2026-06-30T03:09:20.031266443Z [err]  03:09:20 - BTC: margin usage 101.2% > limit 70.0% — skipping
+2026-06-30T03:09:20.031275361Z [err]  INFO:bot_engine:BTC: margin usage 101.2% > limit 70.0% — skipping
+2026-06-30T03:09:23.120404386Z [err]  03:09:23 - BTC: margin usage 101.1% > limit 70.0% — skipping
+2026-06-30T03:09:23.120409412Z [err]  INFO:bot_engine:BTC: margin usage 101.1% > limit 70.0% — skipping
+2026-06-30T03:09:26.209835146Z [err]  03:09:26 - BTC: margin usage 101.1% > limit 70.0% — skipping
+2026-06-30T03:09:26.209841407Z [err]  INFO:bot_engine:BTC: margin usage 101.1% > limit 70.0% — skipping
+2026-06-30T03:09:29.306005468Z [err]  03:09:29 - BTC: margin usage 100.9% > limit 70.0% — skipping
+2026-06-30T03:09:29.306012490Z [err]  INFO:bot_engine:BTC: margin usage 100.9% > limit 70.0% — skipping
+2026-06-30T03:09:32.388975978Z [err]  03:09:32 - BTC: margin usage 100.9% > limit 70.0% — skipping
+2026-06-30T03:09:32.388982751Z [err]  INFO:bot_engine:BTC: margin usage 100.9% > limit 70.0% — skipping
+2026-06-30T03:09:35.488419726Z [err]  03:09:35 - BTC: margin usage 100.9% > limit 70.0% — skipping
+2026-06-30T03:09:35.488431163Z [err]  INFO:bot_engine:BTC: margin usage 100.9% > limit 70.0% — skipping
+2026-06-30T03:09:38.566783229Z [err]  03:09:38 - BTC: margin usage 100.8% > limit 70.0% — skipping
+2026-06-30T03:09:38.566791099Z [err]  INFO:bot_engine:BTC: margin usage 100.8% > limit 70.0% — skipping
+2026-06-30T03:09:41.693367617Z [err]  03:09:41 - BTC: margin usage 100.6% > limit 70.0% — skipping
+2026-06-30T03:09:41.693376838Z [err]  INFO:bot_engine:BTC: margin usage 100.6% > limit 70.0% — skipping
+2026-06-30T03:09:44.901609826Z [err]  03:09:44 - BTC: margin usage 100.6% > limit 70.0% — skipping
+2026-06-30T03:09:44.901613881Z [err]  INFO:bot_engine:BTC: margin usage 100.6% > limit 70.0% — skipping
+2026-06-30T03:09:47.924861245Z [err]  03:09:47 - BTC: margin usage 100.6% > limit 70.0% — skipping
+2026-06-30T03:09:47.924867338Z [err]  INFO:bot_engine:BTC: margin usage 100.6% > limit 70.0% — skipping
+2026-06-30T03:09:50.965099714Z [err]  03:09:50 - BTC: margin usage 100.6% > limit 70.0% — skipping
+2026-06-30T03:09:50.965106069Z [err]  INFO:bot_engine:BTC: margin usage 100.6% > limit 70.0% — skipping
+2026-06-30T03:09:54.045683085Z [err]  03:09:54 - BTC: margin usage 100.6% > limit 70.0% — skipping
+2026-06-30T03:09:54.045687197Z [err]  INFO:bot_engine:BTC: margin usage 100.6% > limit 70.0% — skipping
+2026-06-30T03:09:57.136867948Z [err]  03:09:57 - BTC: margin usage 100.5% > limit 70.0% — skipping
+2026-06-30T03:09:57.136874761Z [err]  INFO:bot_engine:BTC: margin usage 100.5% > limit 70.0% — skipping
+2026-06-30T03:10:00.262723946Z [err]  03:10:00 - BTC: margin usage 100.5% > limit 70.0% — skipping
+2026-06-30T03:10:00.262731155Z [err]  INFO:bot_engine:BTC: margin usage 100.5% > limit 70.0% — skipping
+2026-06-30T03:10:03.370488747Z [err]  03:10:03 - BTC: margin usage 100.4% > limit 70.0% — skipping
+2026-06-30T03:10:03.370493369Z [err]  INFO:bot_engine:BTC: margin usage 100.4% > limit 70.0% — skipping
+2026-06-30T03:10:06.480912945Z [err]  03:10:06 - BTC: margin usage 100.5% > limit 70.0% — skipping
+2026-06-30T03:10:06.480920100Z [err]  INFO:bot_engine:BTC: margin usage 100.5% > limit 70.0% — skipping
+2026-06-30T03:10:09.586224893Z [err]  03:10:09 - BTC: margin usage 100.4% > limit 70.0% — skipping
+2026-06-30T03:10:09.586229988Z [err]  INFO:bot_engine:BTC: margin usage 100.4% > limit 70.0% — skipping
+2026-06-30T03:10:12.674348376Z [err]  03:10:12 - BTC: margin usage 100.4% > limit 70.0% — skipping
+2026-06-30T03:10:12.674354776Z [err]  INFO:bot_engine:BTC: margin usage 100.4% > limit 70.0% — skipping
+2026-06-30T03:10:15.762500084Z [err]  03:10:15 - BTC: margin usage 101.0% > limit 70.0% — skipping
+2026-06-30T03:10:15.762506092Z [err]  INFO:bot_engine:BTC: margin usage 101.0% > limit 70.0% — skipping
+2026-06-30T03:10:18.850062501Z [err]  03:10:18 - BTC: margin usage 101.0% > limit 70.0% — skipping
+2026-06-30T03:10:18.850068249Z [err]  INFO:bot_engine:BTC: margin usage 101.0% > limit 70.0% — skipping
+2026-06-30T03:10:21.936535224Z [err]  03:10:21 - BTC: margin usage 101.1% > limit 70.0% — skipping
+2026-06-30T03:10:21.936541325Z [err]  INFO:bot_engine:BTC: margin usage 101.1% > limit 70.0% — skipping
+2026-06-30T03:10:25.127871750Z [err]  03:10:25 - BTC: margin usage 101.0% > limit 70.0% — skipping
+2026-06-30T03:10:25.127875331Z [err]  INFO:bot_engine:BTC: margin usage 101.0% > limit 70.0% — skipping
+2026-06-30T03:10:28.138482138Z [err]  03:10:28 - BTC: margin usage 101.0% > limit 70.0% — skipping
+2026-06-30T03:10:28.138490128Z [err]  INFO:bot_engine:BTC: margin usage 101.0% > limit 70.0% — skipping
+2026-06-30T03:10:31.217025421Z [err]  03:10:31 - BTC: margin usage 101.0% > limit 70.0% — skipping
+2026-06-30T03:10:31.217032411Z [err]  INFO:bot_engine:BTC: margin usage 101.0% > limit 70.0% — skipping
+2026-06-30T03:10:34.302720568Z [err]  03:10:34 - BTC: margin usage 100.9% > limit 70.0% — skipping
+2026-06-30T03:10:34.302726640Z [err]  INFO:bot_engine:BTC: margin usage 100.9% > limit 70.0% — skipping
+2026-06-30T03:10:37.392105595Z [err]  03:10:37 - BTC: margin usage 100.7% > limit 70.0% — skipping
+2026-06-30T03:10:37.392113436Z [err]  INFO:bot_engine:BTC: margin usage 100.7% > limit 70.0% — skipping
+2026-06-30T03:10:40.525102811Z [err]  03:10:40 - BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:10:40.525108949Z [err]  INFO:bot_engine:BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:10:43.618607982Z [err]  03:10:43 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:10:43.618613912Z [err]  INFO:bot_engine:BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:10:46.705395917Z [err]  03:10:46 - BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:10:46.705405168Z [err]  INFO:bot_engine:BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:10:49.818662339Z [err]  03:10:49 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:10:49.818666750Z [err]  INFO:bot_engine:BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:10:52.877616891Z [err]  03:10:52 - BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:10:52.877624740Z [err]  INFO:bot_engine:BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:10:55.965105451Z [err]  03:10:55 - BTC: margin usage 100.2% > limit 70.0% — skipping
+2026-06-30T03:10:55.965111822Z [err]  INFO:bot_engine:BTC: margin usage 100.2% > limit 70.0% — skipping
+2026-06-30T03:10:59.050007921Z [err]  03:10:59 - BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:10:59.050015325Z [err]  INFO:bot_engine:BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:11:02.280847493Z [err]  03:11:02 - BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:11:02.280852239Z [err]  INFO:bot_engine:BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:11:05.287524720Z [err]  03:11:05 - BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:11:05.287530926Z [err]  INFO:bot_engine:BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:11:08.375041496Z [err]  03:11:08 - BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:11:08.375048137Z [err]  INFO:bot_engine:BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:11:11.451073168Z [err]  03:11:11 - BTC: margin usage 100.3% > limit 70.0% — skipping
+2026-06-30T03:11:11.451079552Z [err]  INFO:bot_engine:BTC: margin usage 100.3% > limit 70.0% — skipping
+2026-06-30T03:11:14.536352068Z [err]  03:11:14 - BTC: margin usage 100.2% > limit 70.0% — skipping
+2026-06-30T03:11:14.536357827Z [err]  INFO:bot_engine:BTC: margin usage 100.2% > limit 70.0% — skipping
+2026-06-30T03:11:17.625705835Z [err]  03:11:17 - BTC: margin usage 100.3% > limit 70.0% — skipping
+2026-06-30T03:11:17.625713215Z [err]  INFO:bot_engine:BTC: margin usage 100.3% > limit 70.0% — skipping
+2026-06-30T03:11:20.707860153Z [err]  03:11:20 - BTC: margin usage 100.3% > limit 70.0% — skipping
+2026-06-30T03:11:20.707865250Z [err]  INFO:bot_engine:BTC: margin usage 100.3% > limit 70.0% — skipping
+2026-06-30T03:11:23.794877948Z [err]  03:11:23 - BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:11:23.794884020Z [err]  INFO:bot_engine:BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:11:26.891393696Z [err]  03:11:26 - BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:11:26.891398353Z [err]  INFO:bot_engine:BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:11:29.968026617Z [err]  03:11:29 - BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:11:29.968034065Z [err]  INFO:bot_engine:BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:11:33.057844935Z [err]  03:11:33 - BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:11:33.057856625Z [err]  INFO:bot_engine:BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:11:36.175214560Z [err]  03:11:36 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:11:36.175220803Z [err]  INFO:bot_engine:BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:11:39.236108544Z [err]  03:11:39 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:11:39.236115113Z [err]  INFO:bot_engine:BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:11:42.542260755Z [err]  03:11:42 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:11:42.542266081Z [err]  INFO:bot_engine:BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:11:45.627989280Z [err]  03:11:45 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:11:45.627995031Z [err]  INFO:bot_engine:BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:11:48.726241399Z [err]  03:11:48 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:11:48.726247131Z [err]  INFO:bot_engine:BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:11:51.807385226Z [err]  03:11:51 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:11:51.807394439Z [err]  INFO:bot_engine:BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:11:54.903249170Z [err]  03:11:54 - BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:11:54.903255672Z [err]  INFO:bot_engine:BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:11:58.026472343Z [err]  03:11:58 - BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:11:58.026478595Z [err]  INFO:bot_engine:BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:01.201547366Z [err]  03:12:01 - BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:01.201552564Z [err]  INFO:bot_engine:BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:04.293609592Z [err]  03:12:04 - BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:04.293617071Z [err]  INFO:bot_engine:BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:07.372699012Z [err]  03:12:07 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:12:07.372707789Z [err]  INFO:bot_engine:BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:12:10.459386895Z [err]  03:12:10 - BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:10.459397215Z [err]  INFO:bot_engine:BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:13.633906451Z [err]  03:12:13 - BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:13.633911556Z [err]  INFO:bot_engine:BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:16.645263507Z [err]  03:12:16 - BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:16.645269190Z [err]  INFO:bot_engine:BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:19.737851436Z [err]  03:12:19 - BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:19.737857039Z [err]  INFO:bot_engine:BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:22.812822593Z [err]  03:12:22 - BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:22.812828510Z [err]  INFO:bot_engine:BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:25.901376571Z [err]  03:12:25 - BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:25.901383879Z [err]  INFO:bot_engine:BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:28.989369242Z [err]  03:12:28 - BTC: margin usage 99.8% > limit 70.0% — skipping
+2026-06-30T03:12:28.989377100Z [err]  INFO:bot_engine:BTC: margin usage 99.8% > limit 70.0% — skipping
+2026-06-30T03:12:32.074551907Z [err]  03:12:32 - BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:32.074557732Z [err]  INFO:bot_engine:BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:35.161936249Z [err]  03:12:35 - BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:35.161941795Z [err]  INFO:bot_engine:BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:38.320137629Z [err]  03:12:38 - BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:38.320146617Z [err]  INFO:bot_engine:BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:41.391490258Z [err]  03:12:41 - BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:41.391497443Z [err]  INFO:bot_engine:BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:44.480123226Z [err]  03:12:44 - BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:44.480128758Z [err]  INFO:bot_engine:BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:12:47.609357626Z [err]  03:12:47 - BTC: margin usage 99.8% > limit 70.0% — skipping
+2026-06-30T03:12:47.609363207Z [err]  INFO:bot_engine:BTC: margin usage 99.8% > limit 70.0% — skipping
+2026-06-30T03:12:50.694343923Z [err]  03:12:50 - BTC: margin usage 99.8% > limit 70.0% — skipping
+2026-06-30T03:12:50.694350614Z [err]  INFO:bot_engine:BTC: margin usage 99.8% > limit 70.0% — skipping
+2026-06-30T03:12:53.848500303Z [err]  03:12:53 - BTC: margin usage 99.8% > limit 70.0% — skipping
+2026-06-30T03:12:53.848506182Z [err]  INFO:bot_engine:BTC: margin usage 99.8% > limit 70.0% — skipping
+2026-06-30T03:12:56.891304774Z [err]  03:12:56 - BTC: margin usage 99.8% > limit 70.0% — skipping
+2026-06-30T03:12:56.891310241Z [err]  INFO:bot_engine:BTC: margin usage 99.8% > limit 70.0% — skipping
+2026-06-30T03:12:59.982656117Z [err]  03:12:59 - BTC: margin usage 99.8% > limit 70.0% — skipping
+2026-06-30T03:12:59.982662271Z [err]  INFO:bot_engine:BTC: margin usage 99.8% > limit 70.0% — skipping
+2026-06-30T03:13:03.089552679Z [err]  03:13:03 - BTC: margin usage 99.8% > limit 70.0% — skipping
+2026-06-30T03:13:03.089558080Z [err]  INFO:bot_engine:BTC: margin usage 99.8% > limit 70.0% — skipping
+2026-06-30T03:13:06.175338391Z [err]  03:13:06 - BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:13:06.175344117Z [err]  INFO:bot_engine:BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:13:09.266001380Z [err]  03:13:09 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:13:09.266008014Z [err]  INFO:bot_engine:BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:13:12.379651876Z [err]  03:13:12 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:13:12.379658855Z [err]  INFO:bot_engine:BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:13:15.461747515Z [err]  03:13:15 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:13:15.461753037Z [err]  INFO:bot_engine:BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:13:18.555295956Z [err]  03:13:18 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:13:18.555301168Z [err]  INFO:bot_engine:BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:13:21.635110444Z [err]  03:13:21 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:13:21.635114946Z [err]  INFO:bot_engine:BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:13:24.727290483Z [err]  03:13:24 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:13:24.727296189Z [err]  INFO:bot_engine:BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:13:27.969556818Z [err]  03:13:27 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:13:27.969561180Z [err]  INFO:bot_engine:BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:13:30.985351678Z [err]  03:13:30 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:13:30.985361157Z [err]  INFO:bot_engine:BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:13:34.071711376Z [err]  03:13:34 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:13:34.071719513Z [err]  INFO:bot_engine:BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:13:37.158632345Z [err]  03:13:37 - BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:13:37.158639279Z [err]  INFO:bot_engine:BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:13:40.244426914Z [err]  03:13:40 - BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:13:40.244434100Z [err]  INFO:bot_engine:BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:13:43.347130046Z [err]  03:13:43 - BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:13:43.347136251Z [err]  INFO:bot_engine:BTC: margin usage 99.9% > limit 70.0% — skipping
+2026-06-30T03:13:46.437037106Z [err]  03:13:46 - BTC: margin usage 99.8% > limit 70.0% — skipping
+2026-06-30T03:13:46.437041673Z [err]  INFO:bot_engine:BTC: margin usage 99.8% > limit 70.0% — skipping
+2026-06-30T03:13:49.518904729Z [err]  03:13:49 - BTC: margin usage 99.8% > limit 70.0% — skipping
+2026-06-30T03:13:49.518910518Z [err]  INFO:bot_engine:BTC: margin usage 99.8% > limit 70.0% — skipping
+2026-06-30T03:13:52.606722120Z [err]  03:13:52 - BTC: margin usage 99.7% > limit 70.0% — skipping
+2026-06-30T03:13:52.606728298Z [err]  INFO:bot_engine:BTC: margin usage 99.7% > limit 70.0% — skipping
+2026-06-30T03:13:55.696544790Z [err]  03:13:55 - BTC: margin usage 99.7% > limit 70.0% — skipping
+2026-06-30T03:13:55.696550895Z [err]  INFO:bot_engine:BTC: margin usage 99.7% > limit 70.0% — skipping
+2026-06-30T03:13:58.787254428Z [err]  03:13:58 - BTC: margin usage 99.7% > limit 70.0% — skipping
+2026-06-30T03:13:58.787259895Z [err]  INFO:bot_engine:BTC: margin usage 99.7% > limit 70.0% — skipping
+2026-06-30T03:14:01.872061169Z [err]  03:14:01 - BTC: margin usage 99.7% > limit 70.0% — skipping
+2026-06-30T03:14:01.872070181Z [err]  INFO:bot_engine:BTC: margin usage 99.7% > limit 70.0% — skipping
+2026-06-30T03:14:04.960690722Z [err]  03:14:04 - BTC: margin usage 99.7% > limit 70.0% — skipping
+2026-06-30T03:14:04.960696751Z [err]  INFO:bot_engine:BTC: margin usage 99.7% > limit 70.0% — skipping
+2026-06-30T03:14:08.132293561Z [err]  03:14:08 - BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:14:08.132299730Z [err]  INFO:bot_engine:BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:14:11.132271024Z [err]  03:14:11 - BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:14:11.132274770Z [err]  INFO:bot_engine:BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:14:14.226055519Z [err]  03:14:14 - BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:14:14.226061013Z [err]  INFO:bot_engine:BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:14:17.332417374Z [err]  03:14:17 - BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:14:17.332423221Z [err]  INFO:bot_engine:BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:14:20.424773815Z [err]  03:14:20 - BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:14:20.424779545Z [err]  INFO:bot_engine:BTC: margin usage 99.3% > limit 70.0% — skipping
+2026-06-30T03:14:23.510052960Z [err]  03:14:23 - BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:14:23.510060094Z [err]  INFO:bot_engine:BTC: margin usage 99.4% > limit 70.0% — skipping
+2026-06-30T03:14:26.598104996Z [err]  03:14:26 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:14:26.598111005Z [err]  INFO:bot_engine:BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-06-30T03:14:29.690188391Z [err]  03:14:29 - BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:14:29.690197326Z [err]  INFO:bot_engine:BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-06-30T03:14:32.783568333Z [err]  03:14:32 - BTC: margin usage 100.4% > limit 70.0% — skipping
+2026-06-30T03:14:32.783574321Z [err]  INFO:bot_engine:BTC: margin usage 100.4% > limit 70.0% — skipping
+2026-06-30T03:14:35.873828107Z [err]  03:14:35 - BTC: margin usage 100.7% > limit 70.0% — skipping
+2026-06-30T03:14:35.873835710Z [err]  INFO:bot_engine:BTC: margin usage 100.7% > limit 70.0% — skipping
+2026-06-30T03:14:38.962701440Z [err]  03:14:38 - BTC: margin usage 100.7% > limit 70.0% — skipping
+2026-06-30T03:14:38.962707781Z [err]  INFO:bot_engine:BTC: margin usage 100.7% > limit 70.0% — skipping
+2026-06-30T03:14:42.058256441Z [err]  03:14:42 - BTC: margin usage 100.8% > limit 70.0% — skipping
+2026-06-30T03:14:42.058266404Z [err]  INFO:bot_engine:BTC: margin usage 100.8% > limit 70.0% — skipping
+2026-06-30T03:14:45.151115550Z [err]  03:14:45 - BTC: margin usage 100.8% > limit 70.0% — skipping
+2026-06-30T03:14:45.151119339Z [err]  INFO:bot_engine:BTC: margin usage 100.8% > limit 70.0% — skipping
+2026-06-30T03:14:48.333650562Z [err]  03:14:48 - BTC: margin usage 100.8% > limit 70.0% — skipping
+2026-06-30T03:14:48.333657821Z [err]  INFO:bot_engine:BTC: margin usage 100.8% > limit 70.0% — skipping
+2026-06-30T03:14:51.381072649Z [err]  03:14:51 - BTC: margin usage 100.8% > limit 70.0% — skipping
+2026-06-30T03:14:51.381078789Z [err]  INFO:bot_engine:BTC: margin usage 100.8% > limit 70.0% — skipping
+2026-06-30T03:14:54.463585253Z [err]  03:14:54 - BTC: margin usage 100.7% > limit 70.0% — skipping
+2026-06-30T03:14:54.463590264Z [err]  INFO:bot_engine:BTC: margin usage 100.7% > limit 70.0% — skipping
+2026-06-30T03:14:57.541528877Z [err]  03:14:57 - BTC: margin usage 100.7% > limit 70.0% — skipping
+2026-06-30T03:14:57.541534849Z [err]  INFO:bot_engine:BTC: margin usage 100.7% > limit 70.0% — skipping
+2026-06-30T03:15:00.715355910Z [err]  03:15:00 - BTC: margin usage 100.7% > limit 70.0% — skipping
+2026-06-30T03:15:00.715360557Z [err]  INFO:bot_engine:BTC: margin usage 100.7% > limit 70.0% — skipping
+2026-06-30T03:15:03.798367747Z [err]  03:15:03 - BTC: margin usage 100.7% > limit 70.0% — skipping
+2026-06-30T03:15:03.798375346Z [err]  INFO:bot_engine:BTC: margin usage 100.7% > limit 70.0% — skipping
+2026-06-30T03:15:06.885014035Z [err]  03:15:06 - BTC: margin usage 100.7% > limit 70.0% — skipping
+2026-06-30T03:15:06.885020743Z [err]  INFO:bot_engine:BTC: margin usage 100.7% > limit 70.0% — skipping
+2026-06-30T03:15:09.980877217Z [err]  03:15:09 - BTC: margin usage 100.5% > limit 70.0% — skipping
+2026-06-30T03:15:09.980884549Z [err]  INFO:bot_engine:BTC: margin usage 100.5% > limit 70.0% — skipping
+2026-06-30T03:15:13.077635572Z [err]  03:15:13 - BTC: margin usage 100.5% > limit 70.0% — skipping
+2026-06-30T03:15:13.077646970Z [err]  INFO:bot_engine:BTC: margin usage 100.5% > limit 70.0% — skipping
+2026-06-30T03:15:16.152859287Z [err]  03:15:16 - BTC: margin usage 100.5% > limit 70.0% — skipping
+2026-06-30T03:15:16.152867573Z [err]  INFO:bot_engine:BTC: margin usage 100.5% > limit 70.0% — skipping
+2026-06-30T03:15:19.455224885Z [err]  03:15:19 - BTC: margin usage 100.4% > limit 70.0% — skipping
+2026-06-30T03:15:19.455229485Z [err]  INFO:bot_engine:BTC: margin usage 100.4% > limit 70.0% — skipping
+2026-06-30T03:15:22.477682337Z [err]  03:15:22 - BTC: margin usage 100.4% > limit 70.0% — skipping
+2026-06-30T03:15:22.477689620Z [err]  INFO:bot_engine:BTC: margin usage 100.4% > limit 70.0% — skipping
+2026-06-30T03:15:24.299113909Z [inf]  INFO:     100.64.0.13:24440 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T03:15:24.300134919Z [inf]  INFO:     100.64.0.2:49642 - "GET /api/live_chart HTTP/1.1" 401 Unauthorized
+2026-06-30T03:15:24.320617911Z [err]  INFO:     100.64.0.12:13662 - "WebSocket /ws/logs" 403
+2026-06-30T03:15:24.320623669Z [err]  INFO:     connection rejected (403 Forbidden)
+2026-06-30T03:15:24.320627743Z [err]  INFO:     connection closed
+2026-06-30T03:15:25.565280812Z [err]  03:15:25 - BTC: margin usage 100.4% > limit 70.0% — skipping
+2026-06-30T03:15:25.565286532Z [err]  INFO:bot_engine:BTC: margin usage 100.4% > limit 70.0% — skipping
+2026-06-30T03:15:28.704408225Z [err]  03:15:28 - BTC: margin usage 100.4% > limit 70.0% — skipping
+2026-06-30T03:15:28.704414849Z [err]  INFO:bot_engine:BTC: margin usage 100.4% > limit 70.0% — skipping
+2026-06-30T03:15:29.092204463Z [inf]  INFO:     100.64.0.2:49652 - "GET /api/state HTTP/1.1" 401 Unauthorized
+2026-06-30T03:15:31.786842326Z [err]  03:15:31 - BTC: margin usage 100.4% > limit 70.0% — skipping
+2026-06-30T03:15:31.786849027Z [err]  INFO:bot_engine:BTC: margin usage 100.4% > limit 70.0% — skipping
+2026-06-30T03:15:34.882771855Z [err]  03:15:34 - BTC: margin usage 100.5% > limit 70.0% — skipping
+2026-06-30T03:15:34.882784124Z [err]  INFO:bot_engine:BTC: margin usage 100.5% > limit 70.0% — skipping
+2026-06-30T03:15:37.969581333Z [err]  03:15:37 - BTC: margin usage 100.8% > limit 70.0% — skipping
+2026-06-30T03:15:37.969586846Z [err]  INFO:bot_engine:BTC: margin usage 100.8% > limit 70.0% — skipping
+2026-06-30T03:15:39.830618069Z [inf]  INFO:     100.64.0.9:10926 - "GET /api/state HTTP/1.1" 401 Unauthorized

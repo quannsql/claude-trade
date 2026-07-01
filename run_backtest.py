@@ -37,9 +37,39 @@ from filters import compute_dynamic_levels
 
 ACTIVE_PROFILE = "btc_high_freq"
 
+COIN_CONFIG: dict[str, dict] = {
+    "BTC": {
+        "tp1_pct": 0.10,
+        "tp2_pct": 0.20,
+        "sl_pct": 0.20,
+        "margin_full": 100.0,
+        "margin_half": 50.0,
+        "time_stop_minutes": 30,
+        "bb_width_max_pct": 1.0,
+        "bb_width_warn_pct": 0.6,
+        "min_score_full": 70,
+        "min_score_half": 50,
+        "max_loss_per_trade_usd": 3.0,
+        "use_regime_filter": False,
+    },
+    "ETH": {
+        "tp1_pct": 0.15,
+        "tp2_pct": 0.30,
+        "sl_pct": 0.25,
+        "margin_full": 75.0,
+        "margin_half": 35.0,
+        "time_stop_minutes": 25,
+        "bb_width_max_pct": 1.4,
+        "bb_width_warn_pct": 0.9,
+        "min_score_full": 65,
+        "min_score_half": 45,
+        "max_loss_per_trade_usd": 3.5,
+        "use_regime_filter": True,
+    },
+}
+
 BASE_CONFIG = {
-    # ETH đã bị loại bỏ hoàn toàn
-    "symbols": ["BTCUSDT"],
+    "symbols": ["BTCUSDT", "ETHUSDT"],
     "leverage": 20,
     "min_score_half": 50,
     "min_score_full": 65,
@@ -85,12 +115,12 @@ PROFILES = {
     # Phương châm: trade nhiều lệnh BTC nhỏ, lãi ít mỗi lệnh nhưng tổng dương.
     # ETH bị loại. Bù đắp bằng max_trades_per_day=40 và min_score_half=45.
     "btc_high_freq": {
-        "symbols": ["BTCUSDT"],
+        "symbols": ["BTCUSDT", "ETHUSDT"],
         "leverage": 20,
         "margin_full": 100.0,
         "margin_half": 50.0,
-        "min_score_half": 40,
-        "min_score_full": 60,
+        "min_score_half": 50,
+        "min_score_full": 70,
 
         "tp1_pct": 0.10,
         "tp2_pct": 0.20,
@@ -101,10 +131,13 @@ PROFILES = {
         "max_loss_per_trade_usd": 3.0,
 
         "move_sl_to_breakeven_after_tp1": True,
-        "use_dynamic_tp_sl": False,
-        "tp1_atr_mult": 1.5,
-        "tp2_atr_mult": 3.0,
-        "sl_atr_mult": 1.2,
+        "use_dynamic_tp_sl": True,
+        "tp1_atr_mult": 1.2,
+        "tp2_atr_mult": 2.5,
+        "sl_atr_mult": 1.5,
+        "tp1_pct_max": 0.30,
+        "tp2_pct_max": 0.60,
+        "sl_pct_max": 0.40,
 
         "entry_order_type": "limit",
         "use_maker_for_entry": True,
@@ -114,8 +147,8 @@ PROFILES = {
         "slippage_pct": 0.0,
 
         "allowed_hours_utc": list(range(0, 24)),
-        "max_trades_per_day": 60,
-        "daily_loss_limit_usd": 8.0,
+        "max_trades_per_day": 40,
+        "daily_loss_limit_usd": 12.0,
         "cooldown_minutes": 5,
         "max_consecutive_losses": 3,
         "min_equity_usd": 50.0,
@@ -351,6 +384,9 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
             tp1_atr_mult=cfg.get("tp1_atr_mult", 1.5),
             tp2_atr_mult=cfg.get("tp2_atr_mult", 3.0),
             sl_atr_mult=cfg.get("sl_atr_mult", 1.2),
+            tp1_pct_max=cfg.get("tp1_pct_max", 0.30),
+            tp2_pct_max=cfg.get("tp2_pct_max", 0.60),
+            sl_pct_max=cfg.get("sl_pct_max", 0.40),
         )
         tp1_price = levels["tp1_price"]
         tp2_price = levels["tp2_price"]
@@ -552,7 +588,11 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
 
 
 def run_symbol_backtest(symbol: str, cfg: dict) -> pd.DataFrame:
-    print(f"\n{'='*60}\nBacktest {symbol}\n{'='*60}")
+    coin = symbol.replace("USDT", "").replace("/", "")
+    coin_overrides = COIN_CONFIG.get(coin, {})
+    cfg = {**cfg, **coin_overrides}
+
+    print(f"\n{'='*60}\nBacktest {symbol} (coin_cfg={'yes' if coin_overrides else 'base'})\n{'='*60}")
 
     df1 = add_indicators(load_data(symbol, "1m", cfg["data_dir"]))
     df5 = add_indicators(load_data(symbol, "5m", cfg["data_dir"]))

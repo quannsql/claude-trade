@@ -51,7 +51,7 @@ from hyperliquid.info import Info
 from hyperliquid.utils import constants
 
 from indicators import add_indicators, score_setup
-from run_backtest import CONFIG
+from run_backtest import CONFIG, COIN_CONFIG
 
 
 logger = logging.getLogger("bot_engine")
@@ -75,11 +75,7 @@ LOOKBACK_15M = int(os.environ.get("HL_LOOKBACK_15M", "260"))
 MARKET_CLOSE_SLIPPAGE = float(os.environ.get("HL_MARKET_CLOSE_SLIPPAGE", "0.002"))
 POSITION_EPSILON = 1e-8
 
-# ── ETH bị loại bỏ hoàn toàn — chỉ trade BTC ──
-# Lý do: ETH thua -$32 trong 2 ngày (28–29/6) do downtrend không có regime filter.
-# Sẽ thêm lại ETH sau khi implement và verify regime filter hoạt động đúng.
-DISABLED_COINS: set[str] = {"ETH"}
-
+DISABLED_COINS: set[str] = set()
 # ── FIX #2: Cooldown nhỏ sau mỗi lần thua đơn lẻ ──
 SL_SINGLE_COOLDOWN_MINUTES = int(os.environ.get("HL_SL_COOLDOWN_MINUTES", "10"))
 
@@ -98,6 +94,9 @@ ACTIVE_ENTRY_TIMEOUT_SEC = 180  # 3 phút: nếu quá thời gian này mà khôn
 
 # Per-coin lock để ngăn concurrent execution
 _coin_locks: dict[str, asyncio.Lock] = {}
+
+# Theo dõi thời gian orphan position của từng coin
+_orphan_timers: dict[str, float] = {}
 
 
 @dataclass
@@ -338,22 +337,93 @@ def _fills_by_oid(info: Info, address: str, start_ms: int, coin: str, oid: int |
     return [fill for fill in fills if fill.get("coin") == coin and int(fill.get("oid", -1)) == oid]
 
 
-def _get_orderbook_imbalance(info: Info, coin: str, depth: int = 10) -> float:
+def _get_orderbook_analysis(info: Info, coin: str, current_price: float, depth: int = 20) -> dict:
+    """
+    Phân tích sổ lệnh nâng cao:
+    - OBI: orderbook imbalance (đã có)
+    - Wall: phát hiện lệnh lớn bất thường (> 3x average level size)
+    - Spread: bid-ask spread hiện tại (%)
+    - Near wall: wall nằm trong 0.1% của current price
+    """
+    result = {
+        "obi": 0.0,
+        "bid_wall": False,
+        "ask_wall": False,
+        "bid_wall_price": None,
+        "ask_wall_price": None,
+        "spread_pct": 0.0,
+    }
     try:
         l2 = info.l2_snapshot(coin)
         if not l2 or "levels" not in l2 or len(l2["levels"]) < 2:
-            return 0.0
+            return result
+
         bids = l2["levels"][0][:depth]
         asks = l2["levels"][1][:depth]
+
+        if not bids or not asks:
+            return result
+
+        # Spread
+        best_bid = float(bids[0].get("px", 0))
+        best_ask = float(asks[0].get("px", 0))
+        if best_bid > 0:
+            result["spread_pct"] = (best_ask - best_bid) / best_bid * 100
+
+        # OBI
         bid_vol = sum(float(b.get("sz", 0)) for b in bids)
         ask_vol = sum(float(a.get("sz", 0)) for a in asks)
         total_vol = bid_vol + ask_vol
-        if total_vol == 0:
-            return 0.0
-        return (bid_vol - ask_vol) / total_vol
+        if total_vol > 0:
+            result["obi"] = (bid_vol - ask_vol) / total_vol
+
+        # Wall detection: tìm level có size > 3x average
+        avg_bid_sz = bid_vol / len(bids) if bids else 0
+        avg_ask_sz = ask_vol / len(asks) if asks else 0
+
+        wall_threshold = 3.0  # 3x average = "wall"
+        near_threshold = 0.001  # 0.1% từ giá hiện tại
+
+        for b in bids:
+            sz = float(b.get("sz", 0))
+            px = float(b.get("px", 0))
+            if sz > avg_bid_sz * wall_threshold:
+                dist_pct = abs(px - current_price) / current_price
+                if dist_pct < near_threshold:
+                    result["bid_wall"] = True
+                    result["bid_wall_price"] = px
+                    break  # Lấy wall gần nhất
+
+        for a in asks:
+            sz = float(a.get("sz", 0))
+            px = float(a.get("px", 0))
+            if sz > avg_ask_sz * wall_threshold:
+                dist_pct = abs(px - current_price) / current_price
+                if dist_pct < near_threshold:
+                    result["ask_wall"] = True
+                    result["ask_wall_price"] = px
+                    break
+
     except Exception as e:
-        logger.error("Failed to fetch L2 snapshot for %s: %s", coin, e)
+        logger.debug("orderbook_analysis failed: %s", e)
+
+    return result
+
+
+def _get_funding_rate(info: Info, coin: str) -> float:
+    """Lấy funding rate hiện tại của coin. Trả về 0.0 nếu lỗi."""
+    try:
+        meta = info.meta_and_asset_ctxs()
+        if not meta or len(meta) < 2:
+            return 0.0
+        asset_ctxs = meta[1]
+        coin_meta = info.name_to_asset(coin)
+        if coin_meta < len(asset_ctxs):
+            ctx = asset_ctxs[coin_meta]
+            return float(ctx.get("funding", 0.0))
+    except Exception:
         return 0.0
+    return 0.0
 
 
 def fetch_hyperliquid_candles(
@@ -397,7 +467,12 @@ def _align_index(ts: pd.Timestamp, df: pd.DataFrame) -> int:
     return int(max(idx, 0))
 
 
-def _latest_setup(info: Info, coin: str, obi: float = 0.0) -> tuple[dict[str, Any], float, pd.Timestamp] | None:
+def get_effective_config(coin: str) -> dict:
+    overrides = COIN_CONFIG.get(coin, {})
+    return {**CONFIG, **overrides}
+
+
+def _latest_setup(info: Info, coin: str, effective_cfg: dict) -> tuple[dict[str, Any], float, pd.Timestamp] | None:
     asof_ms = _now_ms()
     df15 = fetch_hyperliquid_candles(info, coin, "15m", LOOKBACK_15M, asof_ms)
     df5 = fetch_hyperliquid_candles(info, coin, "5m", LOOKBACK_5M, asof_ms)
@@ -409,8 +484,12 @@ def _latest_setup(info: Info, coin: str, obi: float = 0.0) -> tuple[dict[str, An
     signal_ts = df1.iloc[i1]["timestamp"]
     i5 = _align_index(signal_ts, df5)
     i15 = _align_index(signal_ts, df15)
-    setup = score_setup(i15, df15, i5, df5, i1, df1, hour_utc=signal_ts.hour, cfg=CONFIG, obi=obi)
     current_price = float(df1.iloc[i1]["close"])
+    ob_analysis = _get_orderbook_analysis(info, coin, current_price, 20)
+    funding_rate = _get_funding_rate(info, coin)
+    obi = ob_analysis.get("obi", 0.0)
+    setup = score_setup(i15, df15, i5, df5, i1, df1, hour_utc=signal_ts.hour, cfg=effective_cfg, obi=obi, ob_analysis=ob_analysis, funding_rate=funding_rate)
+    setup["obi"] = obi
     return setup, current_price, signal_ts
 
 
@@ -502,8 +581,14 @@ async def _wait_entry_fill(
     logger.info("%s: entry timeout — cancelling order oid=%s", coin, oid)
     await _cancel_if_open(exchange, info, address, coin, oid)
 
-    # Đợi thêm 1 cycle để exchange xử lý cancel
-    await asyncio.sleep(ORDER_POLL_SECONDS)
+    # Poll lại _position_for_coin vài lần thay vì 1 lần để vượt qua độ trễ API
+    pos_size = 0.0
+    pos_entry = None
+    for _ in range(3):
+        await asyncio.sleep(ORDER_POLL_SECONDS)
+        pos_size, pos_entry = await _call(_position_for_coin, info, address, coin)
+        if abs(pos_size) > POSITION_EPSILON:
+            break
 
     fills = await _call(_fills_by_oid, info, address, start_ms, coin, oid)
     final_summary = _summarize_fills(fills, oid)
@@ -514,15 +599,13 @@ async def _wait_entry_fill(
             coin, final_summary.size,
         )
     else:
-        # Xác nhận position thực sự flat
-        pos_size, _ = await _call(_position_for_coin, info, address, coin)
         if abs(pos_size) > POSITION_EPSILON:
-            logger.error(
-                "%s: orphan position detected after cancel! pos=%.8f — emergency close",
+            logger.warning(
+                "%s: orphan position detected after cancel! pos=%.8f. Adopting position instead of closing.",
                 coin, pos_size,
             )
-            managed_oids: set[int] = set()
-            await _market_close_remaining(exchange, info, address, coin, managed_oids)
+            final_summary.size = abs(pos_size)
+            final_summary.notional = abs(pos_size) * (pos_entry if pos_entry else 0.0)
 
     return final_summary
 
@@ -598,15 +681,17 @@ async def _execute_setup(
     margin: float,
     score: int,
     atr_5m: float = 0.0,
+    effective_cfg: dict | None = None,
 ) -> TradeResult | None:
-    leverage = CONFIG["leverage"]
+    cfg = effective_cfg or CONFIG
+    leverage = cfg["leverage"]
     notional = margin * leverage
     is_entry_buy = direction == "long"
     exit_is_buy = not is_entry_buy
 
     entry_price = signal_price
-    if CONFIG.get("entry_order_type") == "limit":
-        offset = CONFIG.get("limit_offset_pct", 0.0) / 100
+    if cfg.get("entry_order_type") == "limit":
+        offset = cfg.get("limit_offset_pct", 0.0) / 100
         entry_price = signal_price * (1 - offset if is_entry_buy else 1 + offset)
     size = _round_size(exchange, coin, notional / entry_price)
     if size <= 0:
@@ -633,10 +718,8 @@ async def _execute_setup(
         _clear_active_entry(coin)
         return None
 
-    if CONFIG.get("entry_order_type") == "market" or score >= 80:
-        if score >= 80:
-            logger.info("%s: score >= 80 (A/A+) -> overriding to MARKET order to guarantee fill", coin)
-        slippage = max(CONFIG.get("slippage_pct", 0.0) / 100, 0.002) # Tối thiểu 0.2% slippage để đảm bảo khớp lệnh Market
+    if cfg.get("entry_order_type") == "market":
+        slippage = max(cfg.get("slippage_pct", 0.0) / 100, 0.002)
         response = await _call(
             exchange.market_open, coin, is_entry_buy, size, signal_price,
             slippage,
@@ -644,10 +727,16 @@ async def _execute_setup(
         entry_oid = _extract_oid(response)
         timeout_seconds = 30
     else:
+        tif = "Alo" if cfg.get("use_maker_for_entry", True) else "Gtc"
         entry_oid, response = await _place_limit(
-            exchange, coin, is_entry_buy, size, entry_price, False, "Gtc"
+            exchange, coin, is_entry_buy, size, entry_price, False, tif
         )
-        timeout_seconds = max(1, int(CONFIG.get("limit_timeout_bars", 1))) * 60
+        if entry_oid is None and tif == "Alo":
+            logger.warning("%s: Entry Alo rejected (likely crosses spread), falling back to Gtc limit", coin)
+            entry_oid, response = await _place_limit(
+                exchange, coin, is_entry_buy, size, entry_price, False, "Gtc"
+            )
+        timeout_seconds = max(1, int(cfg.get("limit_timeout_bars", 1))) * 60
 
     if entry_oid is None:
         logger.warning("%s: entry order not accepted: %s", coin, response)
@@ -674,21 +763,24 @@ async def _execute_setup(
     filled_size = _round_size(exchange, coin, entry_fill.size)
 
     # Tính TP/SL
-    if CONFIG.get("use_dynamic_tp_sl", False) and atr_5m > 0:
+    if cfg.get("use_dynamic_tp_sl", False) and atr_5m > 0:
         from filters import compute_dynamic_levels
         levels = compute_dynamic_levels(
             avg_entry, direction, atr_5m,
-            tp1_atr_mult=CONFIG.get("tp1_atr_mult", 1.5),
-            tp2_atr_mult=CONFIG.get("tp2_atr_mult", 3.0),
-            sl_atr_mult=CONFIG.get("sl_atr_mult", 1.2),
+            tp1_atr_mult=cfg.get("tp1_atr_mult", 1.5),
+            tp2_atr_mult=cfg.get("tp2_atr_mult", 3.0),
+            sl_atr_mult=cfg.get("sl_atr_mult", 1.2),
+            tp1_pct_max=cfg.get("tp1_pct_max", 0.30),
+            tp2_pct_max=cfg.get("tp2_pct_max", 0.60),
+            sl_pct_max=cfg.get("sl_pct_max", 0.40),
         )
         tp1_price = levels["tp1_price"]
         tp2_price = levels["tp2_price"]
         sl_price = levels["sl_price"]
     else:
-        tp1_pct = CONFIG["tp1_pct"] / 100
-        tp2_pct = CONFIG["tp2_pct"] / 100
-        sl_pct = CONFIG["sl_pct"] / 100
+        tp1_pct = cfg["tp1_pct"] / 100
+        tp2_pct = cfg["tp2_pct"] / 100
+        sl_pct = cfg["sl_pct"] / 100
         if direction == "long":
             tp1_price = avg_entry * (1 + tp1_pct)
             tp2_price = avg_entry * (1 + tp2_pct)
@@ -701,7 +793,7 @@ async def _execute_setup(
     tp1_size = _round_size(exchange, coin, filled_size / 2)
     if tp1_size <= POSITION_EPSILON:
         tp1_size = filled_size
-    deadline = datetime.now(timezone.utc) + timedelta(minutes=CONFIG["time_stop_minutes"])
+    deadline = datetime.now(timezone.utc) + timedelta(minutes=cfg["time_stop_minutes"])
 
     logger.info(
         "%s: filled %.8f @ %.4f | TP1=%.4f TP2=%.4f SL=%.4f | deadline=%s",
@@ -858,12 +950,13 @@ async def _execute_and_record(
     score: int,
     atr_5m: float,
     risk: RiskState,
+    effective_cfg: dict | None = None,
 ) -> None:
     try:
         result = await _execute_setup(
             exchange, info, address, coin,
             direction, signal_price, signal_ts, margin,
-            score, atr_5m,
+            score, atr_5m, effective_cfg=effective_cfg,
         )
         if result is not None:
             risk.record_trade(result)
@@ -950,6 +1043,18 @@ async def _scan_coin(
 
         # Bỏ qua dust position (< 0.0002 BTC) khi check existing exposure
         if abs(pos_size) > 0.0002 or open_orders:
+            # Lưới an toàn cho orphan position
+            if abs(pos_size) > 0.0002 and not open_orders:
+                if coin not in _orphan_timers:
+                    _orphan_timers[coin] = time.time()
+                elif time.time() - _orphan_timers[coin] > 60:
+                    logger.error("%s: Orphan position detected for >60s (pos=%.8f). Emergency closing.", coin, pos_size)
+                    await _market_close_remaining(exchange, info, address, coin, set())
+                    _orphan_timers.pop(coin, None)
+                    return
+            else:
+                _orphan_timers.pop(coin, None)
+
             last_log = last_guard_log.get(coin)
             if not last_log or (now_utc - last_log).total_seconds() >= 60:
                 logger.warning(
@@ -958,12 +1063,15 @@ async def _scan_coin(
                 )
                 last_guard_log[coin] = now_utc
             return
+        else:
+            _orphan_timers.pop(coin, None)
 
-        obi = await _call(_get_orderbook_imbalance, info, coin, 10)
-        latest = await _call(_latest_setup, info, coin, obi)
+        effective_cfg = get_effective_config(coin)
+        latest = await _call(_latest_setup, info, coin, effective_cfg)
         if latest is None:
             return
         setup, current_price, signal_ts = latest
+        obi = setup.get("obi", 0.0)
 
         if last_signal_ts.get(coin) == signal_ts:
             return
@@ -1001,10 +1109,14 @@ async def _scan_coin(
             if parts:
                 logger.info("%s: score breakdown: %s", coin, " | ".join(parts))
 
-        if score < CONFIG["min_score_half"]:
+        if score < effective_cfg["min_score_half"]:
             return
 
-        margin = CONFIG["margin_full"] if score >= CONFIG["min_score_full"] else CONFIG["margin_half"]
+        margin_full = effective_cfg.get("margin_full", CONFIG.get("margin_full", 100.0))
+        margin_half = effective_cfg.get("margin_half", CONFIG.get("margin_half", 50.0))
+        min_score_full = effective_cfg.get("min_score_full", CONFIG["min_score_full"])
+
+        margin = margin_full if score >= min_score_full else margin_half
 
         # ── FIX #1: Set active entry guard NGAY KHI quyết định trade ──
         # Từ đây đến khi _execute_setup hoàn thành, mọi poll cycle sẽ bị chặn.
@@ -1016,7 +1128,8 @@ async def _scan_coin(
                 exchange, info, address, coin,
                 setup["direction"], current_price, signal_ts, margin,
                 score, setup.get("atr_5m", 0.0),
-                risk
+                risk,
+                effective_cfg=effective_cfg,
             )
         )
 
