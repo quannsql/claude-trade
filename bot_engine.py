@@ -754,9 +754,9 @@ async def _execute_setup(
         return None
 
     if entry_fill.size < size * 0.999:
-        if entry_fill.size < size * 0.10:
+        if entry_fill.size < size * 0.25:
             logger.warning(
-                "%s: partial entry fill %.8f / %.8f is too small (< 10%%); closing as garbage to free bot.",
+                "%s: partial entry fill %.8f / %.8f is too small (< 25%%); closing as garbage to free bot.",
                 coin, entry_fill.size, size,
             )
             await _market_close_remaining(exchange, info, address, coin, managed_oids)
