@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import os
 
 RESULTS_DIR = "results"
-SYMBOLS = ["BTCUSDT", "ETHUSDT", "XRPUSDT", "BNBUSDT"]
+SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"]
 
 
 def plot_symbol(symbol: str):

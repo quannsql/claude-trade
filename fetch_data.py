@@ -21,7 +21,7 @@ from datetime import datetime, timedelta, timezone
 # ---------------------------------------------------------
 # CONFIGURATION
 # ---------------------------------------------------------
-SYMBOLS = ["BTC/USDT", "ETH/USDT", "XRP/USDT", "BNB/USDT"]
+SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT"]
 TIMEFRAMES = ["1m", "5m", "15m"]
 DAYS_BACK = 90  # 3 months
 OUTPUT_DIR = "data"

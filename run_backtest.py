@@ -128,7 +128,7 @@ COIN_CONFIG.update({
         "tp2_atr_mult": 1.45,
         "sl_atr_mult": 1.00,
     },
-    "XRP": {
+    "SOL": {
         "tp1_pct": 0.12,
         "tp2_pct": 0.24,
         "sl_pct": 0.20,
@@ -179,7 +179,7 @@ COIN_CONFIG.update({
 })
 
 BASE_CONFIG = {
-    "symbols": ["BTCUSDT", "ETHUSDT", "XRPUSDT", "BNBUSDT"],
+    "symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"],
     "leverage": 20,
     "min_score_half": 50,
     "min_score_full": 65,
@@ -238,7 +238,7 @@ BASE_CONFIG = {
 
 PROFILES = {
     "multi_asset_scalp": {
-        "symbols": ["BTCUSDT", "ETHUSDT", "XRPUSDT", "BNBUSDT"],
+        "symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"],
         "leverage": 20,
         "margin_full": 45.0,
         "margin_half": 25.0,
