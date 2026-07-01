@@ -77,7 +77,7 @@ POSITION_EPSILON = 1e-8
 
 DISABLED_COINS: set[str] = {"ETH"}
 # ── FIX #2: Cooldown nhỏ sau mỗi lần thua đơn lẻ ──
-SL_SINGLE_COOLDOWN_MINUTES = int(os.environ.get("HL_SL_COOLDOWN_MINUTES", "10"))
+SL_SINGLE_COOLDOWN_MINUTES = int(os.environ.get("HL_SL_COOLDOWN_MINUTES", "3"))
 
 # ── FIX #3: Giới hạn tổng margin usage ──
 MAX_MARGIN_USAGE_PCT = float(os.environ.get("HL_MAX_MARGIN_PCT", "0.70"))  # max 70% account dùng làm margin

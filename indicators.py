@@ -507,22 +507,26 @@ def score_setup(i15: int, df15: pd.DataFrame,
     # MODULE 2: RSI CONFIRMATION (1m and 5m) — giữ nguyên
     # --------------------------------------------------
     if direction == "long":
-        if rsi1 < 30:
-            score += 20
-            details["rsi_1m"] = 20
-        elif rsi1 < 40:
-            score += 10
-            details["rsi_1m"] = 10
+        if "rsi_extreme_touch" not in details:
+            if rsi1 < 30:
+                score += 20
+                details["rsi_1m"] = 20
+            elif rsi1 < 40:
+                score += 10
+                details["rsi_1m"] = 10
+            else:
+                details["rsi_1m"] = 0
+
+            if rsi5 < 35:
+                score += 20
+                details["rsi_5m"] = 20
+            elif rsi5 < 45:
+                score += 10
+                details["rsi_5m"] = 10
+            else:
+                details["rsi_5m"] = 0
         else:
             details["rsi_1m"] = 0
-
-        if rsi5 < 35:
-            score += 20
-            details["rsi_5m"] = 20
-        elif rsi5 < 45:
-            score += 10
-            details["rsi_5m"] = 10
-        else:
             details["rsi_5m"] = 0
 
         # Candlestick pattern bonus (1m)
@@ -534,22 +538,26 @@ def score_setup(i15: int, df15: pd.DataFrame,
             details["candle_1m"] = 0
 
     else:  # short
-        if rsi1 > 70:
-            score += 20
-            details["rsi_1m"] = 20
-        elif rsi1 > 60:
-            score += 10
-            details["rsi_1m"] = 10
+        if "rsi_extreme_touch" not in details:
+            if rsi1 > 70:
+                score += 20
+                details["rsi_1m"] = 20
+            elif rsi1 > 60:
+                score += 10
+                details["rsi_1m"] = 10
+            else:
+                details["rsi_1m"] = 0
+
+            if rsi5 > 65:
+                score += 20
+                details["rsi_5m"] = 20
+            elif rsi5 > 55:
+                score += 10
+                details["rsi_5m"] = 10
+            else:
+                details["rsi_5m"] = 0
         else:
             details["rsi_1m"] = 0
-
-        if rsi5 > 65:
-            score += 20
-            details["rsi_5m"] = 20
-        elif rsi5 > 55:
-            score += 10
-            details["rsi_5m"] = 10
-        else:
             details["rsi_5m"] = 0
 
         # Candlestick pattern bonus (1m)
