@@ -114,44 +114,37 @@ def check_entry_conditions(
     atr_1m = row1.get("atr")
     result["atr_1m"] = float(atr_1m) if not pd.isna(atr_1m) else 0.0
     
-    # Check 1: VWAP Trend Filter
-    trend = "long" if price1 > vwap15 else "short"
+    # Check 1: VWAP Trend Filter & Counter-Trend Override (Giải pháp 2)
+    is_price_above_vwap = price1 > vwap15
+    allow_long = is_price_above_vwap or (obi >= 0.40)  # Counter-trend buy wall
+    allow_short = (not is_price_above_vwap) or (obi <= -0.40) # Counter-trend sell wall
     
     # Check 2: Order Book Imbalance (Hard Block)
-    if trend == "long" and obi < -0.15:
+    if allow_long and obi < -0.15:
+        allow_long = False
         result["block_reasons"].append(f"OBI {obi:.2f} too low for LONG")
-        return result
-    if trend == "short" and obi > 0.15:
+        
+    if allow_short and obi > 0.15:
+        allow_short = False
         result["block_reasons"].append(f"OBI {obi:.2f} too high for SHORT")
+        
+    if not allow_long and not allow_short:
+        if not result["block_reasons"]:
+            result["block_reasons"].append(f"Blocked by Trend and OBI filters (Price>VWAP:{is_price_above_vwap}, OBI:{obi:.2f})")
         return result
         
     # Check 3: Trigger (Price Action + BB)
     is_vol_climax = (vol is not None and vol_avg is not None and vol > vol_avg)
     
-    if trend == "long":
-        # Pierced lower band but closed inside/above
-        if bb_pct_b < 0 and is_pinbar(row1, "long") and is_vol_climax:
-            result["direction"] = "long"
-            
-            # Confidence boost with OBI Delta
-            if obi_delta > 0:
-                result["confidence"] = "A+"
-            else:
-                result["confidence"] = "A"
-        else:
-            result["block_reasons"].append("No LONG trigger (need BB pierce + Pinbar + Vol)")
-            
-    elif trend == "short":
-        # Pierced upper band but closed inside/below
-        if bb_pct_b > 1 and is_pinbar(row1, "short") and is_vol_climax:
-            result["direction"] = "short"
-            
-            # Confidence boost with OBI Delta
-            if obi_delta < 0:
-                result["confidence"] = "A+"
-            else:
-                result["confidence"] = "A"
-        else:
-            result["block_reasons"].append("No SHORT trigger (need BB pierce + Pinbar + Vol)")
-            
+    if allow_long and bb_pct_b < 0 and is_pinbar(row1, "long") and is_vol_climax:
+        result["direction"] = "long"
+        result["confidence"] = "A+" if obi_delta > 0 else "A"
+        
+    elif allow_short and bb_pct_b > 1 and is_pinbar(row1, "short") and is_vol_climax:
+        result["direction"] = "short"
+        result["confidence"] = "A+" if obi_delta < 0 else "A"
+        
+    else:
+        result["block_reasons"].append("No trigger (need BB pierce + Pinbar + Vol)")
+        
     return result
