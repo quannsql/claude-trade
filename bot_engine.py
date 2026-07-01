@@ -1094,10 +1094,10 @@ async def run_bot_async():
     logger.info("STARTING BOT ENGINE — BTC ONLY MODE")
     logger.info("=" * 60)
     logger.info(
-        "Profile=%s | entry=%s | TP1=%.3f%% | TP2=%.3f%% | SL=%.3f%% | time_stop=%sm",
-        CONFIG["profile_name"], CONFIG["entry_order_type"],
-        CONFIG["tp1_pct"], CONFIG["tp2_pct"], CONFIG["sl_pct"],
-        CONFIG["time_stop_minutes"],
+        "Profile=%s | entry=%s | TP_USD=%.2f | BE_USD=%.2f | SL_ATR=%.2f | time_stop=%sm",
+        CONFIG.get("profile_name", "unknown"), CONFIG.get("entry_order_type", "limit"),
+        CONFIG.get("target_profit_usd", 0.0), CONFIG.get("breakeven_pnl_usd", 0.0), CONFIG.get("sl_atr_mult", 0.0),
+        CONFIG.get("time_stop_minutes", 30),
     )
     logger.info(
         "FIX #1: Active entry guard=%ds | FIX #2: SL cooldown=%dm | FIX #3: Max margin=%.0f%%",
