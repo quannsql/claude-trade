@@ -108,144 +108,6 @@ def detect_regime(df15: pd.DataFrame, i15: int, adx_period: int = 14) -> str:
         return "transitioning"
 
 
-def detect_trend_regime(df15: pd.DataFrame, i15: int, df5: pd.DataFrame, i5: int) -> str:
-    """
-    Phân loại regime cho dual-mode engine:
-        'trend_up'   — EMA21(5m) dốc lên rõ + EMA9>EMA21>EMA50 xếp tầng trên 5m (nhanh hơn)
-        'trend_down' — ngược lại
-        'ranging'    — còn lại (mặc định, an toàn cho mean-reversion)
-
-    Trend regime yêu cầu CẢ HAI điều kiện (slope 5m + stack 5m) để tránh
-    flip-flop khi thị trường chỉ nhích nhẹ, kết hợp 15m như xác nhận phụ.
-    """
-    if i15 < 6 or i5 < 5 or i15 >= len(df15) or i5 >= len(df5):
-        return "ranging"
-
-    row15 = df15.iloc[i15]
-    row5 = df5.iloc[i5]
-
-    ema21_5_now = row5.get("ema21")
-    ema21_5_5ago = df5.iloc[i5 - 5].get("ema21")
-    slope_5m_pct = 0.0
-    if (ema21_5_now is not None and ema21_5_5ago is not None
-            and not pd.isna(ema21_5_now) and not pd.isna(ema21_5_5ago)
-            and ema21_5_5ago > 0):
-        slope_5m_pct = (ema21_5_now - ema21_5_5ago) / ema21_5_5ago * 100
-
-    ema9_5 = row5.get("ema9")
-    ema21_5 = row5.get("ema21")
-    ema50_5 = row5.get("ema50")
-    if any(v is None or pd.isna(v) for v in (ema9_5, ema21_5, ema50_5)):
-        return "ranging"
-
-    stack_up = ema9_5 > ema21_5 > ema50_5
-    stack_down = ema9_5 < ema21_5 < ema50_5
-
-    if slope_5m_pct > 0.08 and stack_up:
-        return "trend_up"
-    if slope_5m_pct < -0.08 and stack_down:
-        return "trend_down"
-    return "ranging"
-
-
-def compute_risk_sizing(price: float, atr_5m: float, cfg: dict, score_full: bool = True) -> dict:
-    """
-    Size vị thế theo rủi ro USD cố định (loss ≈ win ≈ risk_per_trade_usd):
-
-        sl_pct   = clamp(sl_atr_mult × ATR%, sl_pct_min, sl_pct_max)
-        notional = risk_usd / sl_pct
-
-    → khi SL % chạm, lỗ đúng ~risk_usd bất kể volatility. Hard dollar SL chỉ
-    còn là backstop (risk_usd × hard_sl_backstop_mult), không phải stop chính.
-
-    Trả về dict {notional, margin, sl_pct, risk_usd}.
-    """
-    leverage = cfg.get("leverage", 20)
-    risk_usd = cfg.get("risk_per_trade_usd", 3.0)
-    if not score_full:
-        risk_usd *= cfg.get("risk_half_scale", 0.6)
-
-    sl_mult = cfg.get("sl_atr_mult", 1.5)
-    sl_pct_min = cfg.get("sl_pct_min", 0.10)
-    sl_pct_max = cfg.get("sl_pct_max", 0.40)
-
-    if price <= 0:
-        return {"notional": 0.0, "margin": 0.0, "sl_pct": sl_pct_min, "risk_usd": risk_usd}
-
-    atr_pct = (atr_5m / price * 100) if atr_5m > 0 else 0.0
-    sl_pct = atr_pct * sl_mult
-    if sl_pct <= 0:
-        sl_pct = cfg.get("sl_pct", 0.20)
-    sl_pct = min(max(sl_pct, sl_pct_min), sl_pct_max)
-
-    notional = risk_usd / (sl_pct / 100)
-    # v3.6: trần notional tuyệt đối — SL chặt trong chop làm notional phình
-    # ($1.666 @ SL 0.18% live 02/07) → margin 92% tự khóa bot, và time_stop
-    # bleed tỉ lệ với notional (drift -0.17% trên $1.666 = -$2.86 dù "risk $3").
-    max_notional = min(
-        cfg.get("margin_full", 100.0) * leverage,
-        cfg.get("max_notional_usd", 1000.0),
-    )
-    min_notional = cfg.get("min_notional_usd", 20.0)
-    notional = min(max(notional, min_notional), max_notional)
-
-    return {
-        "notional": notional,
-        "margin": notional / leverage,
-        "sl_pct": sl_pct,
-        "risk_usd": risk_usd,
-    }
-
-
-def estimate_fee_edge(price: float, atr_5m: float, cfg: dict) -> dict:
-    """
-    FEE GATE — kiểm tra lệnh có đủ edge để trả phí round-trip không.
-
-    Bài học từ live 02/07: BNB ATR ~0.06% → TP1 ~0.06% trong khi phí
-    taker-taker = 0.09% → mọi lệnh đều ÂM ngay từ lúc đặt. Fee ăn 4.3x gross.
-
-    Điều kiện:
-      viable_maker: TP1_est >= maker_in + taker_out + fee_edge_min_pct
-      viable_taker: TP1_est >= (taker_in + taker_out) × taker_rt_mult + fee_edge_min_pct
-
-    v3.2 FEE: taker round-trip phải chỉ là PHẦN NHỎ của TP1 (mặc định ×2 dư dả),
-    không phải "vừa đủ trả phí". Live 02/07: 3 lệnh BTC taker entry với TP1 est
-    0.150% vs required 0.130% (biên 0.02%!) — tất cả time_stop thua, phí taker
-    2 chiều $0.90/lệnh trên notional $1000-2000.
-
-    - Không viable_maker → BỎ setup hoàn toàn (không có cách nào dương EV)
-    - viable_maker nhưng không viable_taker → chỉ được vào maker,
-      kể cả khi score đạt ngưỡng taker
-    """
-    taker = cfg.get("taker_fee_pct", 0.045)
-    maker = cfg.get("maker_fee_pct", 0.015)
-    min_edge = cfg.get("fee_edge_min_pct", 0.04)
-    taker_rt_mult = cfg.get("taker_rt_mult", 2.0)
-
-    atr_pct = (atr_5m / price * 100) if (price > 0 and atr_5m > 0) else 0.0
-    if cfg.get("use_dynamic_tp_sl", False) and atr_pct > 0:
-        tp1_pct_est = min(atr_pct * cfg.get("tp1_atr_mult", 1.5),
-                          cfg.get("tp1_pct_max", 0.30))
-    else:
-        tp1_pct_est = cfg.get("tp1_pct", 0.10)
-
-    required_maker = maker + taker + min_edge
-    # Taker path: vào taker nhưng TP1 thoát bằng Alo MAKER (use_maker_for_tp)
-    # → chi phí người THẮNG = taker_in + maker_out (0.06%), không phải taker×2.
-    # Vế thua (SL taker) đã được che bằng hệ số ×taker_rt_mult.
-    # Bản cũ tính taker×2×2 = 0.24% → cấm tuyệt đối taker kể cả khi lời rõ.
-    required_taker = (taker + maker) * taker_rt_mult + min_edge
-
-    return {
-        "tp1_pct_est": tp1_pct_est,
-        "atr_pct": atr_pct,
-        "required_maker_pct": required_maker,
-        "required_taker_pct": required_taker,
-        "viable_maker": tp1_pct_est >= required_maker,
-        "viable_taker": tp1_pct_est >= required_taker,
-    }
-
-
 def momentum_strength(df5: pd.DataFrame, i5: int, lookback: int = 5) -> float | None:
     """
     Calculate ATR-normalized momentum on 5m timeframe.
@@ -314,7 +176,6 @@ def compute_dynamic_levels(
     tp1_pct_max: float = 0.30,
     tp2_pct_max: float = 0.60,
     sl_pct_max: float = 0.40,
-    sl_pct_min: float = 0.0,
 ) -> dict:
     """
     Compute ATR-based dynamic TP/SL levels with max caps.
@@ -334,7 +195,7 @@ def compute_dynamic_levels(
 
     tp1_pct = min(tp1_pct_calc, tp1_pct_max)
     tp2_pct = min(tp2_pct_calc, tp2_pct_max)
-    sl_pct = min(max(sl_pct_calc, sl_pct_min), sl_pct_max)
+    sl_pct = min(sl_pct_calc, sl_pct_max)
 
     if direction == "long":
         tp1_price = entry_price * (1 + tp1_pct / 100)

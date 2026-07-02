@@ -4,7 +4,6 @@ import hashlib
 import json
 import logging
 import os
-import time as _time_mod
 import sqlite3
 import collections
 from datetime import datetime, timezone
@@ -237,14 +236,6 @@ def init_storage() -> None:
                         )
                         """
                     )
-                    cur.execute(
-                        """
-                        CREATE TABLE IF NOT EXISTS dashboard_meta (
-                            key TEXT PRIMARY KEY,
-                            value TEXT NOT NULL
-                        )
-                        """
-                    )
         else:
             with sqlite3.connect(LOCAL_DB_PATH) as conn:
                 conn.executescript(
@@ -270,11 +261,6 @@ def init_storage() -> None:
                         closed_pnl REAL,
                         payload TEXT NOT NULL
                     );
-
-                    CREATE TABLE IF NOT EXISTS dashboard_meta (
-                        key TEXT PRIMARY KEY,
-                        value TEXT NOT NULL
-                    );
                     """
                 )
 
@@ -285,53 +271,12 @@ def init_storage() -> None:
         bot_logger.warning("Dashboard history storage disabled: %s", exc)
 
 
-_reset_marker_cache: dict[str, Any] = {"value": None, "ts": 0.0}
-
-
-def _get_reset_ms() -> int:
-    """
-    Mốc reset dashboard (epoch ms) do reset_dashboard_db.py đặt.
-    Fills CŨ hơn mốc sẽ không được ghi lại — cần thiết vì Hyperliquid API
-    luôn trả ~200 fills gần nhất, chỉ xóa bảng thì vài giây sau data cũ
-    quay lại ngay. Cache 60s để không query mỗi lần poll.
-    """
-    now = _time_mod.time()
-    if _reset_marker_cache["value"] is not None and now - _reset_marker_cache["ts"] < 60:
-        return _reset_marker_cache["value"]
-    value = 0
-    try:
-        if _storage_backend() == "postgres":
-            with psycopg.connect(_database_url()) as conn:
-                with conn.cursor() as cur:
-                    cur.execute("SELECT value FROM dashboard_meta WHERE key = 'reset_ms'")
-                    row = cur.fetchone()
-                    if row:
-                        value = int(row[0])
-        else:
-            with sqlite3.connect(LOCAL_DB_PATH) as conn:
-                row = conn.execute(
-                    "SELECT value FROM dashboard_meta WHERE key = 'reset_ms'"
-                ).fetchone()
-                if row:
-                    value = int(row[0])
-    except Exception:
-        value = 0
-    _reset_marker_cache["value"] = value
-    _reset_marker_cache["ts"] = now
-    return value
-
-
 def persist_dashboard_state(
     address: str, margin_summary: dict[str, Any], fills: list[dict[str, Any]]
 ) -> None:
     init_storage()
     if not storage_initialized:
         return
-
-    # Bỏ qua fills trước mốc reset (làm mới dashboard)
-    reset_ms = _get_reset_ms()
-    if reset_ms:
-        fills = [f for f in fills if _safe_float(f.get("time")) >= reset_ms]
 
     captured_at = datetime.now(timezone.utc).isoformat()
     account_value = _safe_float(margin_summary.get("accountValue"))
@@ -763,8 +708,7 @@ def _load_live_chart_payload(address: str, symbols: list[str]) -> dict[str, Any]
     wins = 0
     parsed_times = []
     last_fill_time = 0
-    fees_total = 0.0
-
+    
     for index, row in enumerate(fills, start=1):
         dt = _parse_datetime(row[0])
         coin = row[1]
@@ -780,8 +724,7 @@ def _load_live_chart_payload(address: str, symbols: list[str]) -> dict[str, Any]
             fee = 0.0
             
         pnl = gross_pnl - fee  # Tính Net PnL chuẩn
-        fees_total += fee
-
+        
         if dt:
             parsed_times.append(dt)
             day_key = dt.date().isoformat()
@@ -856,7 +799,7 @@ def _load_live_chart_payload(address: str, symbols: list[str]) -> dict[str, Any]
             "max_drawdown_pct": round(max_drawdown, 2),
             "final_equity_usd": round(final_equity, 4),
             "trades_per_day": round(len(fills) / days_span, 2),
-            "total_fees_usd": round(fees_total, 4),
+            "total_fees_usd": 0,
             "expectancy_usd": round(sum(net_values) / len(fills), 6) if fills else 0,
             "best_trade_usd": round(max(net_values), 6) if net_values else 0,
             "worst_trade_usd": round(min(net_values), 6) if net_values else 0,
@@ -987,21 +930,6 @@ async def websocket_logs(websocket: WebSocket):
             await websocket.receive_text()
     except WebSocketDisconnect:
         ws_handler.connected_websockets.remove(websocket)
-
-
-@app.get("/api/download_setups")
-def download_setups():
-    from bot_engine import SETUP_LOG_PATH
-    if os.path.exists(SETUP_LOG_PATH):
-        return FileResponse(SETUP_LOG_PATH, filename="setups_log.csv", media_type="text/csv")
-    return Response(content="File not found", status_code=404)
-
-@app.get("/api/download_trades")
-def download_trades():
-    from bot_engine import TRADE_LOG_PATH
-    if os.path.exists(TRADE_LOG_PATH):
-        return FileResponse(TRADE_LOG_PATH, filename="trades_log.csv", media_type="text/csv")
-    return Response(content="File not found", status_code=404)
 
 
 # ---------------------------------------------------------

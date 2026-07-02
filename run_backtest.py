@@ -19,7 +19,7 @@ import os
 from tabulate import tabulate
 
 from indicators import add_indicators, score_setup
-from filters import compute_dynamic_levels, compute_risk_sizing, estimate_fee_edge
+from filters import compute_dynamic_levels
 
 # ---------------------------------------------------------
 # BACKTEST CONFIGURATION — BTC ONLY (ETH đã bị loại bỏ)
@@ -47,21 +47,15 @@ COIN_CONFIG: dict[str, dict] = {
         "time_stop_minutes": 10,
         "bb_width_max_pct": 1.0,
         "bb_width_warn_pct": 0.6,
-        # Nới lỏng ngưỡng đầu vào vì bộ lọc CVD/OBI đã rất khắt khe.
-        # half 40: thêm lệnh B-grade ở HALF risk (60%) — tăng tần suất có kiểm soát
         "min_score_full": 65,
-        "min_score_half": 40,
-        "use_regime_filter": True,
-        # v3: TP/SL cân bằng — SL 1.2x ATR thay vì 1.5x để loss ≈ win.
-        # Sizing theo risk_per_trade_usd nên % không còn quyết định dollar loss.
-        # v3.3: cap 0.15→0.20 — cap cũ < required_taker 0.18% nên BTC bị khóa
-        # taker/chase VĨNH VIỄN kể cả sóng mạnh; giờ ATR>=0.25% là đủ điều kiện.
-        "tp1_pct_max": 0.20,
-        "tp2_pct_max": 0.40,
+        "min_score_half": 45,
+        "max_loss_per_trade_usd": 3.0,
+        "use_regime_filter": False,
+        # Giảm TP để chốt lời ngắn ($2.5 - $3)
+        "tp1_pct_max": 0.15,
+        "tp2_pct_max": 0.30,
         "tp1_atr_mult": 0.8,
         "tp2_atr_mult": 1.6,
-        "sl_atr_mult": 1.2,
-        "sl_pct_max": 0.30,
     },
     "ETH": {
         "tp1_pct": 0.15,
@@ -72,9 +66,9 @@ COIN_CONFIG: dict[str, dict] = {
         "time_stop_minutes": 10,
         "bb_width_max_pct": 1.4,
         "bb_width_warn_pct": 0.9,
-        # Nới lỏng ngưỡng đầu vào — half 40: thêm lệnh B-grade ở HALF risk
         "min_score_full": 65,
         "min_score_half": 40,
+        "max_loss_per_trade_usd": 3.5,
         "use_regime_filter": True,
         # ETH margin nhỏ hơn ($1500) nên % nhỉnh hơn để đạt cùng lượng USD
         "tp1_pct_max": 0.20,
@@ -110,76 +104,17 @@ BASE_CONFIG = {
     "bb_width_max_pct": 1.0,         # BB width > này → soft penalty nặng (-15)
     "bb_width_warn_pct": 0.6,        # BB width > này → soft penalty nhẹ (-5)
     "bb_pct_b_deep_threshold": 0.15, # %B phá qua sâu hơn threshold → penalty
-    "use_time_filter": True,         # Bonus London/NY (+10)
-    "use_rsi_divergence": True,      # RSI divergence check
-    "use_stoch_cross": True,         # StochRSI %K/%D cross check
-    "use_macd_momentum": True,       # MACD histogram momentum check
+    "use_time_filter": True,         # Soft penalty Asia session, bonus London/NY
+    "use_rsi_divergence": True,      # RSI divergence check (+15 nếu phát hiện)
+    "use_stoch_cross": True,         # StochRSI %K/%D cross check (+15)
+    "use_macd_momentum": True,       # MACD histogram momentum check (+10)
     "use_candle_5m": True,           # 5m candlestick pattern bonus (+10)
     "use_bb_width_filter": True,     # BB width soft penalty (không hard block)
     "use_bb_pct_b": True,            # BB %B depth bonus/penalty
 
-    # ── Scoring Engine v3 config ──
-    "use_dual_regime": True,         # trend → pullback thuận trend; range → fade
-    "vwap_min_hour_utc": 3,          # vwap_stretch_base cần VWAP >= 3h dữ liệu/ngày
-    "asia_score_bump": 0,            # 01-06 UTC: min_score_half/full +0
-
-    # ── Risk sizing v3: loss ≈ win ≈ risk_per_trade_usd ──
-    # notional = risk_usd / sl_pct → chạm SL % lỗ đúng ~risk_usd.
-    "risk_per_trade_usd": 3.0,       # rủi ro USD mỗi lệnh full-score
-    "risk_half_scale": 0.6,          # lệnh half-score chịu 60% risk
-    "sl_pct_min": 0.10,              # sàn SL % — tránh notional phình khi ATR bé
-    "min_notional_usd": 20.0,        # sàn notional (Hyperliquid min order $10)
-    # v3.6: trần notional tuyệt đối — hết cảnh SL chặt đẩy notional $1.6k+
-    # → margin 92% khóa bot + time_stop bleed to dù risk danh nghĩa $3
-    "max_notional_usd": 1000.0,
-    "hard_sl_backstop_mult": 1.5,    # hard dollar SL = planned risk × 1.5 (BACKSTOP,
-                                     # không còn là stop chính fire trước % SL)
-
-    # ── Entry execution v3 ──
-    "taker_entry_min_score": 85,     # setup A/A+ → vào market (IOC), khỏi lỡ lệnh đẹp
-    "reversal_cancel_pct": 0.08,     # giá quay đầu 0.08% mà chưa fill → hủy limit ngay
-
-    # ── v3.1 FEE GATE: edge tối thiểu sau phí round-trip ──
-    # TP1 ước tính phải >= (fee vào + fee ra taker) + fee_edge_min_pct,
-    # nếu không thì skip setup (coin ATR bé → không cách nào dương EV).
-    # v3.2: 0.04 → 0.06 — live 27/06-02/07 phí = $79 trên gross -$97; các lệnh
-    # TP1 sát ngưỡng phí đều âm sau fee. Edge tối thiểu phải >= phí maker RT.
-    "fee_edge_min_pct": 0.06,
-
-    # ── v3.2 FEE: taker entry phải DƯ DẢ trả phí, không phải vừa đủ ──
-    # required_taker = taker_RT × taker_rt_mult + fee_edge_min_pct
-    "taker_rt_mult": 2.0,
-
-    # ── v3.6 CHOP FILTER + FLOW COOLDOWN ──
-    # Chop: bb_width 1m dưới ngưỡng → skip mọi mode (chợ hẹp không có edge,
-    # time_stop bleed). Momentum break đòi dải rộng hơn (break từ squeeze
-    # siêu hẹp = break giả).
-    "min_bb_width_pct": 0.25,
-    "momentum_min_bb_width_pct": 0.30,
-
-    # ── v3.5 MOMENTUM BREAK: "1 cú sập = 2 lệnh" ──
-    # Lệnh 1: thác/pump đang chạy (đóng nến ngoài BB + thân nến mạnh + CVD
-    # |ratio|>=0.3) → vào THUẬN lực. Lệnh 2: fade bắt đảo chiều chỉ được vào
-    # khi lực đã cạn (anti knife-catch block >=2/3 cờ trong _score_range_fade).
-    "use_momentum_break": True,
-
-    # ── v3.4 MAKER-ONLY ENTRY: tắt toàn bộ taker ở ENTRY (cả market entry
-    # score>=85 lẫn taker-chase khi giá bật). Entry chỉ còn Alo maker 0.015%
-    # + join bbo + re-quote bám giá. Taker duy nhất còn lại: SL/emergency.
-    # Đánh đổi: sóng bật nhanh không kịp khớp sẽ bị lỡ (reversal_cancel hủy).
-    # Muốn bật lại taker cho lệnh A-grade: đổi False → True.
-    "allow_taker_entry": False,
-
-    # ── v3.2 FEE: maker-first close đuổi theo bbo (chase) ──
-    # v3.1 đặt 1 lệnh Alo tĩnh rồi chờ 20s → giá nhích 1 tick là rơi xuống
-    # market taker. Live 02/07: taker CLOSE = $40/$79 tổng phí (51%).
-    "maker_close_timeout_s": 45,     # tổng thời gian cố maker trước khi market
-    "maker_close_requote_s": 6,      # bbo dịch → dời lệnh theo sau mỗi N giây
-    "maker_close_abort_pct": 0.10,   # giá chạy ngược quá % này → market ngay
-                                     # (vị thế không còn SL trong lúc chờ maker)
-
-    # Hard dollar stop-loss floor (fallback khi không tính được planned risk)
-    "max_loss_per_trade_usd": 4.5,
+    # Hard dollar stop-loss: đóng ngay nếu unrealized loss vượt ngưỡng này
+    # Bảo vệ khỏi loss lớn không chạm % SL (ví dụ ETH -$7)
+    "max_loss_per_trade_usd": 3.0,
 
     "data_dir": "data",
     "output_dir": "results",
@@ -190,24 +125,26 @@ PROFILES = {
     # Phương châm: trade nhiều lệnh BTC nhỏ, lãi ít mỗi lệnh nhưng tổng dương.
     # ETH bị loại. Bù đắp bằng max_trades_per_day=40 và min_score_half=45.
     "btc_high_freq": {
-        "symbols": ["BTCUSDT", "ETHUSDT"],
+        "symbols": ["BTCUSDT"],
         "leverage": 20,
         "margin_full": 100.0,
         "margin_half": 50.0,
-        # Đồng bộ với COIN_CONFIG
-        "min_score_half": 45,
-        "min_score_full": 65,
+        "min_score_half": 50,
+        "min_score_full": 70,
 
         "tp1_pct": 0.10,
         "tp2_pct": 0.20,
         "sl_pct": 0.20,
-        "time_stop_minutes": 5,
+        "time_stop_minutes": 30,
+
+        # Hard dollar SL override: thoát ngay nếu lỗ quá $3 (không phụ thuộc %)
+        "max_loss_per_trade_usd": 3.0,
 
         "move_sl_to_breakeven_after_tp1": True,
         "use_dynamic_tp_sl": True,
         "tp1_atr_mult": 1.2,
         "tp2_atr_mult": 2.5,
-        "sl_atr_mult": 1.2,
+        "sl_atr_mult": 1.5,
         "tp1_pct_max": 0.30,
         "tp2_pct_max": 0.60,
         "sl_pct_max": 0.40,
@@ -215,23 +152,18 @@ PROFILES = {
         "entry_order_type": "limit",
         "use_maker_for_entry": True,
         "use_maker_for_tp": True,
-        # v3: limit đặt SÂU HƠN vào vùng stretch 0.035% — fill = entry tốt hơn,
-        # giảm adverse selection (trước đây chỉ fill khi giá xuyên qua entry)
-        "limit_offset_pct": 0.035,
-        # v3.3: 1→2 bar (120s) — entry giờ RE-QUOTE bám bbo mỗi 15s nên thời
-        # gian chờ dài hơn = nhiều cơ hội khớp maker hơn; reversal_cancel vẫn
-        # thoát sớm ngay khi giá bật chạy, không lo treo lệnh mù.
-        "limit_timeout_bars": 2,
+        "limit_offset_pct": 0.0,
+        "limit_timeout_bars": 1,
         "slippage_pct": 0.0,
 
         "allowed_hours_utc": list(range(0, 24)),
-        "max_trades_per_day": 60,
-        "daily_loss_limit_usd": 15.0,
+        "max_trades_per_day": 40,
+        "daily_loss_limit_usd": 12.0,
         "cooldown_minutes": 5,
         "max_consecutive_losses": 3,
         "min_equity_usd": 50.0,
 
-        "use_regime_filter": True,
+        "use_regime_filter": False,
         "use_momentum_filter": False,
     },
 
@@ -465,7 +397,6 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
             tp1_pct_max=cfg.get("tp1_pct_max", 0.30),
             tp2_pct_max=cfg.get("tp2_pct_max", 0.60),
             sl_pct_max=cfg.get("sl_pct_max", 0.40),
-            sl_pct_min=cfg.get("sl_pct_min", 0.0),
         )
         tp1_price = levels["tp1_price"]
         tp2_price = levels["tp2_price"]
@@ -486,16 +417,6 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
             tp1_price = fill_price * (1 - tp1_pct)
             tp2_price = fill_price * (1 - tp2_pct)
             sl_price = fill_price * (1 + sl_pct)
-
-    # ------- Hard dollar SL = BACKSTOP (v3) -------
-    # Planned risk khi chạm % SL = notional × sl_pct. Backstop chỉ fire khi
-    # loss vượt planned risk × hard_sl_backstop_mult (giá trượt qua SL, gap...)
-    # — không còn là stop chính chặt hơn % SL như bản cũ.
-    planned_risk_usd = notional * sl_pct
-    backstop_usd = max(
-        planned_risk_usd * cfg.get("hard_sl_backstop_mult", 1.5),
-        cfg.get("max_loss_per_trade_usd") or 0.0,
-    )
 
     # ------- Trailing stop config -------
     use_trailing = cfg.get("use_trailing_stop", False)
@@ -527,23 +448,15 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
         bar = df1.iloc[idx]
         high, low, close = bar["high"], bar["low"], bar["close"]
 
-        # ------- Update trailing stop & Breakeven -------
-        if direction == "long":
-            favorable = (high - fill_price) / fill_price
-        else:
-            favorable = (fill_price - low) / fill_price
-
-        max_favorable_move = max(max_favorable_move, favorable)
-
-        if cfg.get("move_sl_to_breakeven_after_mfe_pct", True):
-            mfe_threshold = tp1_pct * 0.5
-            if max_favorable_move >= mfe_threshold:
-                if direction == "long":
-                    sl_price = max(sl_price, fill_price)
-                else:
-                    sl_price = min(sl_price, fill_price)
-
+        # ------- Update trailing stop -------
         if use_trailing:
+            if direction == "long":
+                favorable = (high - fill_price) / fill_price
+            else:
+                favorable = (fill_price - low) / fill_price
+
+            max_favorable_move = max(max_favorable_move, favorable)
+
             if max_favorable_move >= trailing_activate_pct:
                 # Trail: move SL to lock a portion of the best move
                 lock_amount = max_favorable_move * trailing_lock_pct
@@ -563,9 +476,10 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
             hit_tp1 = (not tp1_hit) and low <= tp1_price
             hit_tp2 = tp1_hit and low <= tp2_price
 
-        # Hard dollar stop-loss BACKSTOP: thoát khẩn cấp nếu loss vượt
-        # planned risk × backstop mult (giá trượt qua SL/gap)
-        max_loss_usd = backstop_usd if backstop_usd > 0 else None
+        # Hard dollar stop-loss: thoát khẩn cấp nếu unrealized loss vượt ngưỡng USD
+        # Kiểm tra dựa trên close của nến hiện tại (conservative estimate)
+        # Bảo vệ khỏi trường hợp giá trượt dài nhưng chưa chạm % SL
+        max_loss_usd = cfg.get("max_loss_per_trade_usd", None)
         if max_loss_usd is not None and not hit_sl:
             if direction == "long":
                 unrealized_pct = (close - fill_price) / fill_price
@@ -737,27 +651,13 @@ def run_symbol_backtest(symbol: str, cfg: dict) -> pd.DataFrame:
             continue
 
         score = setup["score"]
-
-        # v3: Asia session (01-06 UTC) nâng ngưỡng thay vì penalty -5
-        bump = cfg.get("asia_score_bump", 0) if 1 <= ts.hour <= 6 else 0
-        if score < cfg["min_score_half"] + bump:
+        if score < cfg["min_score_half"]:
             continue
-        score_full = score >= cfg["min_score_full"] + bump
+
+        margin = cfg["margin_full"] if score >= cfg["min_score_full"] else cfg["margin_half"]
 
         entry_price = df1.iloc[i1]["close"]
         atr_5m = setup.get("atr_5m", 0.0)
-
-        # v3.1 FEE GATE (parity với live): TP1 est phải đủ trả phí round-trip
-        fee_edge = estimate_fee_edge(entry_price, atr_5m, cfg)
-        if not fee_edge["viable_maker"]:
-            continue
-
-        # v3: size theo rủi ro USD cố định (loss ≈ win) thay vì notional cố định
-        sizing = compute_risk_sizing(entry_price, atr_5m, cfg, score_full)
-        margin = sizing["margin"]
-        if margin <= 0:
-            continue
-
         trade = simulate_trade(setup["direction"], entry_price, ts, df1, i1, margin, cfg, atr_5m=atr_5m)
 
         if trade is None:

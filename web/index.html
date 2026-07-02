@@ -4,159 +4,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HL Scalper — Dashboard</title>
+    <title>Backtest Dashboard</title>
     <link rel="icon" href="data:,">
-    <link rel="preconnect" href="https://fonts.cdnfonts.com">
-    <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/google-sans">
-    <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/jetbrains-mono-2">
     <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/google-sans">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
     <main class="page-shell">
-
-        <!-- ═══════════ TOPBAR ═══════════ -->
         <header class="topbar">
-            <div class="brand">
-                <div class="brand-mark" aria-hidden="true">HL</div>
-                <div class="brand-text">
-                    <span class="eyebrow">Hyperliquid Monitor</span>
-                    <h1>Scalper Dashboard</h1>
-                </div>
+            <div class="title-group">
+                <div class="eyebrow">Hyperliquid monitor</div>
             </div>
-
             <div class="topbar-actions">
-                <label class="source-field" title="Chọn nguồn dữ liệu">
-                    <span>Source</span>
-                    <select id="symbol-select">
-                        <option value="LIVE">LIVE</option>
-                    </select>
-                </label>
-
-                <div class="status-pill" id="status-pill">
+                <div class="status-pill">
                     <span class="status-dot"></span>
                     <span id="live-status">Live feed</span>
                 </div>
-
-                <button class="icon-button" id="refresh-button" type="button" title="Refresh dashboard">
-                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
-                        stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-                        <path d="M21 3v6h-6" />
-                    </svg>
-                    <span>Refresh</span>
-                </button>
+                <button class="icon-button" id="refresh-button" type="button" title="Refresh dashboard">Refresh</button>
             </div>
         </header>
 
-        <!-- ═══════════ CONTROL STRIP ═══════════ -->
-        <section class="control-strip" id="overview" aria-label="Account overview">
+        <section class="control-strip" id="overview">
             <div class="control-stat">
                 <span>Wallet</span>
-                <strong id="wallet-address" class="mono">Not configured</strong>
+                <strong id="wallet-address">Not configured</strong>
             </div>
-
-            <div class="control-stat">
-                <span>Margin used <em id="margin-usage-text" class="gauge-value">0%</em></span>
-                <div class="gauge-track" role="progressbar" aria-label="Margin usage">
-                    <div class="gauge-fill" id="margin-usage-bar" style="width:0%"></div>
-                    <div class="gauge-limit" style="left:70%" title="Bot limit 70%"></div>
-                </div>
-            </div>
-
             <div class="control-stat">
                 <span>Last update</span>
                 <strong id="last-update">--</strong>
             </div>
         </section>
 
-        <!-- ═══════════ KPI GRID ═══════════ -->
         <section class="kpi-grid" aria-label="Key metrics">
             <article class="metric-card">
-                <header>
-                    <span>Account Value</span>
-                    <i class="metric-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2.5"/><path d="M2 10h20"/></svg>
-                    </i>
-                </header>
-                <strong id="val-total" class="num">$0.00</strong>
+                <span>Account Value</span>
+                <strong id="val-total">$0.00</strong>
                 <small>Live Hyperliquid</small>
             </article>
-
             <article class="metric-card">
-                <header>
-                    <span>Available Margin</span>
-                    <i class="metric-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/></svg>
-                    </i>
-                </header>
-                <strong id="val-margin" class="num">$0.00</strong>
+                <span>Available Margin</span>
+                <strong id="val-margin">$0.00</strong>
                 <small>Balance less margin</small>
             </article>
-
             <article class="metric-card accent">
-                <header>
-                    <span>Net PnL</span>
-                    <i class="metric-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>
-                    </i>
-                </header>
-                <strong id="metric-pnl" class="num">$0.00</strong>
+                <span>Net PnL</span>
+                <strong id="metric-pnl">$0.00</strong>
                 <small id="metric-final-equity">Final equity $100.00</small>
             </article>
-
             <article class="metric-card">
-                <header>
-                    <span>Win Rate</span>
-                    <i class="metric-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.5"/></svg>
-                    </i>
-                </header>
-                <strong id="metric-win-rate" class="num">0.00%</strong>
+                <span>Win Rate</span>
+                <strong id="metric-win-rate">0.00%</strong>
                 <small id="metric-trades">0 trades</small>
             </article>
-
             <article class="metric-card">
-                <header>
-                    <span>Fees Paid</span>
-                    <i class="metric-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 6.5c0-2-2.2-3-5-3s-5 1-5 3 1.8 2.7 5 3.5 5 1.7 5 3.5-2.2 3-5 3-5-1-5-3"/></svg>
-                    </i>
-                </header>
-                <strong id="metric-fees" class="num">$0.00</strong>
-                <small id="metric-fee-ratio">-- of gross</small>
-            </article>
-
-            <article class="metric-card">
-                <header>
-                    <span>Profit Factor</span>
-                    <i class="metric-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 7l7-4 7 4M4 13c0 1.7 1.3 3 3 3s3-1.3 3-3L7 7zM14 13c0 1.7 1.3 3 3 3s3-1.3 3-3l-3-6z"/></svg>
-                    </i>
-                </header>
-                <strong id="metric-profit-factor" class="num">--</strong>
-                <small id="metric-expectancy">Expectancy $0.0000</small>
-            </article>
-
-            <article class="metric-card">
-                <header>
-                    <span>Max Drawdown</span>
-                    <i class="metric-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6 6 4-4 8 8"/><path d="M14 17h7v-7"/></svg>
-                    </i>
-                </header>
-                <strong id="metric-drawdown" class="num">0.00%</strong>
+                <span>Max Drawdown</span>
+                <strong id="metric-drawdown">0.00%</strong>
                 <small>Worst pullback</small>
+            </article>
+            <article class="metric-card">
+                <span>Profit Factor</span>
+                <strong id="metric-profit-factor">--</strong>
+                <small id="metric-expectancy">Expectancy $0.0000</small>
             </article>
         </section>
 
-        <!-- ═══════════ CHARTS ═══════════ -->
         <section class="chart-grid" aria-label="Performance charts">
             <article class="panel chart-panel">
                 <div class="panel-header">
                     <div>
-                        <span><i class="dot dot-cyan"></i>Performance</span>
+                        <span>Performance</span>
                         <strong>Equity Curve</strong>
                     </div>
                     <div class="panel-note" id="equity-note">CSV backtest</div>
@@ -167,7 +85,7 @@
             <article class="panel chart-panel">
                 <div class="panel-header">
                     <div>
-                        <span><i class="dot dot-red"></i>Risk</span>
+                        <span>Risk</span>
                         <strong>Drawdown</strong>
                     </div>
                 </div>
@@ -177,7 +95,7 @@
             <article class="panel chart-panel">
                 <div class="panel-header">
                     <div>
-                        <span><i class="dot dot-violet"></i>Distribution</span>
+                        <span>Distribution</span>
                         <strong>PnL per Trade</strong>
                     </div>
                 </div>
@@ -187,48 +105,23 @@
             <article class="panel chart-panel">
                 <div class="panel-header">
                     <div>
-                        <span><i class="dot dot-green"></i>Performance</span>
+                        <span>Performance</span>
                         <strong>Cumulative PnL</strong>
                     </div>
                 </div>
                 <div class="chart-frame" id="cum-pnl-chart"></div>
             </article>
+
+
         </section>
 
-        <!-- ═══════════ DATA PANELS ═══════════ -->
         <section class="data-grid" aria-label="Trading data">
-            <article class="panel">
-                <div class="panel-header">
-                    <div>
-                        <span>Live</span>
-                        <strong>Open Positions</strong>
-                    </div>
-                    <span class="count-badge" id="positions-count">0</span>
-                </div>
-                <div class="table-wrap small-table">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Coin</th>
-                                <th>Side</th>
-                                <th>Size</th>
-                                <th>Entry</th>
-                                <th>Mark</th>
-                                <th>UPnL</th>
-                            </tr>
-                        </thead>
-                        <tbody id="positions-tbody"></tbody>
-                    </table>
-                </div>
-            </article>
-
             <article class="panel">
                 <div class="panel-header">
                     <div>
                         <span>Orders</span>
                         <strong>Active Orders</strong>
                     </div>
-                    <span class="count-badge" id="orders-count">0</span>
                 </div>
                 <div class="table-wrap small-table">
                     <table class="data-table">
@@ -245,16 +138,37 @@
                 </div>
             </article>
 
+            <article class="panel">
+                <div class="panel-header">
+                    <div>
+                        <span>Live</span>
+                        <strong>Open Positions</strong>
+                    </div>
+                </div>
+                <div class="table-wrap small-table">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Coin</th>
+                                <th>Size</th>
+                                <th>Entry Px</th>
+                                <th>Mark Px</th>
+                                <th>Margin</th>
+                                <th>UPnL</th>
+                            </tr>
+                        </thead>
+                        <tbody id="positions-tbody"></tbody>
+                    </table>
+                </div>
+            </article>
+
             <article class="panel" id="terminal-panel">
                 <div class="panel-header">
                     <div>
                         <span>Runtime</span>
                         <strong>Live Terminal</strong>
                     </div>
-                    <div class="terminal-actions">
-                        <button class="mini-button" id="terminal-clear" type="button" title="Clear log">Clear</button>
-                        <span class="terminal-led" title="Streaming"></span>
-                    </div>
+                    <span class="terminal-led"></span>
                 </div>
                 <div class="terminal-content" id="terminal"></div>
             </article>
@@ -308,15 +222,6 @@
                 </div>
             </article>
         </section>
-
-        <!-- ═══════════ FOOTER ═══════════ -->
-        <footer class="page-footer">
-            <span>HL Scalper Bot · engine v3.1</span>
-            <nav>
-                <a href="/api/download_trades" download>Trades CSV</a>
-                <a href="/api/download_setups" download>Setups CSV</a>
-            </nav>
-        </footer>
     </main>
 
     <script src="/static/main.js"></script>

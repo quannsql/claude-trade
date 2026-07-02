@@ -1,35 +1,34 @@
 """
-indicators.py — Scoring Engine v3 (DUAL REGIME)
-================================================
+indicators.py — Scoring Engine v2
+==================================
 Calculate technical indicators and scoring engine applied on REAL data.
 
-SCORING ENGINE V3 CHANGES (so với v2):
+SCORING ENGINE V2 CHANGES (so với v1):
 ──────────────────────────────────────────────────────────────────────────────
-1.  DUAL REGIME dispatcher — trend_up/trend_down → trade THUẬN trend (pullback
-    về EMA21/BB mid/VWAP); ranging → fade 2 chiều như v2.
-    Fix gốc rễ: v2 chỉ biết fade, sinh SHORT liên tục trong uptrend.
-2.  vwap_stretch_base bị khóa — cần VWAP >= vwap_min_hour_utc giờ dữ liệu
-    trong ngày UTC + nến đã quay đầu về VWAP. (Nguồn tín hiệu sai lớn nhất.)
-3.  Veto mới — cả ema50(5m) VÀ trend(15m) ngược hướng fade → hard block,
-    không candle pattern nào lách được.
-4.  Bỏ momentum flip — bug giữ nguyên điểm của hướng cũ sau khi flip.
-    Thay bằng hard block khi OBI chống mạnh.
-5.  RSI divergence fix — so RSI tại đúng bar đáy/đỉnh giá (idxmin/idxmax),
-    không phải min/max RSI của cả window (điều kiện cũ gần như luôn đúng).
-6.  OBI nhận giá trị ĐÃ LÀM MƯỢT từ engine (rolling 60-90s), không snapshot.
-7.  Asia session — bỏ penalty -5 tượng trưng; engine nâng min_score
-    +asia_score_bump (mặc định +10) trong 01-06 UTC.
-8.  Penalty trend trong fade path tăng -10 → -15.
+1.  VWAP daily reset      — fix bug cumsum không reset theo ngày UTC
+2.  BB %B indicator        — vị trí giá trong dải BB (0=lower, 1=upper)
+3.  BB width percentile    — phát hiện BB squeeze
+4.  BB Width Filter        — soft penalty khi BB quá rộng (trending)
+5.  BB %B depth            — bonus/penalty dựa trên vị trí %B
+6.  RSI Divergence (1m)    — bullish/bearish divergence đơn giản
+7.  StochRSI Cross (5m)    — %K cắt qua %D trong vùng oversold/overbought
+8.  MACD Histogram (5m)    — MACD hist đang quay đầu
+9.  Candlestick 5m bonus   — hammer/engulfing trên 5m có giá trị cao hơn 1m
+10. Time-of-Day filter     — soft penalty Asia session, bonus London/NY
+11. BB Squeeze detector    — flag cho future breakout strategy
+12. Score breakdown        — chi tiết điểm từng module
+13. Confidence level       — A+/A/B/C phân loại chất lượng setup
 
-THIẾT KẾ: Giữ tần suất cao ("trade nhiều, lãi nhỏ") bằng cách chuyển hướng
-trade theo regime thay vì chỉ thêm filter: các khung giờ trending trước đây
-bot ngồi block giờ thành cơ hội pullback thuận trend.
+THIẾT KẾ: Giữ tần suất cao ("trade nhiều, lãi nhỏ") bằng cách:
+  - Dùng soft penalty thay vì hard block
+  - Giữ nguyên min_score_half=45, min_score_full=55
+  - Thêm nhiều module "bonus" để tăng cơ hội đạt threshold
 """
 
 import pandas as pd
 import numpy as np
 import ta
-from filters import detect_regime, detect_trend_regime, momentum_strength, price_position_vs_ema
+from filters import detect_regime, momentum_strength, price_position_vs_ema
 
 
 def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
@@ -169,25 +168,18 @@ def _check_rsi_divergence(df: pd.DataFrame, idx: int, direction: str, lookback: 
     if len(prev_rsis) < 3:
         return False
 
-    # FIX v3: so RSI tại ĐÚNG bar của đáy/đỉnh giá, không phải min/max RSI
-    # của cả window. Bản cũ (current_rsi > prev_rsis.min()) gần như luôn đúng
-    # → cộng điểm "miễn phí" cho các lệnh fade sai.
     if direction == "long":
-        # Bullish divergence: giá lower low, RSI tại đáy giá cao hơn RSI hiện tại
-        low_idx = prev_prices.idxmin()
-        rsi_at_price_low = df.loc[low_idx, "rsi"]
-        if pd.isna(rsi_at_price_low):
-            return False
-        if current_price <= prev_prices.min() and current_rsi > rsi_at_price_low:
+        # Bullish divergence: giá lower low, RSI higher low
+        prev_price_low = prev_prices.min()
+        prev_rsi_at_low = prev_rsis.min()
+        if current_price <= prev_price_low and current_rsi > prev_rsi_at_low:
             return True
 
     elif direction == "short":
-        # Bearish divergence: giá higher high, RSI tại đỉnh giá thấp hơn
-        high_idx = prev_prices.idxmax()
-        rsi_at_price_high = df.loc[high_idx, "rsi"]
-        if pd.isna(rsi_at_price_high):
-            return False
-        if current_price >= prev_prices.max() and current_rsi < rsi_at_price_high:
+        # Bearish divergence: giá higher high, RSI lower high
+        prev_price_high = prev_prices.max()
+        prev_rsi_at_high = prev_rsis.max()
+        if current_price >= prev_price_high and current_rsi < prev_rsi_at_high:
             return True
 
     return False
@@ -266,33 +258,6 @@ def _directional_volume(df: pd.DataFrame, idx: int, lookback: int = 5) -> tuple[
     return up_vol / total_vol, down_vol / total_vol
 
 
-def _finalize_result(result: dict, direction: str | None, score: int, details: dict) -> dict:
-    result["direction"] = direction
-    result["score"] = score
-    result["score_details"] = details
-
-    if score >= 100:
-        result["confidence"] = "A+"
-    elif score >= 80:
-        result["confidence"] = "A"
-    elif score >= 60:
-        result["confidence"] = "B"
-    else:
-        result["confidence"] = "C"
-    return result
-
-
-def _atr_spike_block(df15: pd.DataFrame, i15: int) -> bool:
-    """True nếu ATR 15m hiện tại > 2x trung bình 10 nến — volatility spike."""
-    if i15 < 10:
-        return False
-    atr_now = df15.iloc[i15].get("atr")
-    if atr_now is None or pd.isna(atr_now):
-        return False
-    atr_avg = df15.iloc[i15 - 10:i15]["atr"].mean()
-    return bool(atr_avg > 0 and atr_now > atr_avg * 2.0)
-
-
 def score_setup(i15: int, df15: pd.DataFrame,
                  i5: int, df5: pd.DataFrame,
                  i1: int, df1: pd.DataFrame,
@@ -303,29 +268,36 @@ def score_setup(i15: int, df15: pd.DataFrame,
                  ob_analysis: dict | None = None,
                  funding_rate: float = 0.0) -> dict:
     """
-    Scoring Engine v3 — DUAL REGIME dispatcher.
+    Scoring Engine v2 — Apply tất cả module scoring tại candle indices
+    i15, i5, i1 trên 3 timeframes.
 
-    Quy trình:
-      1. Phát hiện regime (trend_up / trend_down / ranging) từ 15m slope + 5m EMA stack
-      2. TREND regime  → chỉ trade THUẬN trend: pullback về value zone (EMA21/BB mid/VWAP)
-      3. RANGING regime → fade BB/RSI/VWAP như engine v2 (đã siết veto + bỏ momentum flip)
+    THIẾT KẾ GIỮ TẦN SUẤT CAO:
+      - Soft penalty thay vì hard block (trừ consecutive losses)
+      - Nhiều module bonus để tăng cơ hội đạt threshold
+      - min_score_half/full giữ nguyên (45/55)
 
-    LƯU Ý: `obi` truyền vào phải là OBI ĐÃ LÀM MƯỢT (rolling mean 60-90s),
-    không phải snapshot đơn lẻ. obi=0.0 → bỏ qua toàn bộ logic OBI (backtest).
-
-    Returns dict: direction, score, hard_block, block_reasons, regime,
-    atr_1m/5m, bb_width_pct, bb_squeeze, confidence, entry_mode, score_details.
+    Returns dict: {
+        'direction': 'long' | 'short' | None,
+        'score': int,
+        'hard_block': bool,
+        'block_reasons': [...],
+        'regime': str,
+        'momentum': float,
+        'atr_1m': float,
+        'atr_5m': float,
+        'bb_width_pct': float,      # BB width hiện tại
+        'bb_squeeze': bool,          # True nếu BB đang squeeze
+        'confidence': str,           # A+ / A / B / C
+        'score_details': dict,       # Breakdown điểm từng module
+    }
     """
     result = {
         "direction": None, "score": 0, "hard_block": False,
-        "block_reasons": [], "regime": "ranging", "momentum": 0.0,
+        "block_reasons": [], "regime": "unknown", "momentum": 0.0,
         "atr_1m": 0.0, "atr_5m": 0.0,
         "bb_width_pct": 0.0, "bb_squeeze": False,
-        "confidence": "C", "entry_mode": None,
+        "confidence": "C",
         "score_details": {},
-        # v3.6: hướng bị chặn vì flow (CVD/thác/pump) — engine dùng để đặt
-        # cooldown 5 phút cùng hướng (chống mua lại ngay khi CVD nhấp nháy)
-        "flow_block_dir": None,
     }
     cfg = cfg or {}
 
@@ -334,478 +306,20 @@ def score_setup(i15: int, df15: pd.DataFrame,
 
     row15 = df15.iloc[i15]
     row5 = df5.iloc[i5]
+    row5_prev = df5.iloc[i5 - 1]
     row1 = df1.iloc[i1]
+    row1_prev = df1.iloc[i1 - 1]
 
     if pd.isna(row15["ema200"]) or pd.isna(row5["macd"]) or pd.isna(row1["bb_width_pct"]):
         return result
 
-    # ── Export common context ──
-    bb_width = row1["bb_width_pct"]
-    result["bb_width_pct"] = float(bb_width) if not pd.isna(bb_width) else 0.0
-
-    bb_width_rank = row1.get("bb_width_rank")
-    result["bb_squeeze"] = bool(bb_width_rank is not None
-                                and not pd.isna(bb_width_rank)
-                                and bb_width_rank < 0.15)
-
-    atr_5m = row5.get("atr")
-    result["atr_5m"] = float(atr_5m) if not pd.isna(atr_5m) else 0.0
-    atr_1m = row1.get("atr")
-    result["atr_1m"] = float(atr_1m) if not pd.isna(atr_1m) else 0.0
-
-    if consecutive_losses >= 3:
-        result["block_reasons"].append("3 consecutive losses - cooldown")
-        result["hard_block"] = True
-        return result
-
-    # ── v3.6 CHOP FILTER: thị trường quá hẹp → không mode nào có edge ──
-    # Live 02/07 tối: 4 lệnh time_stop -$7.3 khi bb_w 0.15-0.35% — giá không
-    # đi đâu trong 10 phút, mọi entry đều chỉ trả phí + bleed. Đồng thời SL
-    # chặt trong chop làm notional phình → margin 92% tự khóa bot.
-    min_bb_w = cfg.get("min_bb_width_pct", 0.25)
-    if 0 < result["bb_width_pct"] < min_bb_w:
-        result["block_reasons"].append(
-            f"chop: BB width {result['bb_width_pct']:.2f}% < {min_bb_w:.2f}% — thị trường quá hẹp, đứng ngoài"
-        )
-        result["hard_block"] = True
-        return result
-
-    # ── Regime dispatch ──
-    regime = "ranging"
-    if cfg.get("use_dual_regime", True):
-        regime = detect_trend_regime(df15, i15, df5, i5)
-    result["regime"] = regime
-
-    # ── v3.5 MOMENTUM BREAK — xét TRƯỚC trend/fade ──
-    # "1 cú sập = 2 lệnh": đây là LỆNH 1 (thuận lực). Thác/pump đang chạy
-    # thì vào theo, thay vì chỉ đứng phạt điểm lệnh fade. Không trigger → None
-    # → rơi xuống trend/fade như cũ.
-    if cfg.get("use_momentum_break", True):
-        mb = _score_momentum_break(
-            result, regime, i5, df5, i1, df1,
-            hour_utc, cfg, obi, ob_analysis or {},
-        )
-        if mb is not None:
-            return mb
-
-    if regime in ("trend_up", "trend_down"):
-        return _score_trend_pullback(
-            result, regime, i15, df15, i5, df5, i1, df1,
-            hour_utc, cfg, obi, ob_analysis or {}, funding_rate,
-        )
-    return _score_range_fade(
-        result, i15, df15, i5, df5, i1, df1,
-        hour_utc, cfg, obi, ob_analysis or {}, funding_rate,
-    )
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# PATH C (v3.5): MOMENTUM BREAK — vào THUẬN lực khi thác đổ / pump đang chạy
-# ═══════════════════════════════════════════════════════════════════════════
-def _score_momentum_break(result: dict, regime: str,
-                          i5: int, df5: pd.DataFrame,
-                          i1: int, df1: pd.DataFrame,
-                          hour_utc: int, cfg: dict,
-                          obi: float, ob_analysis: dict) -> dict | None:
-    """
-    "1 cú sập = 2 lệnh" — LỆNH 1: short thuận thác / long thuận pump.
-
-    Trigger = 3 điều kiện ĐỒNG THỜI (chữ ký thác/pump từng dùng để phạt fade):
-      1. Nến 1m đóng NGOÀI dải BB (breakdown/breakout thật, không phải wick)
-      2. Thân nến mạnh (strong_close — body > 70% range)
-      3. CVD flow cùng chiều |ratio| >= 0.30 (phe aggressive đang đẩy)
-    + regime không được ngược chiều lệnh (trend_up cấm short break, ngược lại).
-
-    Không có CVD data (backtest / feed lỗi → ratio=0) → mode im lặng hoàn toàn.
-    Trả None khi không trigger → dispatcher rơi xuống trend/fade như cũ.
-    """
-    row1 = df1.iloc[i1]
-    row1_prev = df1.iloc[i1 - 1]
-    row5 = df5.iloc[i5]
-    price1 = row1["close"]
-    bb_upper1 = row1.get("bb_upper")
-    bb_lower1 = row1.get("bb_lower")
-    if bb_upper1 is None or bb_lower1 is None or pd.isna(bb_upper1) or pd.isna(bb_lower1):
-        return None
-
-    cvd_ratio = ob_analysis.get("cvd_ratio", 0.0) if ob_analysis else 0.0
-    pattern_1m = detect_candle_pattern(row1, row1_prev)
-
-    # v3.6: break từ squeeze SIÊU HẸP = break giả (live 18:29: "break" khỏi
-    # bb_w 0.17% → time_stop -$1.65). Dải phải đủ rộng thì break mới có lực.
-    bb_w = row1.get("bb_width_pct")
-    if bb_w is None or pd.isna(bb_w) or bb_w < cfg.get("momentum_min_bb_width_pct", 0.30):
-        return None
-
-    direction = None
-    if (price1 < bb_lower1 and pattern_1m == "strong_bearish_close"
-            and cvd_ratio <= -0.30 and regime != "trend_up"):
-        direction = "short"
-    elif (price1 > bb_upper1 and pattern_1m == "strong_bullish_close"
-            and cvd_ratio >= 0.30 and regime != "trend_down"):
-        direction = "long"
-    if direction is None:
-        return None
-
-    # Chống đuổi CUỐI thác: break đã chạy >1% khỏi EMA21-1m → sóng sắp tan
-    ema21_1 = row1.get("ema21")
-    if ema21_1 is not None and not pd.isna(ema21_1) and ema21_1 > 0:
-        if abs(price1 - ema21_1) / ema21_1 > 0.010:
-            result["entry_mode"] = "momentum_break"
-            result["block_reasons"].append(
-                f"momentum break đã chạy {abs(price1 - ema21_1) / ema21_1 * 100:.2f}% khỏi EMA21 — không đuổi cuối thác"
-            )
-            result["hard_block"] = True
-            return result
-
-    result["entry_mode"] = "momentum_break"
-    score = 40
-    details = {"break_trigger": 40}
-
-    # Volume climax: lực thật, không phải nến rỗng
-    vol1 = row1.get("volume")
-    vol_avg = row1.get("vol_avg20")
-    if not pd.isna(vol1) and not pd.isna(vol_avg) and vol_avg and vol1 > vol_avg * 1.5:
-        score += 15
-        details["vol_climax"] = 15
-
-    # Volume 5 nến gần nhất nghiêng cùng chiều
-    up_r, down_r = _directional_volume(df1, i1, lookback=5)
-    if (direction == "short" and down_r >= 0.6) or (direction == "long" and up_r >= 0.6):
-        score += 10
-        details["directional_vol"] = 10
-
-    # Sổ lệnh cùng phe → bonus; chống mạnh → penalty nặng (squeeze risk)
-    if obi != 0.0:
-        if (direction == "short" and obi <= -0.15) or (direction == "long" and obi >= 0.15):
-            score += 10
-            details["obi_bonus"] = 10
-        elif (direction == "short" and obi >= 0.30) or (direction == "long" and obi <= -0.30):
-            score -= 15
-            details["obi_penalty"] = -15
-
-    # RSI 5m đã nghiêng cùng chiều (momentum lan lên khung lớn hơn)
-    rsi5 = row5.get("rsi")
-    if rsi5 is not None and not pd.isna(rsi5):
-        if (direction == "short" and rsi5 < 50) or (direction == "long" and rsi5 > 50):
-            score += 5
-            details["rsi_5m_align"] = 5
-
-    if ob_analysis and ob_analysis.get("spread_pct", 0) > 0.05:
-        score -= 10
-        details["spread_penalty"] = -10
-
-    if cfg.get("use_time_filter", True):
-        score += 10
-        details["time_filter"] = 10
-
-    return _finalize_result(result, direction, score, details)
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# PATH A: TREND PULLBACK — trade THUẬN trend, entry khi giá pullback
-# ═══════════════════════════════════════════════════════════════════════════
-def _score_trend_pullback(result: dict, regime: str,
-                          i15: int, df15: pd.DataFrame,
-                          i5: int, df5: pd.DataFrame,
-                          i1: int, df1: pd.DataFrame,
-                          hour_utc: int, cfg: dict,
-                          obi: float, ob_analysis: dict,
-                          funding_rate: float) -> dict:
-    """
-    Trend regime: CẤM fade ngược trend hoàn toàn. Chỉ vào lệnh thuận trend
-    khi giá pullback về value zone (EMA21 1m / BB mid / VWAP).
-    Đây chính là các cơ hội mà engine cũ ngồi block suốt 2 giờ trong log.
-    """
-    direction = "long" if regime == "trend_up" else "short"
-    result["entry_mode"] = "trend_pullback"
     score = 0
-    details = {}
-
-    row15 = df15.iloc[i15]
-    row5 = df5.iloc[i5]
-    row5_prev = df5.iloc[i5 - 1]
-    row1 = df1.iloc[i1]
-    row1_prev = df1.iloc[i1 - 1]
-
-    price1 = row1["close"]
-    rsi1 = row1["rsi"]
-    rsi5 = row5["rsi"]
-    ema21_1 = row1.get("ema21")
-    ema50_5 = row5.get("ema50")
-    price5 = row5["close"]
-    bb_upper1 = row1["bb_upper"]
-    bb_lower1 = row1["bb_lower"]
-    vwap1 = row1.get("vwap")
-
-    if pd.isna(bb_upper1) or pd.isna(bb_lower1) or pd.isna(rsi1) or pd.isna(rsi5):
-        return result
-
-    # ── Guard: volatility spike → đứng ngoài ──
-    if _atr_spike_block(df15, i15):
-        result["block_reasons"].append("ATR spike 15m > 2x avg (volatility burst)")
-        result["hard_block"] = True
-        return result
-
-    # ── Guard: trend còn nguyên vẹn trên 5m ──
-    if not pd.isna(ema50_5):
-        if direction == "long" and price5 < ema50_5:
-            return result  # pullback đã phá gãy trend → không phải pullback
-        if direction == "short" and price5 > ema50_5:
-            return result
-
-    bb_mid1 = (bb_upper1 + bb_lower1) / 2
-    zone_tolerance = 0.0006  # 0.06% — nới nhẹ để tăng tần suất trigger (scalping)
-
-    # ── Trend Age (Late-Trend): trend đã chạy xa EMA50-5m → đòi hỏi xác nhận
-    # mạnh hơn + penalty, KHÔNG đổi zone (bản cũ đòi price1 <= EMA50-5m trong
-    # khi guard phía trên đòi price5 > EMA50-5m → tự mâu thuẫn, không bao giờ
-    # vào được lệnh khi late trend).
-    is_late_trend = False
-    if not pd.isna(ema50_5) and ema50_5 > 0:
-        if abs(price1 - ema50_5) / ema50_5 > 0.008:
-            is_late_trend = True
-
-    # ── Base trigger: giá đã pullback vào value zone chưa? ──
-    in_zone = False
-    pattern_1m = detect_candle_pattern(row1, row1_prev)
-
-    # Xác nhận đảo chiều: pattern MẠNH (hiếm trên 1m) HOẶC xác nhận yếu
-    # (nến thuận hướng + không phá đáy/đỉnh nến trước) — đủ để không mua
-    # khi dao đang rơi, nhưng không bóp chết tần suất lệnh của scalping.
-    if direction == "long":
-        strong_confirm = pattern_1m in ("hammer", "bullish_engulfing", "strong_bullish_close")
-        weak_confirm = (row1["close"] > row1["open"]) and (row1["low"] >= row1_prev["low"])
-        zone_edge = max(
-            v for v in (ema21_1, bb_mid1, vwap1)
-            if v is not None and not pd.isna(v)
-        )
-        in_zone = price1 <= zone_edge * (1 + zone_tolerance)
-        # Pullback quá sâu = breakdown, không phải pullback
-        if price1 < bb_lower1 and pattern_1m == "strong_bearish_close":
-            return result
-    else:
-        strong_confirm = pattern_1m in ("shooting_star", "bearish_engulfing", "strong_bearish_close")
-        weak_confirm = (row1["close"] < row1["open"]) and (row1["high"] <= row1_prev["high"])
-        zone_edge = min(
-            v for v in (ema21_1, bb_mid1, vwap1)
-            if v is not None and not pd.isna(v)
-        )
-        in_zone = price1 >= zone_edge * (1 - zone_tolerance)
-        if price1 > bb_upper1 and pattern_1m == "strong_bullish_close":
-            return result
-
-    # Không có bất kỳ dấu hiệu đảo chiều nào → bỏ (giữ kỷ luật "không bắt dao rơi")
-    if not (strong_confirm or weak_confirm):
-        return result
-    # Late trend: chỉ chấp nhận xác nhận MẠNH (vào muộn thì phải chắc hơn)
-    if is_late_trend and not strong_confirm:
-        return result
-
-    if not in_zone:
-        return result
-
-    score += 30
-    details["pullback_zone"] = 30
-    if is_late_trend:
-        score -= 10
-        details["late_trend"] = -10
-
-    # ── RSI pullback: dip lành mạnh, không phải crash ──
-    if direction == "long":
-        if 32 <= rsi1 <= 52:
-            score += 10
-            details["rsi_pullback"] = 10
-        elif rsi1 < 25:
-            score -= 10  # rơi tự do, không phải pullback
-            details["rsi_pullback"] = -10
-        else:
-            details["rsi_pullback"] = 0
-        if rsi5 >= 45:
-            score += 5
-            details["rsi_5m_intact"] = 5
-        else:
-            details["rsi_5m_intact"] = 0
-    else:
-        if 48 <= rsi1 <= 68:
-            score += 10
-            details["rsi_pullback"] = 10
-        elif rsi1 > 75:
-            score -= 10
-            details["rsi_pullback"] = -10
-        else:
-            details["rsi_pullback"] = 0
-        if rsi5 <= 55:
-            score += 5
-            details["rsi_5m_intact"] = 5
-        else:
-            details["rsi_5m_intact"] = 0
-
-    # ── Candle reversal: pattern mạnh +10, xác nhận yếu +5 ──
-    if strong_confirm:
-        score += 10
-        details["candle_1m"] = 10
-    else:
-        score += 5
-        details["candle_1m"] = 5
-
-    pattern_5m = detect_candle_pattern(row5, row5_prev)
-    if direction == "long" and pattern_5m in ("hammer", "bullish_engulfing"):
-        score += 10
-        details["candle_5m"] = 10
-    elif direction == "short" and pattern_5m in ("shooting_star", "bearish_engulfing"):
-        score += 10
-        details["candle_5m"] = 10
-    else:
-        details["candle_5m"] = 0
-
-    # ── 15m context alignment ──
-    ema9_15 = row15.get("ema9")
-    ema21_15 = row15.get("ema21")
-    price15 = row15["close"]
-    if not pd.isna(ema9_15) and not pd.isna(ema21_15):
-        if direction == "long" and ema9_15 > ema21_15 and price15 > ema21_15:
-            score += 15
-            details["trend_15m"] = 15
-        elif direction == "short" and ema9_15 < ema21_15 and price15 < ema21_15:
-            score += 15
-            details["trend_15m"] = 15
-        else:
-            details["trend_15m"] = 0
-
-    # ── Directional volume: phe thuận trend vẫn đang chiếm ưu thế ──
-    up_vol_ratio, down_vol_ratio = _directional_volume(df1, i1, lookback=5)
-    if direction == "long" and up_vol_ratio >= 0.55:
-        score += 5
-        details["directional_vol"] = 5
-    elif direction == "short" and down_vol_ratio >= 0.55:
-        score += 5
-        details["directional_vol"] = 5
-    else:
-        details["directional_vol"] = 0
-
-    # ── OBI (smoothed): sổ lệnh phải KHÔNG chống lại trend ──
-    # Hard block cần CẢ HAI tầng đồng thuận: tầng sâu chống mạnh + tầng sát giá
-    # không ủng hộ. Bản cũ OR → tầng ±0.05% (nhiễu/spoof nhất) phủ quyết một
-    # mình (live 15:08 BTC: obi +0.21 ủng hộ long vẫn bị obi_05 -0.29 chặn).
-    obi_05 = ob_analysis.get("obi_05", 0.0) if ob_analysis else 0.0
-    if obi != 0.0 or obi_05 != 0.0:
-        if direction == "long":
-            if obi <= -0.30 and obi_05 <= -0.10:
-                result["block_reasons"].append(f"OBI={obi:.2f}/OBI_05={obi_05:.2f} against uptrend pullback")
-                result["hard_block"] = True
-            elif obi >= 0.15 and obi_05 >= 0.15:
-                score += 15
-                details["obi_bonus"] = 15
-            elif obi <= -0.15:
-                # penalty chỉ theo tầng SÂU — tầng ±0.05% quá nhiễu để trừ oan
-                # (live 15:53 BTC: obi +0.47 ủng hộ vẫn bị obi_05 trừ -10)
-                score -= 10
-                details["obi_penalty"] = -10
-        else:
-            if obi >= 0.30 and obi_05 >= 0.10:
-                result["block_reasons"].append(f"OBI={obi:.2f}/OBI_05={obi_05:.2f} against downtrend pullback")
-                result["hard_block"] = True
-            elif obi <= -0.15 and obi_05 <= -0.15:
-                score += 15
-                details["obi_bonus"] = 15
-            elif obi >= 0.15:
-                score -= 10
-                details["obi_penalty"] = -10
-
-    # ── Wall support / spread / CVD ──
-    if ob_analysis:
-        # CVD ratio = (buy-sell)/(buy+sell) trong 3 phút — CHUẨN HÓA [-1,1].
-        # Tại đáy pullback flow gần như LUÔN âm nhẹ (định nghĩa của pullback)
-        # → chặn theo dấu thô = chặn đúng entry mình muốn (bug bản trước).
-        # Chỉ chặn khi flow cực đoan một chiều, còn lại cộng/trừ điểm.
-        # v3.6: block siết 0.50→0.40 (live 17:42: CVD -0.71 hai phút trước,
-        # nhấp nháy dương 1 mẫu là vào long ngay → SL -$3.47; cooldown 5' ở
-        # engine + ngưỡng chặt hơn ở đây cùng chặn ca này)
-        cvd_ratio = ob_analysis.get("cvd_ratio", 0.0)
-        if direction == "long":
-            if cvd_ratio <= -0.40:
-                result["block_reasons"].append(f"CVD ratio={cvd_ratio:.2f} bán tháo mạnh, không đỡ")
-                result["hard_block"] = True
-                result["flow_block_dir"] = "long"
-            elif cvd_ratio <= -0.20:
-                score -= 10
-                details["cvd_penalty"] = -10
-            elif cvd_ratio >= 0.20:
-                score += 10
-                details["cvd_bonus"] = 10
-        else:
-            if cvd_ratio >= 0.40:
-                result["block_reasons"].append(f"CVD ratio={cvd_ratio:.2f} mua đuổi mạnh, không chặn")
-                result["hard_block"] = True
-                result["flow_block_dir"] = "short"
-            elif cvd_ratio >= 0.20:
-                score -= 10
-                details["cvd_penalty"] = -10
-            elif cvd_ratio <= -0.20:
-                score += 10
-                details["cvd_bonus"] = 10
-
-        if direction == "long" and ob_analysis.get("bid_wall"):
-            score += 10
-            details["bid_wall"] = 10
-        elif direction == "short" and ob_analysis.get("ask_wall"):
-            score += 10
-            details["ask_wall"] = 10
-        # 0.02→0.05: live spread luôn >0.02 → thành phạt CỐ ĐỊNH -10 mọi setup
-        # (mất ý nghĩa tín hiệu); 0.05 mới thật sự là spread rộng bất thường
-        if ob_analysis.get("spread_pct", 0) > 0.05:
-            score -= 10
-            details["spread_penalty"] = -10
-
-    # ── Funding bias ──
-    if cfg.get("use_funding_rate", True) and abs(funding_rate) > 0.0001:
-        if direction == "long" and funding_rate < -0.0001:
-            score += 5
-            details["funding_bias"] = 5
-        elif direction == "short" and funding_rate > 0.0001:
-            score += 5
-            details["funding_bias"] = 5
-
-    # ── Session bonus: MỌI khung giờ như nhau (user yêu cầu Asia trade bình
-    # thường — bản cũ chỉ +10 cho 7-17 UTC nên Asia cần raw score cao hơn 10).
-    # Chất lượng giờ thấp-ATR đã có FEE GATE lo, không cần phạt theo giờ.
-    if cfg.get("use_time_filter", True):
-        score += 10
-        details["time_filter"] = 10
-
-    return _finalize_result(result, direction, score, details)
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# PATH B: RANGE FADE — mean-reversion 2 chiều, CHỈ trong ranging regime
-# ═══════════════════════════════════════════════════════════════════════════
-def _score_range_fade(result: dict,
-                      i15: int, df15: pd.DataFrame,
-                      i5: int, df5: pd.DataFrame,
-                      i1: int, df1: pd.DataFrame,
-                      hour_utc: int, cfg: dict,
-                      obi: float, ob_analysis: dict,
-                      funding_rate: float) -> dict:
-    """
-    Engine v2 fade logic với các fix v3:
-      - vwap_stretch_base bị khóa chặt (cần VWAP đủ dữ liệu + nến đảo chiều)
-      - Bỏ momentum flip (bug giữ điểm của hướng cũ) → thay bằng hard block
-      - Veto mới: cả 5m VÀ 15m trend ngược → hard block bất kể candle
-      - Penalty trend tăng -10 → -15
-      - Bỏ Asia -5 (engine nâng min_score thay thế)
-    """
-    result["entry_mode"] = "range_fade"
-    score = 0
-    details = {}
+    details = {}  # Track điểm từng module
     direction = None
 
-    row15 = df15.iloc[i15]
-    row5 = df5.iloc[i5]
-    row5_prev = df5.iloc[i5 - 1]
-    row1 = df1.iloc[i1]
-    row1_prev = df1.iloc[i1 - 1]
-
+    # --------------------------------------------------
+    # MODULE 1: BB TOUCH — Base signal (giữ nguyên)
+    # --------------------------------------------------
     price1 = row1["close"]
     bb_upper1 = row1["bb_upper"]
     bb_lower1 = row1["bb_lower"]
@@ -824,21 +338,29 @@ def _score_range_fade(result: dict,
     up_vol_ratio, down_vol_ratio = _directional_volume(df1, i1, lookback=5)
     vol_climax = (not pd.isna(vol1) and not pd.isna(vol_avg20_1) and vol1 > vol_avg20_1 * 1.5)
 
+    # ── Lưu BB width cho logging ──
+    bb_width = row1["bb_width_pct"]
+    result["bb_width_pct"] = float(bb_width) if not pd.isna(bb_width) else 0.0
+
+    # ── BB Squeeze detection ──
+    bb_width_rank = row1.get("bb_width_rank")
+    is_squeeze = (bb_width_rank is not None
+                  and not pd.isna(bb_width_rank)
+                  and bb_width_rank < 0.15)
+    result["bb_squeeze"] = is_squeeze
+
+    # VWAP stretch calculation
     vwap_stretch_pct = 0.0
     if not pd.isna(vwap1) and vwap1 > 0:
         vwap_stretch_pct = abs(price1 - vwap1) / vwap1 * 100
 
-    is_bullish_candle = row1["close"] > row1["open"]
-    is_bearish_candle = row1["close"] < row1["open"]
-
-    # --------------------------------------------------
-    # MODULE 1: BASE SIGNALS
-    # --------------------------------------------------
+    # Check BB touch — base trigger
     if price1 <= bb_lower1:
         direction = "long"
         score += 25
         details["bb_touch"] = 25
 
+        # Penalize catching a falling knife
         pattern_1m = detect_candle_pattern(row1, row1_prev)
         if pattern_1m == "strong_bearish_close":
             score -= 15
@@ -846,6 +368,7 @@ def _score_range_fade(result: dict,
         else:
             details["strong_close_penalty"] = 0
 
+        # Reward directional volume
         if vol_climax and up_vol_ratio > 0.6:
             score += 15
             details["directional_vol"] = 15
@@ -858,16 +381,18 @@ def _score_range_fade(result: dict,
         else:
             details["directional_vol"] = 0
 
+        # Soft Trend Alignment on 5m
         if not pd.isna(ema50_5):
             if price5 > ema50_5:
                 score += 10
                 details["ema50_trend"] = 10
             else:
-                score -= 15
-                details["ema50_trend"] = -15
+                score -= 10
+                details["ema50_trend"] = -10
         else:
             details["ema50_trend"] = 0
 
+        # VWAP Stretch (Rubber band effect)
         if vwap_stretch_pct > 0.5:
             score += 20
             details["vwap_stretch"] = 20
@@ -882,6 +407,7 @@ def _score_range_fade(result: dict,
         score += 25
         details["bb_touch"] = 25
 
+        # Penalize blindly shorting a rocket
         pattern_1m = detect_candle_pattern(row1, row1_prev)
         if pattern_1m == "strong_bullish_close":
             score -= 15
@@ -889,6 +415,7 @@ def _score_range_fade(result: dict,
         else:
             details["strong_close_penalty"] = 0
 
+        # Reward directional volume
         if vol_climax and down_vol_ratio > 0.6:
             score += 15
             details["directional_vol"] = 15
@@ -901,16 +428,18 @@ def _score_range_fade(result: dict,
         else:
             details["directional_vol"] = 0
 
+        # Soft Trend Alignment on 5m
         if not pd.isna(ema50_5):
             if price5 < ema50_5:
                 score += 10
                 details["ema50_trend"] = 10
             else:
-                score -= 15
-                details["ema50_trend"] = -15
+                score -= 10
+                details["ema50_trend"] = -10
         else:
             details["ema50_trend"] = 0
 
+        # VWAP Stretch (Rubber band effect)
         if vwap_stretch_pct > 0.5:
             score += 20
             details["vwap_stretch"] = 20
@@ -921,7 +450,7 @@ def _score_range_fade(result: dict,
             details["vwap_stretch"] = 0
 
     else:
-        # Base Signal 2: RSI Extreme
+        # Base Signal 2: RSI Extreme (Bắt đáy/đỉnh khi RSI cực hạn, dù chưa chạm BB)
         if rsi1 < 25:
             direction = "long"
             score += 35
@@ -930,8 +459,8 @@ def _score_range_fade(result: dict,
             direction = "short"
             score += 35
             details["rsi_extreme_touch"] = 35
+        # Base Signal 3: EMA Reversion (Kéo ngược về EMA khi giá tăng/giảm sốc)
         else:
-            # Base Signal 3: EMA Reversion
             ema9_1 = row1.get("ema9")
             dist_pct = 0.0
             if not pd.isna(ema9_1) and ema9_1 > 0:
@@ -945,17 +474,13 @@ def _score_range_fade(result: dict,
                 direction = "short"
                 score += 25
                 details["ema_reversion"] = 25
-            # Base Signal 4: VWAP Stretch — FIX v3: khóa chặt
-            # Yêu cầu: (1) VWAP đã có >= vwap_min_hour_utc giờ dữ liệu trong ngày
-            # (2) nến hiện tại ĐÃ quay đầu về phía VWAP (reversal confirm)
-            # Đây là nguồn tín hiệu counter-trend sai lớn nhất trong log cũ.
-            elif (vwap_stretch_pct > 0.45
-                  and hour_utc >= cfg.get("vwap_min_hour_utc", 3)):
-                if price1 < vwap1 and is_bullish_candle:
+            # Base Signal 4: VWAP Stretch (Lệch cực đại so với mức giá trung bình của ngày)
+            elif vwap_stretch_pct > 0.45:
+                if price1 < vwap1:
                     direction = "long"
                     score += 25
                     details["vwap_stretch_base"] = 25
-                elif price1 > vwap1 and is_bearish_candle:
+                elif price1 > vwap1:
                     direction = "short"
                     score += 25
                     details["vwap_stretch_base"] = 25
@@ -965,48 +490,7 @@ def _score_range_fade(result: dict,
                 return result
 
     # --------------------------------------------------
-    # v3.5 ANTI KNIFE-CATCH — "1 cú sập = 2 lệnh", LỆNH 2 phải đợi lực cạn.
-    # Thác/pump đang CHẢY (>=2/3 cờ đồng thời) → cấm fade ngược nó.
-    # Live 16:28 BTC: fade long score 80 giữa thác dù chính breakdown đã thấy
-    # đủ 3 cờ (thủng EMA50-5m, nến sập mạnh, CVD bán) — penalty -40 không đủ,
-    # phải là quyền phủ quyết.
-    # --------------------------------------------------
-    if direction is not None:
-        _pattern_kc = detect_candle_pattern(row1, row1_prev)
-        _cvd_kc = ob_analysis.get("cvd_ratio", 0.0) if ob_analysis else 0.0
-        if direction == "long":
-            _flags = [
-                bool(not pd.isna(ema50_5) and price5 < ema50_5),
-                _pattern_kc == "strong_bearish_close",
-                _cvd_kc <= -0.30,
-            ]
-            if sum(_flags) >= 2:
-                result["block_reasons"].append(
-                    f"thác đang chảy ({sum(_flags)}/3 cờ: ema50={_flags[0]} nến_sập={_flags[1]} cvd={_flags[2]}) — cấm bắt đáy"
-                )
-                result["hard_block"] = True
-                result["flow_block_dir"] = "long"
-                result["score_details"] = details
-                return result
-        else:
-            # Ngưỡng CVD chặt hơn chiều long: pump/short-squeeze nguy hiểm
-            # hơn cho lệnh short đỉnh
-            _flags = [
-                bool(not pd.isna(ema50_5) and price5 > ema50_5),
-                _pattern_kc == "strong_bullish_close",
-                _cvd_kc >= 0.25,
-            ]
-            if sum(_flags) >= 2:
-                result["block_reasons"].append(
-                    f"pump đang chạy ({sum(_flags)}/3 cờ: ema50={_flags[0]} nến_tăng={_flags[1]} cvd={_flags[2]}) — cấm bán đỉnh"
-                )
-                result["hard_block"] = True
-                result["flow_block_dir"] = "short"
-                result["score_details"] = details
-                return result
-
-    # --------------------------------------------------
-    # REGIME FILTER phụ (ATR spike + chuỗi nến + EMA slope cục bộ)
+    # REGIME FILTER (chỉ kích hoạt nếu use_regime_filter=True)
     # --------------------------------------------------
     if direction is not None and cfg.get("use_regime_filter", False):
         is_regime_blocked, regime_reason = detect_regime_for_entry(df15, i15, direction)
@@ -1020,7 +504,7 @@ def _score_range_fade(result: dict,
             details["regime_ok"] = 5
 
     # --------------------------------------------------
-    # MODULE 2: RSI CONFIRMATION (1m and 5m)
+    # MODULE 2: RSI CONFIRMATION (1m and 5m) — giữ nguyên
     # --------------------------------------------------
     if direction == "long":
         if "rsi_extreme_touch" not in details:
@@ -1045,6 +529,7 @@ def _score_range_fade(result: dict,
             details["rsi_1m"] = 0
             details["rsi_5m"] = 0
 
+        # Candlestick pattern bonus (1m)
         pattern_1m = detect_candle_pattern(row1, row1_prev)
         if pattern_1m in ["hammer", "bullish_engulfing"]:
             score += 10
@@ -1075,6 +560,7 @@ def _score_range_fade(result: dict,
             details["rsi_1m"] = 0
             details["rsi_5m"] = 0
 
+        # Candlestick pattern bonus (1m)
         pattern_1m = detect_candle_pattern(row1, row1_prev)
         if pattern_1m in ["shooting_star", "bearish_engulfing"]:
             score += 10
@@ -1083,7 +569,7 @@ def _score_range_fade(result: dict,
             details["candle_1m"] = 0
 
     # --------------------------------------------------
-    # MODULE 2.5: 15M TREND CONTEXT — penalty tăng lên -15
+    # MODULE 2.5 (NEW): 15M TREND CONTEXT
     # --------------------------------------------------
     ema9_15 = row15.get("ema9")
     ema21_15 = row15.get("ema21")
@@ -1096,8 +582,8 @@ def _score_range_fade(result: dict,
                     score += 15
                     details["trend_15m"] = 15
                 elif ema9_15 < ema21_15 and price15 < ema21_15:
-                    score -= 15
-                    details["trend_15m"] = -15
+                    score -= 10
+                    details["trend_15m"] = -10
                 else:
                     details["trend_15m"] = 0
             else:  # short
@@ -1105,8 +591,8 @@ def _score_range_fade(result: dict,
                     score += 15
                     details["trend_15m"] = 15
                 elif ema9_15 > ema21_15 and price15 > ema21_15:
-                    score -= 15
-                    details["trend_15m"] = -15
+                    score -= 10
+                    details["trend_15m"] = -10
                 else:
                     details["trend_15m"] = 0
         else:
@@ -1115,9 +601,11 @@ def _score_range_fade(result: dict,
         details["trend_15m"] = 0
 
     # --------------------------------------------------
-    # MODULE 3: BB WIDTH FILTER — soft penalty
+    # MODULE 3 (NEW): BB WIDTH FILTER — soft penalty
     # --------------------------------------------------
-    bb_width = row1["bb_width_pct"]
+    # BB rộng = trending → mean-reversion rủi ro cao
+    # BB hẹp = sideways → mean-reversion thuận lợi
+    # KHÔNG hard block để giữ tần suất
     bb_width_max = cfg.get("bb_width_max_pct", 1.0)
     bb_width_warn = cfg.get("bb_width_warn_pct", 0.6)
 
@@ -1129,7 +617,7 @@ def _score_range_fade(result: dict,
             score -= 5
             details["bb_width"] = -5
         elif bb_width < 0.2:
-            score += 5
+            score += 5  # BB hẹp → sideways, mean-reversion thuận lợi
             details["bb_width"] = 5
         else:
             details["bb_width"] = 0
@@ -1137,26 +625,32 @@ def _score_range_fade(result: dict,
         details["bb_width"] = 0
 
     # --------------------------------------------------
-    # MODULE 4: BB %B DEPTH — bonus/penalty
+    # MODULE 4 (NEW): BB %B DEPTH — bonus/penalty
     # --------------------------------------------------
+    # %B < 0 (long) hoặc > 1 (short) = phá qua BB
+    # Phá nhẹ → tốt (bounce), phá sâu → xấu (momentum tiếp tục)
     bb_pct_b = row1.get("bb_pct_b")
     bb_pct_b_deep = cfg.get("bb_pct_b_deep_threshold", 0.15)
 
     if cfg.get("use_bb_pct_b", True) and bb_pct_b is not None and not pd.isna(bb_pct_b):
         if direction == "long":
             if bb_pct_b < -bb_pct_b_deep:
+                # Phá qua BB quá sâu → có thể tiếp tục giảm
                 score -= 10
                 details["bb_pct_b"] = -10
             elif bb_pct_b <= 0:
+                # Vừa chạm/phá nhẹ BB lower → bounce zone tốt
                 score += 10
                 details["bb_pct_b"] = 10
             else:
                 details["bb_pct_b"] = 0
         else:  # short
             if bb_pct_b > 1 + bb_pct_b_deep:
+                # Phá qua BB upper quá sâu
                 score -= 10
                 details["bb_pct_b"] = -10
             elif bb_pct_b >= 1.0:
+                # Vừa chạm/phá nhẹ BB upper → bounce zone tốt
                 score += 10
                 details["bb_pct_b"] = 10
             else:
@@ -1165,7 +659,7 @@ def _score_range_fade(result: dict,
         details["bb_pct_b"] = 0
 
     # --------------------------------------------------
-    # MODULE 5-7: REVERSAL CONFIRMATION (divergence đã fix v3)
+    # MODULE 5, 6, 7 (CONSOLIDATED): REVERSAL CONFIRMATION
     # --------------------------------------------------
     reversal_confirmations = 0
 
@@ -1209,8 +703,10 @@ def _score_range_fade(result: dict,
         details["reversal_confirm"] = 0
 
     # --------------------------------------------------
-    # MODULE 8: CANDLESTICK PATTERN 5m BONUS
+    # MODULE 8 (NEW): CANDLESTICK PATTERN 5m BONUS
     # --------------------------------------------------
+    # Hammer/engulfing trên 5m có giá trị cao hơn nhiều so với 1m
+    # vì 5m candle tổng hợp nhiều price action hơn
     if cfg.get("use_candle_5m", True):
         pattern_5m = detect_candle_pattern(row5, row5_prev)
         if direction == "long" and pattern_5m in ["hammer", "bullish_engulfing"]:
@@ -1225,58 +721,65 @@ def _score_range_fade(result: dict,
         details["candle_5m"] = 0
 
     # --------------------------------------------------
-    # MODULE 9: TIME-OF-DAY — MỌI khung giờ như nhau (user yêu cầu Asia
-    # trade bình thường; giờ thấp-ATR đã có FEE GATE lo, không phạt theo giờ)
+    # MODULE 9 (NEW): TIME-OF-DAY FILTER — soft penalty
     # --------------------------------------------------
+    # London (07-12 UTC) + NY (13-17 UTC) = high win rate sessions
+    # Asia (01-06 UTC) = low volume, false signals nhiều hơn
+    # SOFT PENALTY (-5) thay vì hard block để giữ tần suất
     if cfg.get("use_time_filter", True):
-        score += 10
-        details["time_filter"] = 10
+        if hour_utc in range(7, 13) or hour_utc in range(13, 18):
+            score += 10  # High-probability session bonus
+            details["time_filter"] = 10
+        elif hour_utc in range(1, 7):
+            score -= 5  # Low-probability session penalty (nhẹ)
+            details["time_filter"] = -5
+        else:
+            # Midnight UTC (0) và 18-23: neutral
+            details["time_filter"] = 0
     else:
         details["time_filter"] = 0
 
     # --------------------------------------------------
-    # MODULE 10: OBI (smoothed) — FIX v3: bỏ momentum flip
-    # Flip cũ giữ nguyên điểm đã chấm cho hướng ngược lại (bug).
-    # Giờ: sổ lệnh chống mạnh → hard block, chống nhẹ → penalty.
+    # MODULE 10 (NEW): DUAL-REGIME / MOMENTUM FLIP & WALL
     # --------------------------------------------------
-    # Hard block cần CẢ HAI tầng đồng thuận (tầng sát giá nhiễu/spoof nhất
-    # không được phủ quyết một mình); chống một tầng → chỉ penalty.
-    obi_05 = ob_analysis.get("obi_05", 0.0) if ob_analysis else 0.0
-    if direction is not None and (obi != 0.0 or obi_05 != 0.0):
+    if direction is not None and obi != 0.0:
+        flip_obi = 0.35
+        block_obi = -0.25
+
         if direction == "long":
-            if obi < -0.25 and obi_05 < -0.10:
-                result["block_reasons"].append(f"OBI={obi:.2f}/OBI_05={obi_05:.2f} (sellers dominant, smoothed)")
+            if obi < block_obi:
+                result["block_reasons"].append(f"OBI={obi:.2f} (sellers extremely dominant)")
                 result["hard_block"] = True
-            elif obi > 0.30 and obi_05 > 0.30:
+            elif obi <= -flip_obi and vol_climax:
+                if rsi1 > 55:
+                    direction = "short"
+                    score += 15
+                    details["momentum_flip"] = 15
+                else:
+                    score -= 5
+                    details["momentum_flip"] = -5
+            elif obi > 0.3:
                 score += 15
                 details["obi_bonus"] = 15
-            elif obi < -0.15:
-                # penalty chỉ theo tầng SÂU — tầng ±0.05% quá nhiễu để trừ oan
-                score -= 10
-                details["obi_penalty"] = -10
-        else:  # short
-            if obi > 0.25 and obi_05 > 0.10:
-                result["block_reasons"].append(f"OBI={obi:.2f}/OBI_05={obi_05:.2f} (buyers dominant, smoothed)")
-                result["hard_block"] = True
-            elif obi < -0.30 and obi_05 < -0.30:
-                score += 15
-                details["obi_bonus"] = 15
-            elif obi > 0.15:
-                score -= 10
-                details["obi_penalty"] = -10
 
+        elif direction == "short":
+            if obi > -block_obi:
+                result["block_reasons"].append(f"OBI={obi:.2f} (buyers extremely dominant)")
+                result["hard_block"] = True
+            elif obi >= flip_obi and vol_climax:
+                if rsi1 < 45:
+                    direction = "long"
+                    score += 15
+                    details["momentum_flip"] = 15
+                else:
+                    score -= 5
+                    details["momentum_flip"] = -5
+            elif obi < -0.3:
+                score += 15
+                details["obi_bonus"] = 15
+
+    ob_analysis = ob_analysis or {}
     if ob_analysis:
-        # CVD cho FADE: fade là lệnh NGƯỢC flow theo bản chất (mua khi chạm
-        # band dưới = flow vừa bán) → KHÔNG hard block theo dấu. Chỉ phạt khi
-        # flow cực đoan một chiều (thác đổ — fade dễ bị cán).
-        cvd_ratio = ob_analysis.get("cvd_ratio", 0.0)
-        if direction == "long" and cvd_ratio <= -0.60:
-            score -= 10
-            details["cvd_penalty"] = -10
-        elif direction == "short" and cvd_ratio >= 0.60:
-            score -= 10
-            details["cvd_penalty"] = -10
-
         if direction == "long" and ob_analysis.get("bid_wall"):
             score += 15
             details["bid_wall"] = 15
@@ -1284,14 +787,13 @@ def _score_range_fade(result: dict,
             score += 15
             details["ask_wall"] = 15
 
-        # 0.02→0.05: live spread luôn >0.02 → thành phạt CỐ ĐỊNH -10 mọi setup
         spread_pct = ob_analysis.get("spread_pct", 0)
-        if spread_pct > 0.05:
+        if spread_pct > 0.02:
             score -= 10
             details["spread_penalty"] = -10
 
     # --------------------------------------------------
-    # MODULE 11: FUNDING RATE BIAS
+    # MODULE 11 (NEW): FUNDING RATE BIAS
     # --------------------------------------------------
     if cfg.get("use_funding_rate", True) and abs(funding_rate) > 0.0001:
         if direction == "long" and funding_rate < -0.0001:
@@ -1310,14 +812,17 @@ def _score_range_fade(result: dict,
             details["funding_bias"] = 0
 
     # --------------------------------------------------
-    # VETO COMBOS — FIX v3: thêm veto "cả 2 khung trend ngược"
+    # COOLDOWN CHECK (giữ nguyên — hard block duy nhất)
     # --------------------------------------------------
-    # NEW: 5m VÀ 15m đều ngược hướng fade → block bất kể candle pattern.
-    # (Lệnh SHORT 03:29 score=75 trong log lọt qua vì candle_1m=+10 lách veto cũ.)
-    if details.get("ema50_trend", 0) < 0 and details.get("trend_15m", 0) < 0:
-        result["block_reasons"].append("5m_and_15m_trend_against: counter-trend fade blocked")
+    if consecutive_losses >= 3:
+        result["block_reasons"].append("3 consecutive losses - cooldown")
         result["hard_block"] = True
+        result["score_details"] = details
+        return result
 
+    # --------------------------------------------------
+    # VETO COMBOS (NEW)
+    # --------------------------------------------------
     if details.get("ema50_trend", 0) < 0 and details.get("bb_pct_b", 0) < 0:
         result["block_reasons"].append("trend_against + deep_bb_break: high risk fade")
         result["hard_block"] = True
@@ -1330,4 +835,28 @@ def _score_range_fade(result: dict,
         result["block_reasons"].append("trend_against without candle reversal: high risk fade")
         result["hard_block"] = True
 
-    return _finalize_result(result, direction, score, details)
+    # --------------------------------------------------
+    # EXPORT RESULTS
+    # --------------------------------------------------
+    # ATR values for dynamic TP/SL
+    atr_5m = row5.get("atr")
+    result["atr_5m"] = float(atr_5m) if not pd.isna(atr_5m) else 0.0
+
+    atr_1m = row1.get("atr")
+    result["atr_1m"] = float(atr_1m) if not pd.isna(atr_1m) else 0.0
+
+    result["direction"] = direction
+    result["score"] = score
+    result["score_details"] = details
+
+    # ── Confidence level — phân loại chất lượng setup ──
+    if score >= 100:
+        result["confidence"] = "A+"  # Rất nhiều confluence — full margin
+    elif score >= 80:
+        result["confidence"] = "A"   # Nhiều confluence — near full margin
+    elif score >= 60:
+        result["confidence"] = "B"   # Đủ confluence — standard margin
+    else:
+        result["confidence"] = "C"   # Ít confluence — half margin
+
+    return result

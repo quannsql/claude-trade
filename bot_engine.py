@@ -35,12 +35,9 @@ IMPROVEMENT #6 — PARTIAL FILL PNL TRACKING
 """
 
 import asyncio
-import csv
-import json
 import logging
 import os
 import time
-from collections import deque
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, ROUND_DOWN
@@ -54,7 +51,6 @@ from hyperliquid.info import Info
 from hyperliquid.utils import constants
 
 from indicators import add_indicators, score_setup
-from filters import compute_risk_sizing, estimate_fee_edge
 from run_backtest import CONFIG, COIN_CONFIG
 
 
@@ -65,8 +61,6 @@ if not logger.handlers:
     formatter = logging.Formatter("%(asctime)s - %(message)s", datefmt="%H:%M:%S")
     ch.setFormatter(formatter)
     logger.addHandler(ch)
-# Fix log đôi: không propagate lên root logger (uvicorn/app.py có handler riêng)
-logger.propagate = False
 
 
 PRIVATE_KEY = os.environ.get("HL_PRIVATE_KEY", "")
@@ -81,15 +75,16 @@ LOOKBACK_15M = int(os.environ.get("HL_LOOKBACK_15M", "260"))
 MARKET_CLOSE_SLIPPAGE = float(os.environ.get("HL_MARKET_CLOSE_SLIPPAGE", "0.002"))
 POSITION_EPSILON = 1e-8
 
-DISABLED_COINS: set[str] = set()
+DISABLED_COINS: set[str] = {"ETH"}
 # ── FIX #2: Cooldown nhỏ sau mỗi lần thua đơn lẻ ──
 SL_SINGLE_COOLDOWN_MINUTES = int(os.environ.get("HL_SL_COOLDOWN_MINUTES", "3"))
 
 # ── FIX #3: Giới hạn tổng margin usage ──
 MAX_MARGIN_USAGE_PCT = float(os.environ.get("HL_MAX_MARGIN_PCT", "0.70"))  # max 70% account dùng làm margin
 
-# ── HARD DOLLAR SL floor: backstop tối thiểu (v3: backstop thực = planned_risk × mult) ──
-HARD_DOLLAR_SL_USD = float(os.environ.get("HL_HARD_DOLLAR_SL", "4.5"))
+# ── HARD DOLLAR SL: đóng ngay nếu unrealized loss vượt ngưỡng này ──
+# Tránh tình huống như ETH -$7 vì price trượt dài không chạm % SL
+HARD_DOLLAR_SL_USD = float(os.environ.get("HL_HARD_DOLLAR_SL", "3.0"))
 HARD_DOLLAR_SL_CHECK_INTERVAL = int(os.environ.get("HL_HARD_SL_INTERVAL", "5"))  # check mỗi N giây
 
 # ── FIX #1: Track active entry orders để chống stacking ──
@@ -103,47 +98,6 @@ _coin_locks: dict[str, asyncio.Lock] = {}
 # Theo dõi thời gian orphan position của từng coin
 _orphan_timers: dict[str, float] = {}
 
-# ── v3: OBI smoothing — buffer mẫu OBI per coin, lấy mỗi scan cycle (3s) ──
-OBI_WINDOW_SEC = int(os.environ.get("HL_OBI_WINDOW_SEC", "90"))
-OBI_MIN_SAMPLES = int(os.environ.get("HL_OBI_MIN_SAMPLES", "3"))
-_obi_buffers: dict[str, deque] = {}
-_latest_ob_analysis: dict[str, dict] = {}
-
-# ── CVD Tracking ──
-_trades_buffers: dict[str, dict[int, dict]] = {}
-CVD_WINDOW_SEC = int(os.environ.get("HL_CVD_WINDOW_SEC", "180"))
-
-# ── v3.3: entry re-quote — dời lệnh maker bám theo bbo mỗi N giây ──
-# v3.4: 15→10s — maker-only entry nên bám giá sát hơn để bù khả năng khớp
-ENTRY_REQUOTE_SECONDS = int(os.environ.get("HL_ENTRY_REQUOTE_SEC", "10"))
-
-# ── v3.6: FLOW COOLDOWN — sau khi CVD/thác/pump hard-block, cấm vào CÙNG
-# HƯỚNG trong N phút. CVD từ recentTrades là mẫu thưa, nhấp nháy đổi dấu
-# 1 mẫu là bot mua lại ngay giữa sóng bán (live 17:42: SL -$3.47 chỉ 2 phút
-# sau 3 lần block "bán tháo -0.71"). key=(coin, direction) → epoch hết hạn.
-FLOW_BLOCK_COOLDOWN_SEC = int(os.environ.get("HL_FLOW_COOLDOWN_SEC", "300"))
-_flow_block_until: dict[tuple[str, str], float] = {}
-
-# ── v3: Candle cache — chỉ refetch khi nến mới ĐÃ đóng (giảm ~20x REST call) ──
-_candle_cache: dict[tuple[str, str], dict[str, Any]] = {}
-
-# ── v3: Funding rate cache (meta_and_asset_ctxs là call nặng) ──
-_funding_cache: dict[str, dict[str, Any]] = {}
-FUNDING_CACHE_TTL_SEC = 120
-
-# ── v3: API circuit breaker — nhiều lỗi liên tiếp → tạm dừng MỞ LỆNH MỚI ──
-# (vòng quản lý vị thế đang mở vẫn chạy bình thường)
-_api_failures: deque = deque()
-API_FAILURE_WINDOW_SEC = 60
-API_FAILURE_THRESHOLD = int(os.environ.get("HL_API_FAILURE_THRESHOLD", "6"))
-
-# ── v3: Throttle log lặp (cooldown/risk block) ──
-_last_throttled_log: dict[str, float] = {}
-
-# ── v3: CSV log — mọi setup (kể cả bị block) + mọi trade, để tune weight theo data thật ──
-SETUP_LOG_PATH = os.environ.get("HL_SETUP_LOG", "setups_log.csv")
-TRADE_LOG_PATH = os.environ.get("HL_TRADE_LOG", "trades_log.csv")
-
 
 @dataclass
 class FillSummary:
@@ -152,7 +106,6 @@ class FillSummary:
     closed_pnl: float = 0.0
     fees: float = 0.0
     crossed: bool = False
-    escaped: bool = False  # giá bật thuận hướng (reversal_cancel) mà chưa fill
 
     @property
     def avg_price(self) -> float | None:
@@ -190,14 +143,12 @@ class RiskState:
             remaining = int((cooldown - now_utc).total_seconds() / 60)
             return False, f"cooldown {remaining}m còn lại (đến {cooldown.strftime('%H:%M')})"
 
-        today = now_utc.date()
-        total_trades_today = sum(v for k, v in self.trades_today.items() if k[1] == today)
-        if total_trades_today >= CONFIG["max_trades_per_day"]:
-            return False, "max global trades per day reached"
+        day_key = (coin, now_utc.date())
+        if self.trades_today.get(day_key, 0) >= CONFIG["max_trades_per_day"]:
+            return False, "max trades per day reached"
 
-        total_pnl_today = sum(v for k, v in self.pnl_today.items() if k[1] == today)
-        if total_pnl_today <= -CONFIG["daily_loss_limit_usd"]:
-            return False, f"daily global loss limit reached ({total_pnl_today:.2f} <= {-CONFIG['daily_loss_limit_usd']})"
+        if self.pnl_today.get(day_key, 0.0) <= -CONFIG["daily_loss_limit_usd"]:
+            return False, "daily loss limit reached"
 
         return True, None
 
@@ -208,11 +159,6 @@ class RiskState:
 
         if result.win:
             self.consecutive_losses[result.coin] = 0
-        elif result.exit_reason == "partial_garbage":
-            # Dust close (fill <25% bị đóng ngay, lỗ = vài cent phí) KHÔNG phải
-            # tín hiệu sai → không tính loss streak / cooldown. Live 15:58:
-            # -$0.02 dust kích hoạt cooldown 5 phút chặn oan cả coin.
-            pass
         else:
             losses = self.consecutive_losses.get(result.coin, 0) + 1
             self.consecutive_losses[result.coin] = losses
@@ -274,78 +220,6 @@ def configured_live_coins() -> list[str]:
     if raw:
         return [item.strip().upper() for item in raw.split(",") if item.strip()]
     return [_symbol_to_coin(s) for s in CONFIG.get("symbols", [])]
-
-
-def _record_api_failure() -> None:
-    now = time.time()
-    _api_failures.append(now)
-    while _api_failures and now - _api_failures[0] > API_FAILURE_WINDOW_SEC:
-        _api_failures.popleft()
-
-
-def _api_circuit_open() -> bool:
-    """True nếu quá nhiều lỗi API trong 60s — tạm dừng mở lệnh mới."""
-    now = time.time()
-    while _api_failures and now - _api_failures[0] > API_FAILURE_WINDOW_SEC:
-        _api_failures.popleft()
-    return len(_api_failures) >= API_FAILURE_THRESHOLD
-
-
-def _log_throttled(key: str, interval_sec: float, msg: str, *args) -> None:
-    """Log tối đa 1 lần mỗi interval_sec cho mỗi key — chống spam log."""
-    now = time.time()
-    if now - _last_throttled_log.get(key, 0.0) >= interval_sec:
-        _last_throttled_log[key] = now
-        logger.info(msg, *args)
-
-
-def _append_csv(path: str, row: dict) -> None:
-    """Append 1 dòng vào CSV, tự viết header nếu file mới. Không bao giờ raise."""
-    try:
-        exists = os.path.exists(path)
-        with open(path, "a", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=list(row.keys()))
-            if not exists:
-                writer.writeheader()
-            writer.writerow(row)
-    except Exception as exc:
-        logger.debug("csv append failed (%s): %s", path, exc)
-
-
-def _log_setup_csv(coin: str, signal_ts: pd.Timestamp, price: float,
-                   setup: dict, decision: str) -> None:
-    _append_csv(SETUP_LOG_PATH, {
-        "ts": signal_ts.isoformat(),
-        "coin": coin,
-        "regime": setup.get("regime", ""),
-        "entry_mode": setup.get("entry_mode", ""),
-        "direction": setup.get("direction") or "",
-        "score": setup.get("score", 0),
-        "confidence": setup.get("confidence", ""),
-        "obi": round(setup.get("obi", 0.0), 4),
-        "price": price,
-        "bb_width_pct": round(setup.get("bb_width_pct", 0.0), 4),
-        "decision": decision,
-        "block_reason": "; ".join(setup.get("block_reasons", [])),
-        "details": json.dumps(setup.get("score_details", {})),
-    })
-
-
-def _log_trade_csv(result: "TradeResult", score: int, regime: str, obi: float) -> None:
-    _append_csv(TRADE_LOG_PATH, {
-        "entry_time": result.entry_time.isoformat(),
-        "exit_time": result.exit_time.isoformat(),
-        "coin": result.coin,
-        "direction": result.direction,
-        "score": score,
-        "regime": regime,
-        "obi": round(obi, 4),
-        "exit_reason": result.exit_reason,
-        "filled_size": result.filled_size,
-        "entry_price": result.entry_price,
-        "net_pnl": round(result.net_pnl, 6),
-        "win": result.win,
-    })
 
 
 def _to_float(value: Any, default: float = 0.0) -> float:
@@ -480,14 +354,13 @@ def _fills_by_oid(info: Info, address: str, start_ms: int, coin: str, oid: int |
     return [fill for fill in fills if fill.get("coin") == coin and int(fill.get("oid", -1)) == oid]
 
 
-def _get_orderbook_analysis(info: Info, coin: str, current_price: float = 0.0, depth: int = 20) -> dict:
+def _get_orderbook_analysis(info: Info, coin: str, current_price: float, depth: int = 20) -> dict:
     """
     Phân tích sổ lệnh nâng cao:
-    - OBI: orderbook imbalance (snapshot — làm mượt qua _smoothed_obi)
+    - OBI: orderbook imbalance (đã có)
     - Wall: phát hiện lệnh lớn bất thường (> 3x average level size)
     - Spread: bid-ask spread hiện tại (%)
     - Near wall: wall nằm trong 0.1% của current price
-    current_price=0 → dùng mid của sổ lệnh.
     """
     result = {
         "obi": 0.0,
@@ -496,71 +369,39 @@ def _get_orderbook_analysis(info: Info, coin: str, current_price: float = 0.0, d
         "bid_wall_price": None,
         "ask_wall_price": None,
         "spread_pct": 0.0,
-        "best_bid": 0.0,
-        "best_ask": 0.0,
     }
     try:
         l2 = info.l2_snapshot(coin)
         if not l2 or "levels" not in l2 or len(l2["levels"]) < 2:
             return result
 
-        raw_bids = l2["levels"][0]
-        raw_asks = l2["levels"][1]
+        bids = l2["levels"][0][:depth]
+        asks = l2["levels"][1][:depth]
 
-        if not raw_bids or not raw_asks:
+        if not bids or not asks:
             return result
 
-        # Spread + bbo (bbo dùng cho maker-first close)
-        best_bid = float(raw_bids[0].get("px", 0))
-        best_ask = float(raw_asks[0].get("px", 0))
-        result["best_bid"] = best_bid
-        result["best_ask"] = best_ask
+        # Spread
+        best_bid = float(bids[0].get("px", 0))
+        best_ask = float(asks[0].get("px", 0))
         if best_bid > 0:
             result["spread_pct"] = (best_ask - best_bid) / best_bid * 100
-        if current_price <= 0:
-            current_price = (best_bid + best_ask) / 2
 
-        # Lớp ±0.15%
-        min_bid_px_15 = current_price * (1 - 0.0015)
-        max_ask_px_15 = current_price * (1 + 0.0015)
-        bids_15 = [b for b in raw_bids if float(b.get("px", 0)) >= min_bid_px_15]
-        asks_15 = [a for a in raw_asks if float(a.get("px", 0)) <= max_ask_px_15]
-
-        # Lớp ±0.05%
-        min_bid_px_05 = current_price * (1 - 0.0005)
-        max_ask_px_05 = current_price * (1 + 0.0005)
-        bids_05 = [b for b in raw_bids if float(b.get("px", 0)) >= min_bid_px_05]
-        asks_05 = [a for a in raw_asks if float(a.get("px", 0)) <= max_ask_px_05]
-
-        if not bids_15: bids_15 = raw_bids[:10]
-        if not asks_15: asks_15 = raw_asks[:10]
-        if not bids_05: bids_05 = bids_15[:3]
-        if not asks_05: asks_05 = asks_15[:3]
-
-        # OBI ±0.15%
-        bid_vol_15 = sum(float(b.get("sz", 0)) for b in bids_15)
-        ask_vol_15 = sum(float(a.get("sz", 0)) for a in asks_15)
-        total_vol_15 = bid_vol_15 + ask_vol_15
-        if total_vol_15 > 0:
-            result["obi"] = (bid_vol_15 - ask_vol_15) / total_vol_15
-
-        # OBI ±0.05%
-        bid_vol_05 = sum(float(b.get("sz", 0)) for b in bids_05)
-        ask_vol_05 = sum(float(a.get("sz", 0)) for a in asks_05)
-        total_vol_05 = bid_vol_05 + ask_vol_05
-        if total_vol_05 > 0:
-            result["obi_05"] = (bid_vol_05 - ask_vol_05) / total_vol_05
-        else:
-            result["obi_05"] = result["obi"]
+        # OBI
+        bid_vol = sum(float(b.get("sz", 0)) for b in bids)
+        ask_vol = sum(float(a.get("sz", 0)) for a in asks)
+        total_vol = bid_vol + ask_vol
+        if total_vol > 0:
+            result["obi"] = (bid_vol - ask_vol) / total_vol
 
         # Wall detection: tìm level có size > 3x average
-        avg_bid_sz = bid_vol_15 / len(bids_15) if bids_15 else 0
-        avg_ask_sz = ask_vol_15 / len(asks_15) if asks_15 else 0
+        avg_bid_sz = bid_vol / len(bids) if bids else 0
+        avg_ask_sz = ask_vol / len(asks) if asks else 0
 
         wall_threshold = 3.0  # 3x average = "wall"
         near_threshold = 0.001  # 0.1% từ giá hiện tại
 
-        for b in bids_15:
+        for b in bids:
             sz = float(b.get("sz", 0))
             px = float(b.get("px", 0))
             if sz > avg_bid_sz * wall_threshold:
@@ -570,7 +411,7 @@ def _get_orderbook_analysis(info: Info, coin: str, current_price: float = 0.0, d
                     result["bid_wall_price"] = px
                     break  # Lấy wall gần nhất
 
-        for a in asks_15:
+        for a in asks:
             sz = float(a.get("sz", 0))
             px = float(a.get("px", 0))
             if sz > avg_ask_sz * wall_threshold:
@@ -584,79 +425,6 @@ def _get_orderbook_analysis(info: Info, coin: str, current_price: float = 0.0, d
         logger.debug("orderbook_analysis failed: %s", e)
 
     return result
-
-
-def _sample_market_data(info: Info, coin: str) -> None:
-    """
-    Lấy 1 mẫu OBI và CVD vào buffer (gọi mỗi scan cycle ~3s).
-    """
-    ob = _get_orderbook_analysis(info, coin, 0.0, 20)
-    
-    # CVD via recentTrades
-    try:
-        trades = info.post("/info", {"type": "recentTrades", "coin": coin})
-        if isinstance(trades, list):
-            tb = _trades_buffers.setdefault(coin, {})
-            for t in trades:
-                tid = t.get("tid")
-                if tid:
-                    tb[tid] = t
-            
-            now_ms = _now_ms()
-            cutoff_ms = now_ms - (CVD_WINDOW_SEC * 1000)
-            tids_to_remove = [tid for tid, t in tb.items() if t.get("time", 0) < cutoff_ms]
-            for tid in tids_to_remove:
-                del tb[tid]
-                
-            buy_vol = sum(float(t.get("sz", 0)) for t in tb.values() if t.get("side") == "B")
-            sell_vol = sum(float(t.get("sz", 0)) for t in tb.values() if t.get("side") == "A")
-            ob["cvd"] = buy_vol - sell_vol
-            # Ratio chuẩn hóa [-1,1] — scoring dùng cái này thay dấu thô:
-            # cvd thô lệch theo size coin và gần như luôn != 0 → sign-gate
-            # là coin-flip. LƯU Ý: recentTrades chỉ trả ~10 trades/call nên
-            # đây là mẫu thưa; đủ cho ratio, muốn chuẩn phải WebSocket trades.
-            total_vol = buy_vol + sell_vol
-            ob["cvd_ratio"] = (buy_vol - sell_vol) / total_vol if total_vol > 0 else 0.0
-    except Exception as e:
-        logger.debug("fetch trades failed: %s", e)
-
-    _latest_ob_analysis[coin] = ob
-    buf = _obi_buffers.setdefault(coin, deque())
-    now = time.time()
-    buf.append((
-        now, 
-        ob.get("obi", 0.0), 
-        ob.get("obi_05", 0.0), 
-        ob.get("bid_wall", False), 
-        ob.get("ask_wall", False)
-    ))
-    while buf and now - buf[0][0] > OBI_WINDOW_SEC:
-        buf.popleft()
-
-
-def _smoothed_obi(coin: str) -> tuple[float, float, bool, bool, int]:
-    """
-    OBI làm mượt = trung bình các mẫu trong OBI_WINDOW_SEC gần nhất.
-    Trả về (obi_mean, obi_05_mean, bid_wall_solid, ask_wall_solid, n_samples).
-    Wall_solid: tồn tại trong 3 mẫu gần nhất (≥9s).
-    """
-    buf = _obi_buffers.get(coin)
-    if not buf:
-        return 0.0, 0.0, False, False, 0
-    now = time.time()
-    samples = [v for v in buf if now - v[0] <= OBI_WINDOW_SEC]
-    n = len(samples)
-    if n < OBI_MIN_SAMPLES:
-        return 0.0, 0.0, False, False, n
-    
-    obi_mean = sum(s[1] for s in samples) / n
-    obi_05_mean = sum(s[2] for s in samples) / n
-    
-    last_3 = samples[-3:]
-    bid_wall_solid = all(s[3] for s in last_3) if len(last_3) >= 3 else False
-    ask_wall_solid = all(s[4] for s in last_3) if len(last_3) >= 3 else False
-    
-    return obi_mean, obi_05_mean, bid_wall_solid, ask_wall_solid, n
 
 
 def _get_funding_rate(info: Info, coin: str) -> float:
@@ -673,17 +441,6 @@ def _get_funding_rate(info: Info, coin: str) -> float:
     except Exception:
         return 0.0
     return 0.0
-
-
-def _get_funding_rate_cached(info: Info, coin: str) -> float:
-    """Funding rate với cache TTL — meta_and_asset_ctxs là call nặng."""
-    ent = _funding_cache.get(coin)
-    now = time.time()
-    if ent is not None and now - ent["ts"] < FUNDING_CACHE_TTL_SEC:
-        return ent["val"]
-    val = _get_funding_rate(info, coin)
-    _funding_cache[coin] = {"ts": now, "val": val}
-    return val
 
 
 def fetch_hyperliquid_candles(
@@ -732,41 +489,11 @@ def get_effective_config(coin: str) -> dict:
     return {**CONFIG, **overrides}
 
 
-def _cached_candles(info: Info, coin: str, interval: str, lookback: int) -> pd.DataFrame:
-    """
-    Candle fetch với cache thông minh: chỉ refetch khi nến MỚI đã đóng.
-    Nến cuối trong df có open=T → đóng tại T+iv → nến kế tiếp available
-    từ T+2iv. Trước thời điểm đó mọi fetch đều trả về dữ liệu y hệt
-    → dùng cache. Giảm REST call từ ~60/phút xuống ~1-3/phút mỗi khung.
-    """
-    key = (coin, interval)
-    ent = _candle_cache.get(key)
-    now = _now_ms()
-    if ent is not None and now < ent["next_fetch_ms"]:
-        return ent["df"]
-
-    iv = _interval_ms(interval)
-    df = fetch_hyperliquid_candles(info, coin, interval, lookback, now)
-    if df.empty:
-        # fetch lỗi/rỗng → giữ cache cũ nếu có, thử lại sau 3s
-        if ent is not None:
-            ent["next_fetch_ms"] = now + 3_000
-            return ent["df"]
-        return df
-
-    last_open_ms = int(df.iloc[-1]["timestamp"].timestamp() * 1000)
-    next_fetch = last_open_ms + 2 * iv + 2_000
-    if next_fetch <= now:
-        next_fetch = now + 3_000  # nến mới lẽ ra phải có nhưng chưa — retry sớm
-    _candle_cache[key] = {"df": df, "next_fetch_ms": next_fetch}
-    return df
-
-
-def _latest_setup(info: Info, coin: str, effective_cfg: dict,
-                  obi_smooth: float, ob_analysis: dict) -> tuple[dict[str, Any], float, pd.Timestamp] | None:
-    df15 = _cached_candles(info, coin, "15m", LOOKBACK_15M)
-    df5 = _cached_candles(info, coin, "5m", LOOKBACK_5M)
-    df1 = _cached_candles(info, coin, "1m", LOOKBACK_1M)
+def _latest_setup(info: Info, coin: str, effective_cfg: dict) -> tuple[dict[str, Any], float, pd.Timestamp] | None:
+    asof_ms = _now_ms()
+    df15 = fetch_hyperliquid_candles(info, coin, "15m", LOOKBACK_15M, asof_ms)
+    df5 = fetch_hyperliquid_candles(info, coin, "5m", LOOKBACK_5M, asof_ms)
+    df1 = fetch_hyperliquid_candles(info, coin, "1m", LOOKBACK_1M, asof_ms)
     if df15.empty or df5.empty or df1.empty:
         logger.warning("%s: empty candle data", coin)
         return None
@@ -775,13 +502,11 @@ def _latest_setup(info: Info, coin: str, effective_cfg: dict,
     i5 = _align_index(signal_ts, df5)
     i15 = _align_index(signal_ts, df15)
     current_price = float(df1.iloc[i1]["close"])
-    funding_rate = _get_funding_rate_cached(info, coin)
-    setup = score_setup(
-        i15, df15, i5, df5, i1, df1,
-        hour_utc=signal_ts.hour, cfg=effective_cfg,
-        obi=obi_smooth, ob_analysis=ob_analysis, funding_rate=funding_rate,
-    )
-    setup["obi"] = obi_smooth
+    ob_analysis = _get_orderbook_analysis(info, coin, current_price, 20)
+    funding_rate = _get_funding_rate(info, coin)
+    obi = ob_analysis.get("obi", 0.0)
+    setup = score_setup(i15, df15, i5, df5, i1, df1, hour_utc=signal_ts.hour, cfg=effective_cfg, obi=obi, ob_analysis=ob_analysis, funding_rate=funding_rate)
+    setup["obi"] = obi
     return setup, current_price, signal_ts
 
 
@@ -795,16 +520,12 @@ async def _call(fn, *args, **kwargs):
         try:
             return await asyncio.to_thread(fn, *args, **kwargs)
         except Exception as exc:
-            _record_api_failure()
-            # Rate limit / gateway lỗi → backoff dài hơn
-            err_text = str(exc)
-            is_rate_limited = "429" in err_text or "502" in err_text or "504" in err_text
             if attempt == max_retries - 1:
                 if not is_write:
-                    logger.warning("API call %s failed after %d attempts: %s", fn_name, max_retries, str(exc)[:200])
+                    logger.warning("API call %s failed after %d attempts: %s", fn_name, max_retries, exc)
                 raise
-            delay = base_delay * (2 ** attempt) * (3 if is_rate_limited else 1)
-            logger.info("API call %s failed (retry in %.0fs): %s", fn_name, delay, str(exc)[:120])
+            delay = base_delay * (2 ** attempt)
+            logger.info("API call %s failed: %s. Retrying in %ds...", fn_name, exc, delay)
             await asyncio.sleep(delay)
 
 
@@ -875,115 +596,21 @@ async def _wait_entry_fill(
     target_size: float,
     start_ms: int,
     timeout_seconds: int,
-    is_buy: bool = True,
-    signal_price: float = 0.0,
-    reversal_cancel_pct: float = 0.0,
-    requote_price: float = 0.0,
-    managed_oids: set[int] | None = None,
 ) -> FillSummary:
     deadline = time.monotonic() + timeout_seconds
     last_summary = FillSummary()
-    cancel_reason = "entry timeout"
-    price_escaped = False
-
-    gone_no_pos = 0
-    gone_with_pos = 0
-
-    # ── v3.3: entry re-quote — carry giữ fills của các oid ĐÃ hủy khi dời lệnh
-    carry_size = 0.0
-    carry_notional = 0.0
-    order_px = requote_price
-    last_requote = time.monotonic()
 
     while time.monotonic() < deadline:
         fills = await _call(_fills_by_oid, info, address, start_ms, coin, oid)
         last_summary = _summarize_fills(fills, oid)
-        last_summary.size += carry_size
-        last_summary.notional += carry_notional
         if last_summary.size >= target_size * 0.999:
             return last_summary
-
-        # ── FIX CRITICAL (02/07): race condition với market/IOC entry ──
-        # Market order fill NGAY nhưng user_fills API trễ 1-2s → bản cũ thấy
-        # "order biến mất + chưa có fill" → kết luận not-filled → position
-        # thành orphan (BTC 08:05 live: orphan 2 phút, đóng khẩn cấp, mất $1.33 phí).
-        # Fix: xác nhận qua position trực tiếp trước khi kết luận.
-        if oid is not None and not await _call(_is_order_open, info, address, coin, oid) and (last_summary.size - carry_size) <= 0:
-            pos_size, pos_px = await _call(_position_for_coin, info, address, coin)
-            if abs(pos_size) > POSITION_EPSILON:
-                gone_with_pos += 1
-                gone_no_pos = 0
-                if gone_with_pos >= 3:
-                    # fills API vẫn chưa propagate sau ~3 vòng — adopt position
-                    logger.warning(
-                        "%s: order gone + fills lagging — adopting position size=%.8f as fill",
-                        coin, abs(pos_size),
-                    )
-                    last_summary.size = abs(pos_size)
-                    last_summary.notional = abs(pos_size) * (pos_px or signal_price or 0.0)
-                    return last_summary
-            else:
-                gone_no_pos += 1
-                gone_with_pos = 0
-                if gone_no_pos >= 2:
-                    return last_summary  # xác nhận 2 lần: thật sự không fill
-
-        # ── v3: Cancel-on-reversal — giá đã quay đầu (bounce/drop bắt đầu)
-        # mà limit chưa fill → cơ hội đã đi, hủy ngay thay vì chờ hết 60s.
-        # Chống adverse selection: đứng chờ tiếp chỉ fill khi giá xuyên qua entry.
-        if reversal_cancel_pct > 0 and signal_price > 0:
-            try:
-                mids = await _call(info.all_mids)
-                mid = _to_float(mids.get(coin)) if isinstance(mids, dict) else 0.0
-                if mid > 0:
-                    rev = reversal_cancel_pct / 100
-                    escaped = (is_buy and mid >= signal_price * (1 + rev)) or \
-                              (not is_buy and mid <= signal_price * (1 - rev))
-                    if escaped:
-                        cancel_reason = f"price reverted {reversal_cancel_pct}% without fill"
-                        price_escaped = True
-                        break
-            except Exception:
-                pass
-
-        # ── v3.3: RE-QUOTE bám bbo — giá dịch ra xa mà lệnh chưa khớp thì dời
-        # lệnh theo (vẫn Alo maker). Bản cũ treo chết 1 giá suốt 60s → xếp hàng
-        # sau queue, giá lơ lửng cũng không khớp (live 15:53 BTC score 63 miss).
-        if (order_px > 0 and oid is not None
-                and time.monotonic() - last_requote >= ENTRY_REQUOTE_SECONDS):
-            try:
-                best_bid, best_ask = await _call(_fresh_bbo, info, coin)
-                own = best_bid if is_buy else best_ask
-                moved_away = own > 0 and ((is_buy and own > order_px) or (not is_buy and own < order_px))
-                if moved_away:
-                    await _cancel_if_open(exchange, info, address, coin, oid)
-                    old_fills = await _call(_fills_by_oid, info, address, start_ms, coin, oid)
-                    old_sum = _summarize_fills(old_fills, oid)
-                    carry_size += old_sum.size
-                    carry_notional += old_sum.notional
-                    remaining = _round_size(exchange, coin, target_size - carry_size)
-                    if remaining <= POSITION_EPSILON:
-                        last_summary.size = carry_size
-                        last_summary.notional = carry_notional
-                        return last_summary
-                    new_oid, _ = await _place_limit(exchange, coin, is_buy, remaining, own, False, "Alo")
-                    if new_oid is not None:
-                        oid = new_oid
-                        order_px = own
-                        if managed_oids is not None:
-                            managed_oids.add(new_oid)
-                        logger.info(
-                            "%s: entry re-quote bám bbo %.5g (đã khớp %.8f/%.8f)",
-                            coin, own, carry_size, target_size,
-                        )
-                last_requote = time.monotonic()
-            except Exception:
-                pass
-
+        if oid is not None and not await _call(_is_order_open, info, address, coin, oid) and last_summary.size <= 0:
+            return last_summary
         await asyncio.sleep(ORDER_POLL_SECONDS)
 
     # ── FIX #4: Cancel và xác nhận không còn position orphan ──
-    logger.info("%s: %s — cancelling order oid=%s", coin, cancel_reason, oid)
+    logger.info("%s: entry timeout — cancelling order oid=%s", coin, oid)
     await _cancel_if_open(exchange, info, address, coin, oid)
 
     # Poll lại _position_for_coin vài lần thay vì 1 lần để vượt qua độ trễ API
@@ -997,8 +624,6 @@ async def _wait_entry_fill(
 
     fills = await _call(_fills_by_oid, info, address, start_ms, coin, oid)
     final_summary = _summarize_fills(fills, oid)
-    final_summary.size += carry_size
-    final_summary.notional += carry_notional
 
     if final_summary.size > POSITION_EPSILON:
         logger.warning(
@@ -1014,7 +639,6 @@ async def _wait_entry_fill(
             final_summary.size = abs(pos_size)
             final_summary.notional = abs(pos_size) * (pos_entry if pos_entry else 0.0)
 
-    final_summary.escaped = price_escaped and final_summary.size <= POSITION_EPSILON
     return final_summary
 
 
@@ -1026,7 +650,7 @@ async def _market_close_remaining(
         close_size = abs(pos_size)
         if close_size <= POSITION_EPSILON:
             return None
-        logger.info("%s: market close remaining size=%.8f", coin, close_size)
+        logger.info("%s: time-stop market close size=%.8f", coin, close_size)
         response = await _call(exchange.market_close, coin, close_size, None, MARKET_CLOSE_SLIPPAGE)
         oid = _extract_oid(response)
         if oid is not None:
@@ -1040,109 +664,6 @@ async def _market_close_remaining(
         return None
 
 
-def _fresh_bbo(info: Info, coin: str) -> tuple[float, float]:
-    """Lấy best bid/ask TƯƠI từ L2 snapshot (không dùng cache scan cycle)."""
-    l2 = info.l2_snapshot(coin)
-    levels = (l2 or {}).get("levels") or []
-    if len(levels) < 2 or not levels[0] or not levels[1]:
-        return 0.0, 0.0
-    return float(levels[0][0].get("px", 0)), float(levels[1][0].get("px", 0))
-
-
-async def _close_position_maker_first(
-    exchange: Exchange, info: Info, address: str, coin: str,
-    managed_oids: set[int], timeout_seconds: int | None = None,
-) -> None:
-    """
-    v3.2 FEE: đóng position bằng Alo limit ĐUỔI THEO bbo (phí maker 0.015%),
-    chỉ fallback market (taker 0.045%) khi hết timeout hoặc giá chạy ngược.
-
-    Bản v3.1 đặt 1 lệnh Alo tĩnh tại bbo lấy từ cache scan (stale hàng chục
-    giây) rồi chờ 20s: giá nhích 1 tick là không bao giờ khớp → live 02/07
-    hầu hết time_stop vẫn rơi xuống market, taker close = $40/$79 tổng phí.
-    Bản này:
-      - bbo tươi từ L2 mỗi vòng poll, re-quote bám theo khi bbo dịch chuyển
-      - chờ tối đa maker_close_timeout_s (45s mặc định)
-      - abort → market ngay nếu giá chạy ngược quá maker_close_abort_pct
-        (vị thế đang KHÔNG có SL bảo vệ trong giai đoạn này)
-    KHÔNG dùng cho hard SL / emergency (ưu tiên tốc độ).
-    """
-    if timeout_seconds is None:
-        timeout_seconds = int(CONFIG.get("maker_close_timeout_s", 45))
-    requote_s = max(int(CONFIG.get("maker_close_requote_s", 6)), ORDER_POLL_SECONDS)
-    abort_pct = CONFIG.get("maker_close_abort_pct", 0.10) / 100
-
-    oid: int | None = None
-    try:
-        pos_size, _ = await _call(_position_for_coin, info, address, coin)
-        close_size = abs(pos_size)
-        if close_size <= POSITION_EPSILON:
-            return
-        is_buy_exit = pos_size < 0  # short → mua lại để đóng
-
-        best_bid, best_ask = await _call(_fresh_bbo, info, coin)
-        # Đứng ĐÚNG bbo phía mình: sell exit đặt tại ask, buy exit đặt tại bid
-        px = best_bid if is_buy_exit else best_ask
-        if not px or px <= 0:
-            raise RuntimeError("no fresh bbo")
-        ref_px = px  # mốc theo dõi adverse move
-
-        size_r = _round_size(exchange, coin, close_size)
-        oid, _ = await _place_limit(exchange, coin, is_buy_exit, size_r, px, True, "Alo")
-        if oid is None:
-            raise RuntimeError("Alo close rejected")
-        managed_oids.add(oid)
-        logger.info(
-            "%s: maker-first close %.8f @ %.5g (chase bbo, tối đa %ds)",
-            coin, size_r, px, timeout_seconds,
-        )
-
-        deadline = time.monotonic() + timeout_seconds
-        last_quote = time.monotonic()
-        while time.monotonic() < deadline:
-            await asyncio.sleep(ORDER_POLL_SECONDS)
-            pos_size, _ = await _call(_position_for_coin, info, address, coin)
-            if abs(pos_size) <= POSITION_EPSILON:
-                logger.info("%s: maker close filled — tiết kiệm phí taker", coin)
-                return
-
-            best_bid, best_ask = await _call(_fresh_bbo, info, coin)
-            new_px = best_bid if is_buy_exit else best_ask
-            if not new_px or new_px <= 0:
-                continue
-
-            # Giá chạy ngược quá abort_pct so với quote đầu → không cố maker nữa
-            adverse = (new_px - ref_px) / ref_px if is_buy_exit else (ref_px - new_px) / ref_px
-            if adverse >= abort_pct:
-                logger.info(
-                    "%s: giá chạy ngược %.3f%% khi chờ maker close — market ngay",
-                    coin, adverse * 100,
-                )
-                break
-
-            # Chase: bbo dịch chuyển & đủ requote interval → dời lệnh bám theo
-            if new_px != px and time.monotonic() - last_quote >= requote_s:
-                await _cancel_if_open(exchange, info, address, coin, oid)
-                # cancel xong có thể vừa khớp — check lại trước khi quote mới
-                pos_size, _ = await _call(_position_for_coin, info, address, coin)
-                remaining = abs(pos_size)
-                if remaining <= POSITION_EPSILON:
-                    logger.info("%s: maker close filled — tiết kiệm phí taker", coin)
-                    return
-                size_r = _round_size(exchange, coin, remaining)
-                px = new_px
-                oid, _ = await _place_limit(exchange, coin, is_buy_exit, size_r, px, True, "Alo")
-                if oid is None:
-                    raise RuntimeError("Alo re-quote rejected")
-                managed_oids.add(oid)
-                last_quote = time.monotonic()
-    except Exception as exc:
-        logger.warning("%s: maker-first close failed (%s) — fallback market", coin, exc)
-
-    await _cancel_if_open(exchange, info, address, coin, oid)
-    await _market_close_remaining(exchange, info, address, coin, managed_oids)
-
-
 async def _final_net_pnl(info: Info, address: str, coin: str, start_ms: int, managed_oids: set[int]) -> float:
     await asyncio.sleep(2)
     fills = await _call(info.user_fills_by_time, address, max(0, start_ms - 5_000))
@@ -1153,32 +674,23 @@ async def _final_net_pnl(info: Info, address: str, coin: str, start_ms: int, man
     # (bao gồm partial fills bị fragmented của cùng 1 entry order)
     coin_fills = [f for f in fills if f.get("coin") == coin]
 
-    # ── FIX CRITICAL (02/07): closedPnl từ API là GROSS (chưa trừ phí)!
-    # Bằng chứng live: bot ghi +$0.0012 cho lệnh BNB 08:24 trong khi
-    # trade_history thật = -$1.797 (chênh đúng bằng fee $1.798).
-    # → mọi thống kê win/loss, day_pnl, daily_loss_limit đều sai nếu không trừ fee.
-    def _net(fill_list):
-        return sum(
-            _to_float(f.get("closedPnl")) - _to_float(f.get("fee"))
-            for f in fill_list
-        )
-
     # Ưu tiên: fills trong managed_oids (chính xác nhất)
     related = [f for f in coin_fills if int(f.get("oid", -1)) in managed_oids]
     if related:
-        return _net(related)
+        return sum(_to_float(f.get("closedPnl")) for f in related)
 
     # Fallback: tất cả fills của coin trong time window (nếu oid tracking bị mất)
     logger.warning("%s: no managed_oid fills found, using all coin fills in window", coin)
-    return _net(coin_fills)
+    return sum(_to_float(f.get("closedPnl")) for f in coin_fills)
 
 
 async def _wait_for_position_flat(info: Info, address: str, coin: str, timeout_seconds: int = 30) -> bool:
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
-        pos_size, pos_entry_px = await _call(_position_for_coin, info, address, coin)
-        # Bỏ qua dust position (< $12) bằng notional
-        if abs(pos_size) * (pos_entry_px or 0.0) <= 12: 
+        pos_size, _ = await _call(_position_for_coin, info, address, coin)
+        # Bỏ qua dust position (< $10)
+        # Giả định giá BTC ~ 60k -> $10 ~ 0.00016. Tạm dùng ngưỡng 0.0002 (khoảng $12) làm dust cho BTC.
+        if abs(pos_size) <= 0.0002: 
             return True
         await asyncio.sleep(ORDER_POLL_SECONDS)
     return False
@@ -1188,40 +700,6 @@ def _clear_active_entry(coin: str) -> None:
     """Xóa active entry guard cho coin khi trade hoàn thành hoặc bị abort."""
     _active_entry.pop(coin, None)
     logger.debug("%s: active entry guard cleared", coin)
-
-
-async def _resolve_exit_reason(
-    info: Info, address: str, coin: str, start_ms: int,
-    tp1_oid: int | None, tp2_oid: int | None, sl_oid: int | None, stage: str,
-) -> str:
-    """
-    Xác định lý do thoát THẬT khi position flat, dựa trên fills của từng oid.
-    Fix nhãn cũ 'SL_or_external_flat' gán cho cả lệnh TP2 thắng → làm bẩn
-    dữ liệu phân tích.
-    """
-    async def _oid_filled(oid: int | None) -> bool:
-        if oid is None:
-            return False
-        try:
-            fills = await _call(_fills_by_oid, info, address, start_ms, coin, oid)
-            return _summarize_fills(fills, oid).size > POSITION_EPSILON
-        except Exception:
-            return False
-
-    try:
-        if stage == "tp2":
-            if await _oid_filled(tp2_oid):
-                return "TP2"
-            if await _oid_filled(sl_oid):
-                return "SL_after_TP1"
-        else:
-            if await _oid_filled(sl_oid):
-                return "SL"
-            if await _oid_filled(tp1_oid):
-                return "TP1_flat"
-        return "external_flat"
-    except Exception:
-        return "external_flat"
 
 
 async def _execute_setup(
@@ -1272,36 +750,7 @@ async def _execute_setup(
         _clear_active_entry(coin)
         return None
 
-    # ── v3: Setup A/A+ (score cao) → vào TAKER để không lỡ lệnh đẹp nhất.
-    # Log cũ cho thấy lệnh không fill toàn là lệnh giá đảo chiều ngay (winner).
-    # B/C setup vẫn maker để tối ưu phí.
-    entry_order_type = cfg.get("entry_order_type", "limit")
-    if score >= cfg.get("taker_entry_min_score", 85) and cfg.get("allow_taker_entry", True):
-        # v3.1 FEE FIX: taker chỉ khi TP1 đủ trả taker round-trip.
-        # Live 02/07: 2 lệnh BNB taker vào + time_stop taker ra = 0.09% phí
-        # trong khi TP1 chỉ 0.06% → thua chắc từ lúc đặt lệnh.
-        edge = estimate_fee_edge(signal_price, atr_5m, cfg)
-        if edge["viable_taker"]:
-            entry_order_type = "market"
-            logger.info(
-                "%s: score %d >= taker threshold, TP1 est %.3f%% > %.3f%% fees — market entry",
-                coin, score, edge["tp1_pct_est"], edge["required_taker_pct"],
-            )
-        else:
-            logger.info(
-                "%s: score %d đạt taker nhưng TP1 est %.3f%% < %.3f%% (taker fees+edge) — giữ maker",
-                coin, score, edge["tp1_pct_est"], edge["required_taker_pct"],
-            )
-
-    # ── v3.3: taker-chase — giá bật THUẬN hướng mà maker chưa khớp là xác nhận
-    # mạnh nhất (live 15:09 ETH score 93: bounce +0.08%/47s đúng như dự đoán
-    # nhưng reversal_cancel hủy lệnh → trắng tay). Được đuổi bằng market CHỈ KHI
-    # lệnh đủ trả phí taker (viable_taker); không đủ → hủy như cũ.
-    # v3.4: allow_taker_entry=False → tắt luôn chase (maker tuyệt đối theo yêu cầu).
-    chase_edge = estimate_fee_edge(signal_price, atr_5m, cfg)
-    allow_taker_chase = bool(chase_edge["viable_taker"]) and cfg.get("allow_taker_entry", True)
-
-    if entry_order_type == "market":
+    if cfg.get("entry_order_type") == "market":
         slippage = max(cfg.get("slippage_pct", 0.0) / 100, 0.002)
         response = await _call(
             exchange.market_open, coin, is_entry_buy, size, signal_price,
@@ -1309,56 +758,17 @@ async def _execute_setup(
         )
         entry_oid = _extract_oid(response)
         timeout_seconds = 30
-        reversal_cancel_pct = 0.0
     else:
         tif = "Alo" if cfg.get("use_maker_for_entry", True) else "Gtc"
-        # ── v3.3 FILL FIX: JOIN BBO thay vì treo sâu dưới giá ──
-        # Setup chỉ pass sau khi có xác nhận đảo chiều → giá thường KHÔNG quay
-        # lại offset 0.035% nữa (live 13:58: setup score 95 duy nhất trong 2h
-        # cũng "entry not filled"). Đứng ngay đầu sổ phía mình: khớp ở tick
-        # ngược đầu tiên, vẫn maker 100% (Alo), reversal_cancel vẫn bảo vệ.
-        try:
-            best_bid, best_ask = await _call(_fresh_bbo, info, coin)
-            if is_entry_buy and best_bid > 0:
-                entry_price = max(entry_price, best_bid)
-                # Giá đã rơi XUYÊN QUA offset (offset >= ask) → Alo sẽ bị reject
-                # "would have immediately matched" (live 14:42 ETH). Snap về bid.
-                if best_ask > 0 and entry_price >= best_ask:
-                    entry_price = best_bid
-            elif not is_entry_buy and best_ask > 0:
-                entry_price = min(entry_price, best_ask)
-                if best_bid > 0 and entry_price <= best_bid:
-                    entry_price = best_ask
-        except Exception:
-            pass  # giữ entry_price theo offset nếu không lấy được bbo
         entry_oid, response = await _place_limit(
             exchange, coin, is_entry_buy, size, entry_price, False, tif
         )
         if entry_oid is None and tif == "Alo":
-            # v3.2 FEE: bản cũ fallback Gtc cùng giá → limit đã cross spread
-            # thì Gtc khớp NGAY như taker 0.045% (đường taker ẩn ở entry).
-            # Giờ re-quote Alo tại bbo phía mình — vẫn passive, vẫn maker;
-            # nếu tiếp tục bị reject thì bỏ setup (lỡ 1 lệnh rẻ hơn trả taker).
-            try:
-                best_bid, best_ask = await _call(_fresh_bbo, info, coin)
-                bbo_px = best_bid if is_entry_buy else best_ask
-            except Exception:
-                bbo_px = 0.0
-            if bbo_px and bbo_px > 0:
-                # Đặt SÂU 0.01% dưới bid (long) / trên ask (short): sống sót
-                # race book tụt 1 tick giữa lúc fetch bbo và lệnh tới sàn
-                # (live 17:05 ETH: 2 lần Alo reject liên tiếp trong 1 giây vì
-                # giá rơi nhanh). Vòng re-quote 10s sẽ tự dời lệnh bám lên sau.
-                entry_price = bbo_px * (1 - 0.0001 if is_entry_buy else 1 + 0.0001)
-                logger.warning(
-                    "%s: Entry Alo rejected (crossed spread) — re-quote Alo %.5g (bbo %.5g - đệm 0.01%%) thay vì Gtc taker",
-                    coin, entry_price, bbo_px,
-                )
-                entry_oid, response = await _place_limit(
-                    exchange, coin, is_entry_buy, size, entry_price, False, "Alo"
-                )
+            logger.warning("%s: Entry Alo rejected (likely crosses spread), falling back to Gtc limit", coin)
+            entry_oid, response = await _place_limit(
+                exchange, coin, is_entry_buy, size, entry_price, False, "Gtc"
+            )
         timeout_seconds = max(1, int(cfg.get("limit_timeout_bars", 1))) * 60
-        reversal_cancel_pct = cfg.get("reversal_cancel_pct", 0.0)
 
     if entry_oid is None:
         logger.warning("%s: entry order not accepted: %s", coin, response)
@@ -1368,53 +778,23 @@ async def _execute_setup(
 
     entry_fill = await _wait_entry_fill(
         info, exchange, address, coin, entry_oid, size, start_ms, timeout_seconds,
-        is_buy=is_entry_buy, signal_price=signal_price,
-        reversal_cancel_pct=reversal_cancel_pct,
-        requote_price=entry_price if entry_order_type != "market" else 0.0,
-        managed_oids=managed_oids,
     )
 
     if entry_fill.size <= POSITION_EPSILON or entry_fill.avg_price is None:
-        if entry_fill.escaped and allow_taker_chase and entry_order_type != "market":
-            logger.info(
-                "%s: giá bật thuận hướng, maker chưa khớp — TAKER CHASE (TP1 est %.3f%% >= %.3f%%)",
-                coin, chase_edge["tp1_pct_est"], chase_edge["required_taker_pct"],
-            )
-            slippage = max(cfg.get("slippage_pct", 0.0) / 100, 0.002)
-            response = await _call(
-                exchange.market_open, coin, is_entry_buy, size, signal_price, slippage,
-            )
-            chase_oid = _extract_oid(response)
-            if chase_oid is not None:
-                managed_oids.add(chase_oid)
-                entry_fill = await _wait_entry_fill(
-                    info, exchange, address, coin, chase_oid, size, start_ms, 30,
-                    is_buy=is_entry_buy, signal_price=signal_price,
-                    reversal_cancel_pct=0.0,
-                )
-        if entry_fill.size <= POSITION_EPSILON or entry_fill.avg_price is None:
-            logger.info("%s: entry not filled; setup skipped", coin)
-            _clear_active_entry(coin)
-            return None
+        logger.info("%s: entry not filled within timeout; setup skipped", coin)
+        _clear_active_entry(coin)
+        return None
 
     if entry_fill.size < size * 0.999:
         if entry_fill.size < size * 0.25:
             logger.warning(
-                "%s: partial entry fill %.8f / %.8f is too small (< 25%%); closing as garbage.",
+                "%s: partial entry fill %.8f / %.8f is too small (< 25%%); closing as garbage to free bot.",
                 coin, entry_fill.size, size,
             )
             await _market_close_remaining(exchange, info, address, coin, managed_oids)
-            await _wait_for_position_flat(info, address, coin)
-            # v3 FIX: PnL của garbage close (phí + slippage) trước đây KHÔNG được
-            # ghi vào RiskState → day_pnl lệch. Giờ trả về TradeResult đầy đủ.
-            net_pnl = await _final_net_pnl(info, address, coin, start_ms, managed_oids)
             _clear_active_entry(coin)
-            return TradeResult(
-                coin, direction, "partial_garbage", net_pnl,
-                entry_fill.size, entry_fill.avg_price or signal_price,
-                signal_ts.to_pydatetime(), datetime.now(timezone.utc),
-            )
-
+            return None
+            
         logger.warning(
             "%s: partial entry fill %.8f / %.8f; managing remainder",
             coin, entry_fill.size, size,
@@ -1434,7 +814,6 @@ async def _execute_setup(
             tp1_pct_max=cfg.get("tp1_pct_max", 0.30),
             tp2_pct_max=cfg.get("tp2_pct_max", 0.60),
             sl_pct_max=cfg.get("sl_pct_max", 0.40),
-            sl_pct_min=cfg.get("sl_pct_min", 0.0),
         )
         tp1_price = levels["tp1_price"]
         tp2_price = levels["tp2_price"]
@@ -1457,20 +836,9 @@ async def _execute_setup(
         tp1_size = filled_size
     deadline = datetime.now(timezone.utc) + timedelta(minutes=cfg["time_stop_minutes"])
 
-    # ── v3: Hard dollar SL = BACKSTOP theo planned risk, không phải stop chính.
-    # Planned risk = notional × khoảng cách SL. Backstop = planned × 1.5.
-    # (Bản cũ: $3 cứng trên $2000 notional = 0.15% < %SL → SL trigger thành trang trí.)
-    sl_dist_pct = abs(avg_entry - sl_price) / avg_entry if avg_entry > 0 else 0.0
-    planned_risk_usd = filled_size * avg_entry * sl_dist_pct
-    hard_sl_usd = max(
-        planned_risk_usd * cfg.get("hard_sl_backstop_mult", 1.5),
-        HARD_DOLLAR_SL_USD,
-    )
-
     logger.info(
-        "%s: filled %.8f @ %.4f | TP1=%.4f TP2=%.4f SL=%.4f | risk=%.2f backstop=%.2f | deadline=%s",
+        "%s: filled %.8f @ %.4f | TP1=%.4f TP2=%.4f SL=%.4f | deadline=%s",
         coin, filled_size, avg_entry, tp1_price, tp2_price, sl_price,
-        planned_risk_usd, hard_sl_usd,
         deadline.strftime("%H:%M"),
     )
 
@@ -1489,11 +857,6 @@ async def _execute_setup(
     exit_reason = "unknown"
     tp2_oid: int | None = None
     _last_hard_sl_check = time.monotonic()
-    # Khoảng cách TP1 tính từ GIÁ (hoạt động cả nhánh dynamic lẫn fixed —
-    # bug cũ: dùng biến tp1_pct chỉ tồn tại ở nhánh fixed → NameError mỗi
-    # lần check khi use_dynamic_tp_sl=True, breakeven không bao giờ chạy)
-    tp1_dist_pct = abs(tp1_price - avg_entry) / avg_entry if avg_entry > 0 else 0.0
-    breakeven_triggered = False
 
     while True:
         try:
@@ -1505,22 +868,19 @@ async def _execute_setup(
                 exit_reason = "time_stop"
                 for oid in (tp1_oid, tp2_oid, sl_oid):
                     await _cancel_if_open(exchange, info, address, coin, oid)
-                # v3.1: time_stop là exit trung tính — thử maker trước để tiết kiệm phí
-                await _close_position_maker_first(exchange, info, address, coin, managed_oids)
+                await _market_close_remaining(exchange, info, address, coin, managed_oids)
                 await _wait_for_position_flat(info, address, coin)
                 break
 
-            if abs_pos * (pos_entry_px or 0.0) <= 12:  # Bỏ qua dust (< $12)
+            if abs_pos <= 0.0002:  # Bỏ qua dust (< $12)
                 if abs_pos > POSITION_EPSILON:
                     logger.warning("%s: dust position detected (size=%.8f) — ignoring to prevent $10 limit error", coin, abs_pos)
-                # v3: xác định lý do thoát THẬT từ fills (TP2/SL/TP1_flat/external)
-                exit_reason = await _resolve_exit_reason(
-                    info, address, coin, start_ms, tp1_oid, tp2_oid, sl_oid, stage,
-                )
+                exit_reason = "SL_or_external_flat" if stage != "tp2_done" else "TP2"
                 break
 
-            # ── MFE Breakeven & HARD DOLLAR SL: kiểm tra mỗi HARD_DOLLAR_SL_CHECK_INTERVAL giây ──
+            # ── HARD DOLLAR SL: kiểm tra mỗi HARD_DOLLAR_SL_CHECK_INTERVAL giây ──
             # Thoát ngay nếu unrealized loss vượt HARD_DOLLAR_SL_USD
+            # Bảo vệ khỏi tình huống giá trượt dài không chạm % SL
             elapsed_since_check = time.monotonic() - _last_hard_sl_check
             if elapsed_since_check >= HARD_DOLLAR_SL_CHECK_INTERVAL and abs_pos > POSITION_EPSILON:
                 _last_hard_sl_check = time.monotonic()
@@ -1531,38 +891,19 @@ async def _execute_setup(
                         pos = item.get("position", {})
                         if pos.get("coin") == coin:
                             unrealized_pnl = _to_float(pos.get("unrealizedPnl"))
-                            mark_px = _to_float(pos.get("markPx"))
-                            
-                            # Hard dollar SL check
-                            if unrealized_pnl < -hard_sl_usd:
+                            if unrealized_pnl < -HARD_DOLLAR_SL_USD:
                                 logger.warning(
-                                    "%s: HARD SL BACKSTOP triggered! unrealized_pnl=%.4f < -%.2f — emergency close",
-                                    coin, unrealized_pnl, hard_sl_usd,
+                                    "%s: HARD DOLLAR SL triggered! unrealized_pnl=%.4f < -%.2f — emergency close",
+                                    coin, unrealized_pnl, HARD_DOLLAR_SL_USD,
                                 )
                                 exit_reason = "hard_dollar_sl"
                                 for oid in (tp1_oid, tp2_oid, sl_oid):
                                     await _cancel_if_open(exchange, info, address, coin, oid)
                                 await _market_close_remaining(exchange, info, address, coin, managed_oids)
                                 await _wait_for_position_flat(info, address, coin)
-                                break
-                                
-                            # Breakeven stop check
-                            if not breakeven_triggered and cfg.get("move_sl_to_breakeven_after_mfe_pct", True) and mark_px > 0:
-                                if direction == "long":
-                                    favorable = (mark_px - avg_entry) / avg_entry
-                                else:
-                                    favorable = (avg_entry - mark_px) / avg_entry
-
-                                if tp1_dist_pct > 0 and favorable >= tp1_dist_pct * 0.5:
-                                    logger.info("%s: MFE reached (%.2f%%). Moving SL to breakeven", coin, favorable*100)
-                                    breakeven_triggered = True
-                                    await _cancel_if_open(exchange, info, address, coin, sl_oid)
-                                    sl_price = avg_entry
-                                    sl_oid, _ = await _place_trigger_sl(exchange, coin, exit_is_buy, abs_pos, sl_price)
-                                    if sl_oid: managed_oids.add(sl_oid)
                             break
                 except Exception as exc:
-                    logger.warning("%s: hard dollar SL / Breakeven check failed: %s", coin, exc)
+                    logger.warning("%s: hard dollar SL check failed: %s", coin, exc)
 
             if exit_reason in ("hard_dollar_sl",):
                 break
@@ -1651,8 +992,6 @@ async def _execute_and_record(
     atr_5m: float,
     risk: RiskState,
     effective_cfg: dict | None = None,
-    regime: str = "",
-    obi: float = 0.0,
 ) -> None:
     try:
         result = await _execute_setup(
@@ -1662,7 +1001,6 @@ async def _execute_and_record(
         )
         if result is not None:
             risk.record_trade(result)
-            _log_trade_csv(result, score, regime, obi)
             logger.info(
                 "%s: recorded — win=%s pnl=%.4f | day_pnl=%.4f | trades_today=%d",
                 coin, result.win, result.net_pnl,
@@ -1695,13 +1033,9 @@ async def _scan_coin(
             logger.debug("%s: coin disabled — skipping", coin)
             return
 
-        # ── v3: Sample Market Data (OBI, CVD) MỖI cycle (kể cả cooldown/đang có lệnh)
-        try:
-            await _call(_sample_market_data, info, coin)
-        except Exception:
-            pass
-
         # ── FIX #1: Active entry guard — kiểm tra TRƯỚC khi gọi API ──
+        # Nếu đã gửi entry order trong ACTIVE_ENTRY_TIMEOUT_SEC giây qua,
+        # KHÔNG được mở lệnh mới bất kể API trả về gì.
         active_ts = _active_entry.get(coin)
         if active_ts is not None:
             elapsed = time.time() - active_ts
@@ -1712,6 +1046,7 @@ async def _scan_coin(
                 )
                 return
             else:
+                # Timeout — clear guard và tiến hành kiểm tra bình thường
                 logger.warning(
                     "%s: active entry guard expired after %.0fs — clearing",
                     coin, elapsed,
@@ -1721,69 +1056,29 @@ async def _scan_coin(
         now_utc = datetime.now(timezone.utc)
         can_trade, reason = risk.can_trade(coin, now_utc)
         if not can_trade:
-            # v3: throttle — log 1 lần/phút thay vì mỗi 3s (log cũ ngập cooldown spam)
-            _log_throttled(f"riskblock:{coin}", 60, "%s: risk block: %s", coin, reason)
+            logger.info("%s: risk block: %s", coin, reason)
             return
-        # ── v3: New-candle gate — mọi call nặng (user_state, open_orders, 5m/15m
-        # candles, funding) chỉ chạy khi có nến 1m MỚI đóng (~1 lần/phút).
-        df1 = await _call(_cached_candles, info, coin, "1m", LOOKBACK_1M)
-        if df1 is None or df1.empty:
-            return
-        signal_ts = df1.iloc[len(df1) - 1]["timestamp"]
-        if last_signal_ts.get(coin) == signal_ts:
-            return
-
-        # ── v3: Circuit breaker — API đang lỗi hàng loạt → không mở lệnh mới.
-        # (Monitoring loop của vị thế đang mở vẫn chạy độc lập.)
-        if _api_circuit_open():
-            _log_throttled(
-                f"circuit:{coin}", 30,
-                "%s: API circuit OPEN (%d failures/60s) — pausing new entries",
-                coin, len(_api_failures),
-            )
-            return
-
-        # Claim nến này ngay — nếu bước sau lỗi transient thì bỏ qua tín hiệu
-        # của phút này thay vì retry dồn dập mỗi 3s.
-        last_signal_ts[coin] = signal_ts
 
         # ── FIX #3: Kiểm tra tổng margin usage ──
         ms = await _get_cached_margin_summary(info, address)
         if ms is None:
-            logger.warning("%s: margin_summary failed to fetch — skipping for safety", coin)
+            logger.warning("%s: margin_summary is 0 or failed to fetch (check network/balance) — skipping for safety", coin)
             return
 
         if ms["account_value"] > 0:
             margin_usage_pct = ms["total_margin_used"] / ms["account_value"]
             if margin_usage_pct > MAX_MARGIN_USAGE_PCT:
-                _log_throttled(
-                    f"margin:{coin}", 60,
+                logger.info(
                     "%s: margin usage %.1f%% > limit %.1f%% — skipping",
                     coin, margin_usage_pct * 100, MAX_MARGIN_USAGE_PCT * 100,
                 )
                 return
 
-        user_state = await _call(info.user_state, address)
-        active_coins = []
-        pos_size = 0.0
-        pos_entry = None
-        for item in user_state.get("assetPositions", []):
-            position = item.get("position", {})
-            c = position.get("coin")
-            s = _to_float(position.get("szi"))
-            e = _to_float(position.get("entryPx"))
-            if abs(s) * (e or 0) > 12:
-                active_coins.append(c)
-            if c == coin:
-                pos_size = s
-                pos_entry = e
-                
+        pos_size, pos_entry = await _call(_position_for_coin, info, address, coin)
         open_orders = await _call(_open_orders_for_coin, info, address, coin)
 
-        notional_pos = abs(pos_size) * (pos_entry or 0)
-
         # Dọn dẹp stale orders
-        if notional_pos <= 12 and len(open_orders) > 0:
+        if abs(pos_size) <= 0.0002 and len(open_orders) > 0:
             logger.info("%s: %d stale orders without valid position → cancelling", coin, len(open_orders))
             for order in open_orders:
                 oid = order.get("oid")
@@ -1791,10 +1086,10 @@ async def _scan_coin(
                     await _call(exchange.cancel, coin, int(oid))
             open_orders = await _call(_open_orders_for_coin, info, address, coin)
 
-        # Bỏ qua dust position (< $12 notional) khi check existing exposure
-        if notional_pos > 12 or open_orders:
+        # Bỏ qua dust position (< 0.0002 BTC) khi check existing exposure
+        if abs(pos_size) > 0.0002 or open_orders:
             # Lưới an toàn cho orphan position
-            if notional_pos > 12 and not open_orders:
+            if abs(pos_size) > 0.0002 and not open_orders:
                 if coin not in _orphan_timers:
                     _orphan_timers[coin] = time.time()
                 elif time.time() - _orphan_timers[coin] > 60:
@@ -1816,99 +1111,60 @@ async def _scan_coin(
         else:
             _orphan_timers.pop(coin, None)
 
-        # ── v3: OBI đã làm mượt (rolling mean 90s) thay vì snapshot đơn lẻ ──
-        obi_smooth, obi_05_smooth, bid_wall_solid, ask_wall_solid, obi_n = _smoothed_obi(coin)
-        ob_analysis = _latest_ob_analysis.get(coin, {})
-        ob_analysis["bid_wall"] = bid_wall_solid
-        ob_analysis["ask_wall"] = ask_wall_solid
-        ob_analysis["obi_05"] = obi_05_smooth
-
         effective_cfg = get_effective_config(coin)
-        latest = await _call(_latest_setup, info, coin, effective_cfg, obi_smooth, ob_analysis)
+        latest = await _call(_latest_setup, info, coin, effective_cfg)
         if latest is None:
             return
-        setup, current_price, signal_ts_setup = latest
+        setup, current_price, signal_ts = latest
         obi = setup.get("obi", 0.0)
+
+        if last_signal_ts.get(coin) == signal_ts:
+            return
+        last_signal_ts[coin] = signal_ts
 
         if setup["hard_block"] or setup["direction"] is None:
             reason_text = setup["block_reasons"][0] if setup["block_reasons"] else "no direction"
-            if setup["hard_block"]:
-                logger.info("%s %s: block: %s (price %.4f)", coin, signal_ts, reason_text, current_price)
-                _log_setup_csv(coin, signal_ts, current_price, setup, "hard_block")
-                # v3.6: block do flow (CVD/thác/pump) → đặt cooldown cùng hướng
-                fb_dir = setup.get("flow_block_dir")
-                if fb_dir:
-                    _flow_block_until[(coin, fb_dir)] = time.time() + FLOW_BLOCK_COOLDOWN_SEC
+            logger.info("%s %s: block: %s (price %.4f)", coin, signal_ts, reason_text, current_price)
             return
 
         score = setup["score"]
         direction = setup["direction"]
-
-        # ── v3.6 FLOW COOLDOWN: vừa bị block flow cùng hướng trong 5 phút
-        # gần nhất → lực chưa chắc đã cạn, CVD nhấp nháy 1 mẫu không đủ tin ──
-        flow_until = _flow_block_until.get((coin, direction), 0.0)
-        if flow_until > time.time():
-            _log_throttled(
-                f"flowcd:{coin}:{direction}", 60,
-                "%s: flow cooldown — %s bị block flow %ds trước, chờ lực cạn (còn %ds)",
-                coin, direction, FLOW_BLOCK_COOLDOWN_SEC, int(flow_until - time.time()),
-            )
-            _log_setup_csv(coin, signal_ts, current_price, setup, "flow_cooldown")
-            return
+        
+        # Cập nhật lại confidence
+        setup["score"] = score
+        if score >= 100:
+            setup["confidence"] = "A+"
+        elif score >= 80:
+            setup["confidence"] = "A"
+        elif score >= 60:
+            setup["confidence"] = "B"
+        else:
+            setup["confidence"] = "C"
 
         logger.info(
-            "%s %s: setup %s [%s/%s] score=%s conf=%s price=%.4f obi=%.2f(n=%d) bb_w=%.2f%%",
-            coin, signal_ts, direction.upper(),
-            setup.get("regime", "?"), setup.get("entry_mode", "?"),
-            score, setup.get("confidence", "?"),
-            current_price, obi, obi_n,
-            setup.get("bb_width_pct", 0),
+            "%s %s: setup %s score=%s conf=%s price=%.4f obi=%.2f bb_w=%.2f%% squeeze=%s",
+            coin, signal_ts, direction.upper(), score, setup.get("confidence", "?"),
+            current_price, obi,
+            setup.get("bb_width_pct", 0), setup.get("bb_squeeze", False),
         )
+        # Log score breakdown cho debug
         score_details = setup.get("score_details", {})
         if score_details:
             parts = [f"{k}={v:+d}" for k, v in score_details.items() if v != 0]
             if parts:
                 logger.info("%s: score breakdown: %s", coin, " | ".join(parts))
 
-        # ── v3: Asia session (01-06 UTC) nâng ngưỡng thay vì penalty -5 ──
-        bump = effective_cfg.get("asia_score_bump", 0) if 1 <= signal_ts.hour <= 6 else 0
-        min_half = effective_cfg["min_score_half"] + bump
-        min_full = effective_cfg.get("min_score_full", CONFIG["min_score_full"]) + bump
-
-        if score < min_half:
-            _log_setup_csv(coin, signal_ts, current_price, setup, "below_threshold")
+        if score < effective_cfg["min_score_half"]:
             return
 
-        # ── v3.1 FEE GATE: TP1 ước tính phải đủ trả phí round-trip + edge tối thiểu.
-        # Coin volatility thấp (BNB ATR ~0.06%) → TP1 < phí → mọi lệnh âm EV
-        # từ lúc đặt. Fee ăn 4.3x gross profit trong live 02/07.
-        fee_edge = estimate_fee_edge(current_price, setup.get("atr_5m", 0.0), effective_cfg)
-        if not fee_edge["viable_maker"]:
-            _log_throttled(
-                f"feegate:{coin}", 300,
-                "%s: FEE GATE — TP1 est %.3f%% < fees+edge %.3f%% (ATR %.3f%% quá bé so với phí) — skipping",
-                coin, fee_edge["tp1_pct_est"], fee_edge["required_maker_pct"], fee_edge["atr_pct"],
-            )
-            _log_setup_csv(coin, signal_ts, current_price, setup, "fee_gate")
-            return
+        margin_full = effective_cfg.get("margin_full", CONFIG.get("margin_full", 100.0))
+        margin_half = effective_cfg.get("margin_half", CONFIG.get("margin_half", 50.0))
+        min_score_full = effective_cfg.get("min_score_full", CONFIG["min_score_full"])
 
-        # ── v3: Size theo rủi ro USD cố định (loss ≈ win) ──
-        score_full = score >= min_full
-        sizing = compute_risk_sizing(
-            current_price, setup.get("atr_5m", 0.0), effective_cfg, score_full,
-        )
-        margin = sizing["margin"]
-        if margin <= 0:
-            return
-
-        logger.info(
-            "%s: risk sizing — risk=%.2f USD sl=%.3f%% notional=%.2f margin=%.2f (%s)",
-            coin, sizing["risk_usd"], sizing["sl_pct"], sizing["notional"], margin,
-            "full" if score_full else "half",
-        )
-        _log_setup_csv(coin, signal_ts, current_price, setup, "entered")
+        margin = margin_full if score >= min_score_full else margin_half
 
         # ── FIX #1: Set active entry guard NGAY KHI quyết định trade ──
+        # Từ đây đến khi _execute_setup hoàn thành, mọi poll cycle sẽ bị chặn.
         _active_entry[coin] = time.time()
         logger.info("%s: active entry guard SET — executing trade in background", coin)
 
@@ -1919,73 +1175,29 @@ async def _scan_coin(
                 score, setup.get("atr_5m", 0.0),
                 risk,
                 effective_cfg=effective_cfg,
-                regime=setup.get("regime", ""),
-                obi=obi,
             )
         )
 
 
 async def run_bot_async():
     logger.info("=" * 60)
-    logger.info("STARTING BOT ENGINE v3 — DUAL REGIME | RISK SIZING | OBI SMOOTH")
+    logger.info("STARTING BOT ENGINE — BTC ONLY MODE")
     logger.info("=" * 60)
-    taker_mode = (
-        f"taker if score>={CONFIG.get('taker_entry_min_score', 85)}"
-        if CONFIG.get("allow_taker_entry", True) else "MAKER-ONLY (taker entry OFF)"
-    )
     logger.info(
-        "Profile=%s | entry=%s (%s) | limit_offset=%.3f%% | requote=%ds | time_stop=%sm",
+        "Profile=%s | entry=%s | TP1=%.3f%% | TP2=%.3f%% | SL=%.3f%% | time_stop=%sm",
         CONFIG["profile_name"], CONFIG["entry_order_type"],
-        taker_mode,
-        CONFIG.get("limit_offset_pct", 0.0),
-        ENTRY_REQUOTE_SECONDS,
+        CONFIG["tp1_pct"], CONFIG["tp2_pct"], CONFIG["sl_pct"],
         CONFIG["time_stop_minutes"],
     )
-    # Ngưỡng HIỆU DỤNG per-coin (COIN_CONFIG override CONFIG — banner cũ chỉ in
-    # giá trị profile nên gây nhầm khi COIN_CONFIG đã hạ ngưỡng)
-    eff_thresholds = " ".join(
-        f"{c}={get_effective_config(c)['min_score_half']}/{get_effective_config(c)['min_score_full']}"
-        for c in configured_live_coins()
-    )
     logger.info(
-        "Risk/trade=%.2f USD (half=%.0f%%) | SL=%.1fxATR [%.2f-%.2f%%] | backstop=x%.1f | thresholds half/full: %s (+%d Asia)",
-        CONFIG.get("risk_per_trade_usd", 3.0), CONFIG.get("risk_half_scale", 0.6) * 100,
-        CONFIG.get("sl_atr_mult", 1.2), CONFIG.get("sl_pct_min", 0.10), CONFIG.get("sl_pct_max", 0.40),
-        CONFIG.get("hard_sl_backstop_mult", 1.5),
-        eff_thresholds, CONFIG.get("asia_score_bump", 0),
-    )
-    logger.info(
-        "OBI smoothing=%ds window (min %d samples) | reversal_cancel=%.2f%% | circuit breaker=%d fails/60s",
-        OBI_WINDOW_SEC, OBI_MIN_SAMPLES,
-        CONFIG.get("reversal_cancel_pct", 0.0), API_FAILURE_THRESHOLD,
-    )
-    logger.info(
-        "v3.2 FEE: gate maker TP1>=fees+%.2f%% | taker cần TP1>=takerRT×%.1f+edge | "
-        "maker close chase %ds (requote %ds, abort %.2f%%) | net PnL = closedPnl - fees",
-        CONFIG.get("fee_edge_min_pct", 0.06),
-        CONFIG.get("taker_rt_mult", 2.0),
-        CONFIG.get("maker_close_timeout_s", 45),
-        CONFIG.get("maker_close_requote_s", 6),
-        CONFIG.get("maker_close_abort_pct", 0.10),
-    )
-    logger.info(
-        "v3.5: momentum_break=%s (thác/pump → vào thuận lực) | anti-knife-catch fade (>=2/3 cờ → block)",
-        "ON" if CONFIG.get("use_momentum_break", True) else "OFF",
-    )
-    logger.info(
-        "v3.6: chop filter bb_w<%.2f%% (momentum cần >=%.2f%%) | flow cooldown %ds cùng hướng | max notional $%.0f",
-        CONFIG.get("min_bb_width_pct", 0.25),
-        CONFIG.get("momentum_min_bb_width_pct", 0.30),
-        FLOW_BLOCK_COOLDOWN_SEC,
-        CONFIG.get("max_notional_usd", 1000.0),
-    )
-    logger.info(
-        "Guards: entry=%ds | SL cooldown=%dm | max margin=%.0f%% | daily_loss=%.2f | max_trades/day=%d | disabled=%s",
+        "FIX #1: Active entry guard=%ds | FIX #2: SL cooldown=%dm | FIX #3: Max margin=%.0f%%",
         ACTIVE_ENTRY_TIMEOUT_SEC, SL_SINGLE_COOLDOWN_MINUTES, MAX_MARGIN_USAGE_PCT * 100,
-        CONFIG.get("daily_loss_limit_usd", 0), CONFIG.get("max_trades_per_day", 0),
-        ",".join(DISABLED_COINS) if DISABLED_COINS else "none",
     )
-    logger.info("Setup log: %s | Trade log: %s", SETUP_LOG_PATH, TRADE_LOG_PATH)
+    logger.info(
+        "HARD DOLLAR SL=%.2f USD | DISABLED COINS=%s | daily_loss_limit=%.2f USD | max_trades/day=%d",
+        HARD_DOLLAR_SL_USD, ",".join(DISABLED_COINS) if DISABLED_COINS else "none",
+        CONFIG.get("daily_loss_limit_usd", 0), CONFIG.get("max_trades_per_day", 0),
+    )
 
     if not PRIVATE_KEY:
         logger.error("ERROR: No private key. Set HL_PRIVATE_KEY.")
