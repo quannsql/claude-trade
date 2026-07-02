@@ -47,10 +47,9 @@ COIN_CONFIG: dict[str, dict] = {
         "time_stop_minutes": 10,
         "bb_width_max_pct": 1.0,
         "bb_width_warn_pct": 0.6,
-        # v3: nâng ngưỡng — loại bỏ setup C-grade (score 45-54 trong log cũ
-        # toàn counter-trend fade chất lượng thấp)
-        "min_score_full": 72,
-        "min_score_half": 55,
+        # Nới lỏng ngưỡng đầu vào vì bộ lọc CVD/OBI đã rất khắt khe
+        "min_score_full": 65,
+        "min_score_half": 45,
         "use_regime_filter": True,
         # v3: TP/SL cân bằng — SL 1.2x ATR thay vì 1.5x để loss ≈ win.
         # Sizing theo risk_per_trade_usd nên % không còn quyết định dollar loss.
@@ -70,10 +69,9 @@ COIN_CONFIG: dict[str, dict] = {
         "time_stop_minutes": 10,
         "bb_width_max_pct": 1.4,
         "bb_width_warn_pct": 0.9,
-        # v3.1: đồng bộ ngưỡng với triết lý mới — bản cũ 40/65 để lọt setup
-        # C-grade score 45 vào lệnh (live 08:33 ETH score=45 vẫn entry)
-        "min_score_full": 72,
-        "min_score_half": 55,
+        # Nới lỏng ngưỡng đầu vào
+        "min_score_full": 65,
+        "min_score_half": 45,
         "use_regime_filter": True,
         # ETH margin nhỏ hơn ($1500) nên % nhỉnh hơn để đạt cùng lượng USD
         "tp1_pct_max": 0.20,
@@ -171,9 +169,9 @@ PROFILES = {
         "leverage": 20,
         "margin_full": 100.0,
         "margin_half": 50.0,
-        # v3: nâng ngưỡng (COIN_CONFIG BTC override: 55/72)
-        "min_score_half": 55,
-        "min_score_full": 72,
+        # Đồng bộ với COIN_CONFIG
+        "min_score_half": 45,
+        "min_score_full": 65,
 
         "tp1_pct": 0.10,
         "tp2_pct": 0.20,
