@@ -129,6 +129,9 @@ BASE_CONFIG = {
     "risk_half_scale": 0.6,          # lệnh half-score chịu 60% risk
     "sl_pct_min": 0.10,              # sàn SL % — tránh notional phình khi ATR bé
     "min_notional_usd": 20.0,        # sàn notional (Hyperliquid min order $10)
+    # v3.6: trần notional tuyệt đối — hết cảnh SL chặt đẩy notional $1.6k+
+    # → margin 92% khóa bot + time_stop bleed to dù risk danh nghĩa $3
+    "max_notional_usd": 1000.0,
     "hard_sl_backstop_mult": 1.5,    # hard dollar SL = planned risk × 1.5 (BACKSTOP,
                                      # không còn là stop chính fire trước % SL)
 
@@ -146,6 +149,13 @@ BASE_CONFIG = {
     # ── v3.2 FEE: taker entry phải DƯ DẢ trả phí, không phải vừa đủ ──
     # required_taker = taker_RT × taker_rt_mult + fee_edge_min_pct
     "taker_rt_mult": 2.0,
+
+    # ── v3.6 CHOP FILTER + FLOW COOLDOWN ──
+    # Chop: bb_width 1m dưới ngưỡng → skip mọi mode (chợ hẹp không có edge,
+    # time_stop bleed). Momentum break đòi dải rộng hơn (break từ squeeze
+    # siêu hẹp = break giả).
+    "min_bb_width_pct": 0.25,
+    "momentum_min_bb_width_pct": 0.30,
 
     # ── v3.5 MOMENTUM BREAK: "1 cú sập = 2 lệnh" ──
     # Lệnh 1: thác/pump đang chạy (đóng nến ngoài BB + thân nến mạnh + CVD

@@ -117,6 +117,13 @@ CVD_WINDOW_SEC = int(os.environ.get("HL_CVD_WINDOW_SEC", "180"))
 # v3.4: 15→10s — maker-only entry nên bám giá sát hơn để bù khả năng khớp
 ENTRY_REQUOTE_SECONDS = int(os.environ.get("HL_ENTRY_REQUOTE_SEC", "10"))
 
+# ── v3.6: FLOW COOLDOWN — sau khi CVD/thác/pump hard-block, cấm vào CÙNG
+# HƯỚNG trong N phút. CVD từ recentTrades là mẫu thưa, nhấp nháy đổi dấu
+# 1 mẫu là bot mua lại ngay giữa sóng bán (live 17:42: SL -$3.47 chỉ 2 phút
+# sau 3 lần block "bán tháo -0.71"). key=(coin, direction) → epoch hết hạn.
+FLOW_BLOCK_COOLDOWN_SEC = int(os.environ.get("HL_FLOW_COOLDOWN_SEC", "300"))
+_flow_block_until: dict[tuple[str, str], float] = {}
+
 # ── v3: Candle cache — chỉ refetch khi nến mới ĐÃ đóng (giảm ~20x REST call) ──
 _candle_cache: dict[tuple[str, str], dict[str, Any]] = {}
 
@@ -1338,11 +1345,15 @@ async def _execute_setup(
             except Exception:
                 bbo_px = 0.0
             if bbo_px and bbo_px > 0:
+                # Đặt SÂU 0.01% dưới bid (long) / trên ask (short): sống sót
+                # race book tụt 1 tick giữa lúc fetch bbo và lệnh tới sàn
+                # (live 17:05 ETH: 2 lần Alo reject liên tiếp trong 1 giây vì
+                # giá rơi nhanh). Vòng re-quote 10s sẽ tự dời lệnh bám lên sau.
+                entry_price = bbo_px * (1 - 0.0001 if is_entry_buy else 1 + 0.0001)
                 logger.warning(
-                    "%s: Entry Alo rejected (crossed spread) — re-quote Alo tại bbo %.5g thay vì Gtc taker",
-                    coin, bbo_px,
+                    "%s: Entry Alo rejected (crossed spread) — re-quote Alo %.5g (bbo %.5g - đệm 0.01%%) thay vì Gtc taker",
+                    coin, entry_price, bbo_px,
                 )
-                entry_price = bbo_px
                 entry_oid, response = await _place_limit(
                     exchange, coin, is_entry_buy, size, entry_price, False, "Alo"
                 )
@@ -1824,10 +1835,26 @@ async def _scan_coin(
             if setup["hard_block"]:
                 logger.info("%s %s: block: %s (price %.4f)", coin, signal_ts, reason_text, current_price)
                 _log_setup_csv(coin, signal_ts, current_price, setup, "hard_block")
+                # v3.6: block do flow (CVD/thác/pump) → đặt cooldown cùng hướng
+                fb_dir = setup.get("flow_block_dir")
+                if fb_dir:
+                    _flow_block_until[(coin, fb_dir)] = time.time() + FLOW_BLOCK_COOLDOWN_SEC
             return
 
         score = setup["score"]
         direction = setup["direction"]
+
+        # ── v3.6 FLOW COOLDOWN: vừa bị block flow cùng hướng trong 5 phút
+        # gần nhất → lực chưa chắc đã cạn, CVD nhấp nháy 1 mẫu không đủ tin ──
+        flow_until = _flow_block_until.get((coin, direction), 0.0)
+        if flow_until > time.time():
+            _log_throttled(
+                f"flowcd:{coin}:{direction}", 60,
+                "%s: flow cooldown — %s bị block flow %ds trước, chờ lực cạn (còn %ds)",
+                coin, direction, FLOW_BLOCK_COOLDOWN_SEC, int(flow_until - time.time()),
+            )
+            _log_setup_csv(coin, signal_ts, current_price, setup, "flow_cooldown")
+            return
 
         logger.info(
             "%s %s: setup %s [%s/%s] score=%s conf=%s price=%.4f obi=%.2f(n=%d) bb_w=%.2f%%",
@@ -1944,6 +1971,13 @@ async def run_bot_async():
     logger.info(
         "v3.5: momentum_break=%s (thác/pump → vào thuận lực) | anti-knife-catch fade (>=2/3 cờ → block)",
         "ON" if CONFIG.get("use_momentum_break", True) else "OFF",
+    )
+    logger.info(
+        "v3.6: chop filter bb_w<%.2f%% (momentum cần >=%.2f%%) | flow cooldown %ds cùng hướng | max notional $%.0f",
+        CONFIG.get("min_bb_width_pct", 0.25),
+        CONFIG.get("momentum_min_bb_width_pct", 0.30),
+        FLOW_BLOCK_COOLDOWN_SEC,
+        CONFIG.get("max_notional_usd", 1000.0),
     )
     logger.info(
         "Guards: entry=%ds | SL cooldown=%dm | max margin=%.0f%% | daily_loss=%.2f | max_trades/day=%d | disabled=%s",

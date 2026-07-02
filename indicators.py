@@ -323,6 +323,9 @@ def score_setup(i15: int, df15: pd.DataFrame,
         "bb_width_pct": 0.0, "bb_squeeze": False,
         "confidence": "C", "entry_mode": None,
         "score_details": {},
+        # v3.6: hướng bị chặn vì flow (CVD/thác/pump) — engine dùng để đặt
+        # cooldown 5 phút cùng hướng (chống mua lại ngay khi CVD nhấp nháy)
+        "flow_block_dir": None,
     }
     cfg = cfg or {}
 
@@ -352,6 +355,18 @@ def score_setup(i15: int, df15: pd.DataFrame,
 
     if consecutive_losses >= 3:
         result["block_reasons"].append("3 consecutive losses - cooldown")
+        result["hard_block"] = True
+        return result
+
+    # ── v3.6 CHOP FILTER: thị trường quá hẹp → không mode nào có edge ──
+    # Live 02/07 tối: 4 lệnh time_stop -$7.3 khi bb_w 0.15-0.35% — giá không
+    # đi đâu trong 10 phút, mọi entry đều chỉ trả phí + bleed. Đồng thời SL
+    # chặt trong chop làm notional phình → margin 92% tự khóa bot.
+    min_bb_w = cfg.get("min_bb_width_pct", 0.25)
+    if 0 < result["bb_width_pct"] < min_bb_w:
+        result["block_reasons"].append(
+            f"chop: BB width {result['bb_width_pct']:.2f}% < {min_bb_w:.2f}% — thị trường quá hẹp, đứng ngoài"
+        )
         result["hard_block"] = True
         return result
 
@@ -415,6 +430,12 @@ def _score_momentum_break(result: dict, regime: str,
 
     cvd_ratio = ob_analysis.get("cvd_ratio", 0.0) if ob_analysis else 0.0
     pattern_1m = detect_candle_pattern(row1, row1_prev)
+
+    # v3.6: break từ squeeze SIÊU HẸP = break giả (live 18:29: "break" khỏi
+    # bb_w 0.17% → time_stop -$1.65). Dải phải đủ rộng thì break mới có lực.
+    bb_w = row1.get("bb_width_pct")
+    if bb_w is None or pd.isna(bb_w) or bb_w < cfg.get("momentum_min_bb_width_pct", 0.30):
+        return None
 
     direction = None
     if (price1 < bb_lower1 and pattern_1m == "strong_bearish_close"
@@ -698,11 +719,15 @@ def _score_trend_pullback(result: dict, regime: str,
         # Tại đáy pullback flow gần như LUÔN âm nhẹ (định nghĩa của pullback)
         # → chặn theo dấu thô = chặn đúng entry mình muốn (bug bản trước).
         # Chỉ chặn khi flow cực đoan một chiều, còn lại cộng/trừ điểm.
+        # v3.6: block siết 0.50→0.40 (live 17:42: CVD -0.71 hai phút trước,
+        # nhấp nháy dương 1 mẫu là vào long ngay → SL -$3.47; cooldown 5' ở
+        # engine + ngưỡng chặt hơn ở đây cùng chặn ca này)
         cvd_ratio = ob_analysis.get("cvd_ratio", 0.0)
         if direction == "long":
-            if cvd_ratio <= -0.50:
+            if cvd_ratio <= -0.40:
                 result["block_reasons"].append(f"CVD ratio={cvd_ratio:.2f} bán tháo mạnh, không đỡ")
                 result["hard_block"] = True
+                result["flow_block_dir"] = "long"
             elif cvd_ratio <= -0.20:
                 score -= 10
                 details["cvd_penalty"] = -10
@@ -710,9 +735,10 @@ def _score_trend_pullback(result: dict, regime: str,
                 score += 10
                 details["cvd_bonus"] = 10
         else:
-            if cvd_ratio >= 0.50:
+            if cvd_ratio >= 0.40:
                 result["block_reasons"].append(f"CVD ratio={cvd_ratio:.2f} mua đuổi mạnh, không chặn")
                 result["hard_block"] = True
+                result["flow_block_dir"] = "short"
             elif cvd_ratio >= 0.20:
                 score -= 10
                 details["cvd_penalty"] = -10
@@ -959,6 +985,7 @@ def _score_range_fade(result: dict,
                     f"thác đang chảy ({sum(_flags)}/3 cờ: ema50={_flags[0]} nến_sập={_flags[1]} cvd={_flags[2]}) — cấm bắt đáy"
                 )
                 result["hard_block"] = True
+                result["flow_block_dir"] = "long"
                 result["score_details"] = details
                 return result
         else:
@@ -974,6 +1001,7 @@ def _score_range_fade(result: dict,
                     f"pump đang chạy ({sum(_flags)}/3 cờ: ema50={_flags[0]} nến_tăng={_flags[1]} cvd={_flags[2]}) — cấm bán đỉnh"
                 )
                 result["hard_block"] = True
+                result["flow_block_dir"] = "short"
                 result["score_details"] = details
                 return result
 

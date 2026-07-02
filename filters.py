@@ -179,7 +179,13 @@ def compute_risk_sizing(price: float, atr_5m: float, cfg: dict, score_full: bool
     sl_pct = min(max(sl_pct, sl_pct_min), sl_pct_max)
 
     notional = risk_usd / (sl_pct / 100)
-    max_notional = cfg.get("margin_full", 100.0) * leverage
+    # v3.6: trần notional tuyệt đối — SL chặt trong chop làm notional phình
+    # ($1.666 @ SL 0.18% live 02/07) → margin 92% tự khóa bot, và time_stop
+    # bleed tỉ lệ với notional (drift -0.17% trên $1.666 = -$2.86 dù "risk $3").
+    max_notional = min(
+        cfg.get("margin_full", 100.0) * leverage,
+        cfg.get("max_notional_usd", 1000.0),
+    )
     min_notional = cfg.get("min_notional_usd", 20.0)
     notional = min(max(notional, min_notional), max_notional)
 
