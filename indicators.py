@@ -567,7 +567,9 @@ def _score_trend_pullback(result: dict, regime: str,
             elif obi >= 0.15 and obi_05 >= 0.15:
                 score += 15
                 details["obi_bonus"] = 15
-            elif obi <= -0.15 or obi_05 <= -0.15:
+            elif obi <= -0.15:
+                # penalty chỉ theo tầng SÂU — tầng ±0.05% quá nhiễu để trừ oan
+                # (live 15:53 BTC: obi +0.47 ủng hộ vẫn bị obi_05 trừ -10)
                 score -= 10
                 details["obi_penalty"] = -10
         else:
@@ -577,7 +579,7 @@ def _score_trend_pullback(result: dict, regime: str,
             elif obi <= -0.15 and obi_05 <= -0.15:
                 score += 15
                 details["obi_bonus"] = 15
-            elif obi >= 0.15 or obi_05 >= 0.15:
+            elif obi >= 0.15:
                 score -= 10
                 details["obi_penalty"] = -10
 
@@ -615,7 +617,9 @@ def _score_trend_pullback(result: dict, regime: str,
         elif direction == "short" and ob_analysis.get("ask_wall"):
             score += 10
             details["ask_wall"] = 10
-        if ob_analysis.get("spread_pct", 0) > 0.02:
+        # 0.02→0.05: live spread luôn >0.02 → thành phạt CỐ ĐỊNH -10 mọi setup
+        # (mất ý nghĩa tín hiệu); 0.05 mới thật sự là spread rộng bất thường
+        if ob_analysis.get("spread_pct", 0) > 0.05:
             score -= 10
             details["spread_penalty"] = -10
 
@@ -1070,7 +1074,8 @@ def _score_range_fade(result: dict,
             elif obi > 0.30 and obi_05 > 0.30:
                 score += 15
                 details["obi_bonus"] = 15
-            elif obi < -0.15 or obi_05 < -0.15:
+            elif obi < -0.15:
+                # penalty chỉ theo tầng SÂU — tầng ±0.05% quá nhiễu để trừ oan
                 score -= 10
                 details["obi_penalty"] = -10
         else:  # short
@@ -1080,7 +1085,7 @@ def _score_range_fade(result: dict,
             elif obi < -0.30 and obi_05 < -0.30:
                 score += 15
                 details["obi_bonus"] = 15
-            elif obi > 0.15 or obi_05 > 0.15:
+            elif obi > 0.15:
                 score -= 10
                 details["obi_penalty"] = -10
 
@@ -1103,8 +1108,9 @@ def _score_range_fade(result: dict,
             score += 15
             details["ask_wall"] = 15
 
+        # 0.02→0.05: live spread luôn >0.02 → thành phạt CỐ ĐỊNH -10 mọi setup
         spread_pct = ob_analysis.get("spread_pct", 0)
-        if spread_pct > 0.02:
+        if spread_pct > 0.05:
             score -= 10
             details["spread_penalty"] = -10
 

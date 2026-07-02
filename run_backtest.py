@@ -196,7 +196,10 @@ PROFILES = {
         # v3: limit đặt SÂU HƠN vào vùng stretch 0.035% — fill = entry tốt hơn,
         # giảm adverse selection (trước đây chỉ fill khi giá xuyên qua entry)
         "limit_offset_pct": 0.035,
-        "limit_timeout_bars": 1,
+        # v3.3: 1→2 bar (120s) — entry giờ RE-QUOTE bám bbo mỗi 15s nên thời
+        # gian chờ dài hơn = nhiều cơ hội khớp maker hơn; reversal_cancel vẫn
+        # thoát sớm ngay khi giá bật chạy, không lo treo lệnh mù.
+        "limit_timeout_bars": 2,
         "slippage_pct": 0.0,
 
         "allowed_hours_utc": list(range(0, 24)),

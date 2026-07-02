@@ -113,6 +113,9 @@ _latest_ob_analysis: dict[str, dict] = {}
 _trades_buffers: dict[str, dict[int, dict]] = {}
 CVD_WINDOW_SEC = int(os.environ.get("HL_CVD_WINDOW_SEC", "180"))
 
+# ── v3.3: entry re-quote — dời lệnh maker bám theo bbo mỗi N giây ──
+ENTRY_REQUOTE_SECONDS = int(os.environ.get("HL_ENTRY_REQUOTE_SEC", "15"))
+
 # ── v3: Candle cache — chỉ refetch khi nến mới ĐÃ đóng (giảm ~20x REST call) ──
 _candle_cache: dict[tuple[str, str], dict[str, Any]] = {}
 
@@ -197,6 +200,11 @@ class RiskState:
 
         if result.win:
             self.consecutive_losses[result.coin] = 0
+        elif result.exit_reason == "partial_garbage":
+            # Dust close (fill <25% bị đóng ngay, lỗ = vài cent phí) KHÔNG phải
+            # tín hiệu sai → không tính loss streak / cooldown. Live 15:58:
+            # -$0.02 dust kích hoạt cooldown 5 phút chặn oan cả coin.
+            pass
         else:
             losses = self.consecutive_losses.get(result.coin, 0) + 1
             self.consecutive_losses[result.coin] = losses
@@ -862,6 +870,8 @@ async def _wait_entry_fill(
     is_buy: bool = True,
     signal_price: float = 0.0,
     reversal_cancel_pct: float = 0.0,
+    requote_price: float = 0.0,
+    managed_oids: set[int] | None = None,
 ) -> FillSummary:
     deadline = time.monotonic() + timeout_seconds
     last_summary = FillSummary()
@@ -871,9 +881,17 @@ async def _wait_entry_fill(
     gone_no_pos = 0
     gone_with_pos = 0
 
+    # ── v3.3: entry re-quote — carry giữ fills của các oid ĐÃ hủy khi dời lệnh
+    carry_size = 0.0
+    carry_notional = 0.0
+    order_px = requote_price
+    last_requote = time.monotonic()
+
     while time.monotonic() < deadline:
         fills = await _call(_fills_by_oid, info, address, start_ms, coin, oid)
         last_summary = _summarize_fills(fills, oid)
+        last_summary.size += carry_size
+        last_summary.notional += carry_notional
         if last_summary.size >= target_size * 0.999:
             return last_summary
 
@@ -882,7 +900,7 @@ async def _wait_entry_fill(
         # "order biến mất + chưa có fill" → kết luận not-filled → position
         # thành orphan (BTC 08:05 live: orphan 2 phút, đóng khẩn cấp, mất $1.33 phí).
         # Fix: xác nhận qua position trực tiếp trước khi kết luận.
-        if oid is not None and not await _call(_is_order_open, info, address, coin, oid) and last_summary.size <= 0:
+        if oid is not None and not await _call(_is_order_open, info, address, coin, oid) and (last_summary.size - carry_size) <= 0:
             pos_size, pos_px = await _call(_position_for_coin, info, address, coin)
             if abs(pos_size) > POSITION_EPSILON:
                 gone_with_pos += 1
@@ -920,6 +938,40 @@ async def _wait_entry_fill(
             except Exception:
                 pass
 
+        # ── v3.3: RE-QUOTE bám bbo — giá dịch ra xa mà lệnh chưa khớp thì dời
+        # lệnh theo (vẫn Alo maker). Bản cũ treo chết 1 giá suốt 60s → xếp hàng
+        # sau queue, giá lơ lửng cũng không khớp (live 15:53 BTC score 63 miss).
+        if (order_px > 0 and oid is not None
+                and time.monotonic() - last_requote >= ENTRY_REQUOTE_SECONDS):
+            try:
+                best_bid, best_ask = await _call(_fresh_bbo, info, coin)
+                own = best_bid if is_buy else best_ask
+                moved_away = own > 0 and ((is_buy and own > order_px) or (not is_buy and own < order_px))
+                if moved_away:
+                    await _cancel_if_open(exchange, info, address, coin, oid)
+                    old_fills = await _call(_fills_by_oid, info, address, start_ms, coin, oid)
+                    old_sum = _summarize_fills(old_fills, oid)
+                    carry_size += old_sum.size
+                    carry_notional += old_sum.notional
+                    remaining = _round_size(exchange, coin, target_size - carry_size)
+                    if remaining <= POSITION_EPSILON:
+                        last_summary.size = carry_size
+                        last_summary.notional = carry_notional
+                        return last_summary
+                    new_oid, _ = await _place_limit(exchange, coin, is_buy, remaining, own, False, "Alo")
+                    if new_oid is not None:
+                        oid = new_oid
+                        order_px = own
+                        if managed_oids is not None:
+                            managed_oids.add(new_oid)
+                        logger.info(
+                            "%s: entry re-quote bám bbo %.5g (đã khớp %.8f/%.8f)",
+                            coin, own, carry_size, target_size,
+                        )
+                last_requote = time.monotonic()
+            except Exception:
+                pass
+
         await asyncio.sleep(ORDER_POLL_SECONDS)
 
     # ── FIX #4: Cancel và xác nhận không còn position orphan ──
@@ -937,6 +989,8 @@ async def _wait_entry_fill(
 
     fills = await _call(_fills_by_oid, info, address, start_ms, coin, oid)
     final_summary = _summarize_fills(fills, oid)
+    final_summary.size += carry_size
+    final_summary.notional += carry_notional
 
     if final_summary.size > POSITION_EPSILON:
         logger.warning(
@@ -1303,6 +1357,8 @@ async def _execute_setup(
         info, exchange, address, coin, entry_oid, size, start_ms, timeout_seconds,
         is_buy=is_entry_buy, signal_price=signal_price,
         reversal_cancel_pct=reversal_cancel_pct,
+        requote_price=entry_price if entry_order_type != "market" else 0.0,
+        managed_oids=managed_oids,
     )
 
     if entry_fill.size <= POSITION_EPSILON or entry_fill.avg_price is None:
