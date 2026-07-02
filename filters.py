@@ -191,6 +191,45 @@ def compute_risk_sizing(price: float, atr_5m: float, cfg: dict, score_full: bool
     }
 
 
+def estimate_fee_edge(price: float, atr_5m: float, cfg: dict) -> dict:
+    """
+    FEE GATE — kiểm tra lệnh có đủ edge để trả phí round-trip không.
+
+    Bài học từ live 02/07: BNB ATR ~0.06% → TP1 ~0.06% trong khi phí
+    taker-taker = 0.09% → mọi lệnh đều ÂM ngay từ lúc đặt. Fee ăn 4.3x gross.
+
+    Điều kiện:
+      viable_maker: TP1_est >= maker_in + taker_out + fee_edge_min_pct
+      viable_taker: TP1_est >= taker_in + taker_out + fee_edge_min_pct
+
+    - Không viable_maker → BỎ setup hoàn toàn (không có cách nào dương EV)
+    - viable_maker nhưng không viable_taker → chỉ được vào maker,
+      kể cả khi score đạt ngưỡng taker
+    """
+    taker = cfg.get("taker_fee_pct", 0.045)
+    maker = cfg.get("maker_fee_pct", 0.015)
+    min_edge = cfg.get("fee_edge_min_pct", 0.04)
+
+    atr_pct = (atr_5m / price * 100) if (price > 0 and atr_5m > 0) else 0.0
+    if cfg.get("use_dynamic_tp_sl", False) and atr_pct > 0:
+        tp1_pct_est = min(atr_pct * cfg.get("tp1_atr_mult", 1.5),
+                          cfg.get("tp1_pct_max", 0.30))
+    else:
+        tp1_pct_est = cfg.get("tp1_pct", 0.10)
+
+    required_maker = maker + taker + min_edge
+    required_taker = taker + taker + min_edge
+
+    return {
+        "tp1_pct_est": tp1_pct_est,
+        "atr_pct": atr_pct,
+        "required_maker_pct": required_maker,
+        "required_taker_pct": required_taker,
+        "viable_maker": tp1_pct_est >= required_maker,
+        "viable_taker": tp1_pct_est >= required_taker,
+    }
+
+
 def momentum_strength(df5: pd.DataFrame, i5: int, lookback: int = 5) -> float | None:
     """
     Calculate ATR-normalized momentum on 5m timeframe.

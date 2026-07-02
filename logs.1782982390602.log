@@ -1,0 +1,308 @@
+2026-07-02T07:58:29.243779622Z [inf]  Starting Container
+2026-07-02T07:58:34.430592498Z [err]  INFO:     Started server process [1]
+2026-07-02T07:58:34.430602885Z [err]  INFO:     Waiting for application startup.
+2026-07-02T07:58:34.430612165Z [err]  07:58:30 - ============================================================
+2026-07-02T07:58:34.430618924Z [err]  07:58:30 - STARTING BOT ENGINE v3 — DUAL REGIME | RISK SIZING | OBI SMOOTH
+2026-07-02T07:58:34.430630563Z [err]  07:58:30 - ============================================================
+2026-07-02T07:58:34.430637851Z [err]  07:58:30 - Profile=btc_high_freq | entry=limit (taker if score>=85) | limit_offset=0.035% | time_stop=5m
+2026-07-02T07:58:34.430646981Z [err]  07:58:30 - Risk/trade=3.00 USD (half=60%) | SL=1.2xATR [0.10-0.40%] | backstop=x1.5 | thresholds half/full=55/72 (+0 Asia)
+2026-07-02T07:58:34.430732521Z [err]  07:58:30 - OBI smoothing=90s window (min 3 samples) | reversal_cancel=0.08% | circuit breaker=6 fails/60s
+2026-07-02T07:58:34.430741780Z [err]  07:58:30 - Guards: entry=180s | SL cooldown=5m | max margin=70% | daily_loss=15.00 | max_trades/day=60 | disabled=none
+2026-07-02T07:58:34.430749599Z [err]  07:58:30 - Setup log: setups_log.csv | Trade log: trades_log.csv
+2026-07-02T07:58:34.430757437Z [err]  07:58:31 - Wallet=0x8FF6e34281254C21aB15f240232E19F1eaC92dB0 monitoring=BTC,ETH,BNB
+2026-07-02T07:58:34.430765580Z [err]  INFO:     Application startup complete.
+2026-07-02T07:58:34.430774007Z [err]  INFO:     Uvicorn running on http://0.0.0.0:8080 (Press CTRL+C to quit)
+2026-07-02T07:58:36.213982274Z [err]  07:58:34 - BNB 2026-07-02 07:50:00+00:00: setup SHORT [ranging/range_fade] score=75 conf=B price=548.4200 obi=0.00(n=1) bb_w=0.13%
+2026-07-02T07:58:36.213991016Z [err]  07:58:34 - BNB: score breakdown: bb_touch=+25 | directional_vol=+5 | ema50_trend=+10 | regime_ok=+5 | rsi_1m=+20 | trend_15m=+15 | bb_width=+5 | bb_pct_b=-10 | time_filter=+10 | spread_penalty=-10
+2026-07-02T07:58:36.213999969Z [err]  07:58:34 - BNB: risk sizing — risk=3.00 USD sl=0.100% notional=2000.00 margin=100.00 (full)
+2026-07-02T07:58:36.214008065Z [err]  07:58:34 - BNB: active entry guard SET — executing trade in background
+2026-07-02T07:58:36.214017001Z [err]  07:58:34 - BNB: entry SHORT score at 548.4200 | margin=100.00 notional=2000.00 size=3.64500000
+2026-07-02T07:58:36.214026305Z [err]  07:58:36 - BNB: price reverted 0.08% without fill — cancelling order oid=55851788758
+2026-07-02T07:58:36.214035843Z [err]  07:58:36 - BNB: cancel open order oid=55851788758
+2026-07-02T07:58:55.866682523Z [err]  07:58:46 - BNB: entry not filled; setup skipped
+2026-07-02T07:59:05.830627933Z [err]  07:59:05 - BTC 2026-07-02 07:58:00+00:00: block: trend_against without candle reversal: high risk fade (price 60264.0000)
+2026-07-02T07:59:07.392720121Z [err]  07:59:06 - ETH 2026-07-02 07:58:00+00:00: block: OBI=0.59 (buyers dominant, smoothed) (price 1636.2000)
+2026-07-02T08:00:11.542503689Z [err]  INFO:     100.64.0.3:58550 - "WebSocket /ws/logs" [accepted]
+2026-07-02T08:00:11.542509856Z [err]  INFO:     connection open
+2026-07-02T08:00:11.542515428Z [inf]  INFO:     100.64.0.4:46570 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:00:13.759049116Z [inf]  INFO:     100.64.0.2:45440 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:00:19.964748199Z [inf]  INFO:     100.64.0.5:37298 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:00:22.232364222Z [inf]  INFO:     100.64.0.6:29458 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:00:28.703802451Z [inf]  INFO:     100.64.0.7:15982 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:00:32.683127950Z [inf]  INFO:     100.64.0.2:10468 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:00:38.875898890Z [inf]  INFO:     100.64.0.8:57872 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:00:40.872004712Z [inf]  INFO:     100.64.0.3:56052 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:00:42.771137228Z [inf]  INFO:     100.64.0.8:34560 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:00:42.771146565Z [inf]  INFO:     100.64.0.8:57872 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:00:44.425130437Z [inf]  INFO:     100.64.0.3:56052 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:00:46.058198602Z [inf]  INFO:     100.64.0.9:11880 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:01:06.615224980Z [err]  08:01:06 - BNB 2026-07-02 08:00:00+00:00: setup SHORT [ranging/range_fade] score=55 conf=C price=548.5000 obi=-0.17(n=25) bb_w=0.27%
+2026-07-02T08:01:06.615232996Z [err]  08:01:06 - BNB: score breakdown: rsi_extreme_touch=+35 | regime_ok=+5 | trend_15m=+15 | time_filter=+10 | spread_penalty=-10
+2026-07-02T08:01:06.615240596Z [err]  08:01:06 - BNB: risk sizing — risk=1.80 USD sl=0.100% notional=1800.00 margin=90.00 (half)
+2026-07-02T08:01:06.615933959Z [err]  08:01:06 - BNB: active entry guard SET — executing trade in background
+2026-07-02T08:01:06.615990437Z [err]  08:01:06 - BNB: entry SHORT score at 548.5000 | margin=90.00 notional=1800.00 size=3.28000000
+2026-07-02T08:01:10.799932029Z [inf]  INFO:     100.64.0.11:58236 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:01:13.126373994Z [inf]  INFO:     100.64.0.10:42426 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:01:21.625229331Z [inf]  INFO:     100.64.0.9:60852 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:01:23.873246476Z [inf]  INFO:     100.64.0.3:55396 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:01:27.727862693Z [inf]  INFO:     100.64.0.4:36550 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:01:27.727869238Z [inf]  INFO:     100.64.0.2:21788 - "GET / HTTP/1.1" 200 OK
+2026-07-02T08:01:27.727877043Z [err]  INFO:     connection closed
+2026-07-02T08:01:27.727883796Z [inf]  INFO:     100.64.0.4:36550 - "GET /static/style.css HTTP/1.1" 200 OK
+2026-07-02T08:01:27.727890443Z [inf]  INFO:     100.64.0.3:55402 - "GET /static/main.js HTTP/1.1" 200 OK
+2026-07-02T08:01:30.196214587Z [inf]  INFO:     100.64.0.2:21788 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:01:30.196223317Z [err]  INFO:     100.64.0.8:13686 - "WebSocket /ws/logs" [accepted]
+2026-07-02T08:01:30.196232223Z [err]  INFO:     connection open
+2026-07-02T08:01:30.196245978Z [inf]  INFO:     100.64.0.6:17560 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:01:35.362469785Z [inf]  INFO:     100.64.0.3:14928 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:01:41.104011184Z [inf]  INFO:     100.64.0.3:14928 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:01:41.104026721Z [err]  INFO:     connection closed
+2026-07-02T08:02:11.534825787Z [err]  08:02:02 - BTC 2026-07-02 08:01:00+00:00: block: trend_against without candle reversal: high risk fade (price 60250.0000)
+2026-07-02T08:02:11.534833289Z [err]  08:02:07 - BNB: entry timeout — cancelling order oid=55851878610
+2026-07-02T08:02:11.534841644Z [err]  08:02:07 - BNB: cancel open order oid=55851878610
+2026-07-02T08:02:13.960801900Z [err]  08:02:12 - BNB: time-stop market close size=0.10000000
+2026-07-02T08:02:13.960861977Z [err]  08:02:12 - BNB: partial fill after cancel: size=0.10000000 — will manage this position
+2026-07-02T08:02:13.960876007Z [err]  08:02:12 - BNB: partial entry fill 0.10000000 / 3.28000000 is too small (< 25%); closing as garbage.
+2026-07-02T08:02:15.867599952Z [err]  08:02:15 - BNB: single-loss cooldown until 08:07 (5m)
+2026-07-02T08:02:15.867608922Z [err]  08:02:15 - BNB: recorded — win=False pnl=-0.0070 | day_pnl=-0.0070 | trades_today=1
+2026-07-02T08:02:17.693124888Z [err]  08:02:16 - BNB: risk block: cooldown 4m còn lại (đến 08:07)
+2026-07-02T08:03:09.568802343Z [err]  08:03:03 - BTC 2026-07-02 08:02:00+00:00: block: trend_against without candle reversal: high risk fade (price 60258.0000)
+2026-07-02T08:03:28.684709952Z [err]  08:03:20 - BNB: risk block: cooldown 3m còn lại (đến 08:07)
+2026-07-02T08:04:08.781292898Z [err]  08:04:03 - BTC 2026-07-02 08:03:00+00:00: block: trend_against without candle reversal: high risk fade (price 60266.0000)
+2026-07-02T08:04:08.781301243Z [err]  08:04:04 - ETH 2026-07-02 08:03:00+00:00: block: 5m_and_15m_trend_against: counter-trend fade blocked (price 1637.0000)
+2026-07-02T08:04:27.366446058Z [err]  08:04:20 - BNB: risk block: cooldown 2m còn lại (đến 08:07)
+2026-07-02T08:05:06.805787726Z [err]  08:05:03 - BTC 2026-07-02 08:04:00+00:00: setup LONG [ranging/range_fade] score=88 conf=A price=60268.0000 obi=0.55(n=27) bb_w=0.65%
+2026-07-02T08:05:06.805795022Z [err]  08:05:03 - BTC: score breakdown: vwap_stretch_base=+25 | regime_ok=+5 | rsi_1m=+10 | rsi_5m=+20 | candle_1m=+10 | trend_15m=-15 | bb_width=-5 | reversal_confirm=+8 | time_filter=+10 | obi_bonus=+15 | bid_wall=+15 | spread_penalty=-10
+2026-07-02T08:05:06.805801492Z [err]  08:05:03 - BTC: risk sizing — risk=3.00 USD sl=0.202% notional=1487.31 margin=74.37 (full)
+2026-07-02T08:05:06.805807935Z [err]  08:05:03 - BTC: active entry guard SET — executing trade in background
+2026-07-02T08:05:06.805814608Z [err]  08:05:03 - BTC: entry LONG score at 60268.0000 | margin=74.37 notional=1487.31 size=0.02468000
+2026-07-02T08:05:06.805820912Z [err]  08:05:04 - BTC: score 88 >= taker threshold — using market entry
+2026-07-02T08:05:06.805827411Z [err]  08:05:05 - BTC: entry not filled; setup skipped
+2026-07-02T08:05:26.920129418Z [err]  08:05:21 - BNB: risk block: cooldown 1m còn lại (đến 08:07)
+2026-07-02T08:06:10.020608653Z [err]  08:06:03 - BTC: existing exposure (pos=0.02468000 orders=0) — skipping
+2026-07-02T08:06:10.020617127Z [err]  08:06:04 - ETH 2026-07-02 08:05:00+00:00: block: 5m_and_15m_trend_against: counter-trend fade blocked (price 1637.0000)
+2026-07-02T08:06:30.879213601Z [err]  08:06:21 - BNB: risk block: cooldown 0m còn lại (đến 08:07)
+2026-07-02T08:07:11.655236375Z [err]  08:07:04 - BTC: time-stop market close size=0.02468000
+2026-07-02T08:07:11.655247337Z [err]  08:07:06 - ETH 2026-07-02 08:06:00+00:00: block: 5m_and_15m_trend_against: counter-trend fade blocked (price 1637.1000)
+2026-07-02T08:07:11.655314249Z [err]  08:07:04 - BTC: Orphan position detected for >60s (pos=0.02468000). Emergency closing.
+2026-07-02T08:07:18.264751459Z [err]  08:07:16 - BNB 2026-07-02 08:05:00+00:00: setup SHORT [ranging/range_fade] score=55 conf=C price=549.1100 obi=-0.24(n=27) bb_w=0.31%
+2026-07-02T08:07:18.264760121Z [err]  08:07:16 - BNB: score breakdown: rsi_extreme_touch=+35 | regime_ok=+5 | trend_15m=+15 | time_filter=+10 | spread_penalty=-10
+2026-07-02T08:07:18.264768137Z [err]  08:07:16 - BNB: risk sizing — risk=1.80 USD sl=0.100% notional=1800.00 margin=90.00 (half)
+2026-07-02T08:07:18.264776263Z [err]  08:07:16 - BNB: active entry guard SET — executing trade in background
+2026-07-02T08:07:18.264784802Z [err]  08:07:16 - BNB: entry SHORT score at 549.1100 | margin=90.00 notional=1800.00 size=3.27600000
+2026-07-02T08:08:14.272744176Z [err]  08:08:03 - BTC 2026-07-02 08:07:00+00:00: block: trend_against without candle reversal: high risk fade (price 60366.0000)
+2026-07-02T08:08:20.210211717Z [err]  08:08:18 - BNB: entry timeout — cancelling order oid=55852093600
+2026-07-02T08:08:20.210218727Z [err]  08:08:18 - BNB: cancel open order oid=55852093600
+2026-07-02T08:08:30.021171906Z [err]  08:08:28 - BNB: entry not filled; setup skipped
+2026-07-02T08:13:06.418131356Z [err]  08:13:03 - ETH 2026-07-02 08:12:00+00:00: setup LONG [ranging/range_fade] score=55 conf=C price=1630.5000 obi=-0.18(n=25) bb_w=0.36%
+2026-07-02T08:13:06.418139188Z [err]  08:13:03 - ETH: score breakdown: bb_touch=+25 | strong_close_penalty=-15 | directional_vol=+5 | ema50_trend=+10 | vwap_stretch=+20 | regime_ok=+5 | rsi_1m=+20 | trend_15m=+15 | bb_pct_b=-10 | time_filter=+10 | obi_penalty=-10 | spread_penalty=-10 | funding_bias=-10
+2026-07-02T08:13:06.418158495Z [err]  08:13:03 - ETH: risk sizing — risk=1.80 USD sl=0.120% notional=1496.46 margin=74.82 (half)
+2026-07-02T08:13:06.418299242Z [err]  08:13:03 - ETH: active entry guard SET — executing trade in background
+2026-07-02T08:13:06.418309240Z [err]  08:13:03 - ETH: entry LONG score at 1630.5000 | margin=74.82 notional=1496.46 size=0.91810000
+2026-07-02T08:13:16.035980819Z [err]  08:13:15 - ETH: price reverted 0.08% without fill — cancelling order oid=55852282030
+2026-07-02T08:13:16.035988155Z [err]  08:13:15 - ETH: cancel open order oid=55852282030
+2026-07-02T08:13:34.855875272Z [err]  08:13:25 - ETH: entry not filled; setup skipped
+2026-07-02T08:18:57.577826077Z [err]  08:18:52 - BNB 2026-07-02 08:17:00+00:00: setup SHORT [ranging/range_fade] score=60 conf=B price=549.1100 obi=-0.28(n=26) bb_w=0.18%
+2026-07-02T08:18:57.577834216Z [err]  08:18:52 - BNB: score breakdown: rsi_extreme_touch=+35 | regime_ok=+5 | trend_15m=+15 | bb_width=+5 | time_filter=+10 | spread_penalty=-10
+2026-07-02T08:18:57.577841957Z [err]  08:18:52 - BNB: risk sizing — risk=1.80 USD sl=0.100% notional=1800.00 margin=90.00 (half)
+2026-07-02T08:18:57.577849850Z [err]  08:18:52 - BNB: active entry guard SET — executing trade in background
+2026-07-02T08:18:57.577857947Z [err]  08:18:52 - BNB: entry SHORT score at 549.1100 | margin=90.00 notional=1800.00 size=3.27600000
+2026-07-02T08:20:01.069095960Z [err]  08:19:58 - BNB: partial entry fill 0.03600000 / 3.27600000 is too small (< 25%); closing as garbage.
+2026-07-02T08:20:01.069107591Z [err]  08:19:58 - BNB: time-stop market close size=0.03600000
+2026-07-02T08:20:01.069142058Z [err]  08:19:53 - BNB: entry timeout — cancelling order oid=55852449837
+2026-07-02T08:20:01.069154705Z [err]  08:19:53 - BNB: cancel open order oid=55852449837
+2026-07-02T08:20:01.069173955Z [err]  08:19:58 - BNB: partial fill after cancel: size=0.03600000 — will manage this position
+2026-07-02T08:20:02.664684951Z [err]  08:20:01 - BNB: recorded — win=True pnl=0.0018 | day_pnl=-0.0052 | trades_today=2
+2026-07-02T08:20:04.620035969Z [err]  08:20:03 - BNB 2026-07-02 08:19:00+00:00: setup SHORT [ranging/range_fade] score=83 conf=A price=549.2500 obi=-0.31(n=27) bb_w=0.15%
+2026-07-02T08:20:04.620043822Z [err]  08:20:03 - BNB: score breakdown: rsi_extreme_touch=+35 | regime_ok=+5 | trend_15m=+15 | bb_width=+5 | reversal_confirm=+8 | time_filter=+10 | obi_bonus=+15 | spread_penalty=-10
+2026-07-02T08:20:04.620055407Z [err]  08:20:03 - BNB: risk sizing — risk=3.00 USD sl=0.100% notional=2000.00 margin=100.00 (full)
+2026-07-02T08:20:04.620062330Z [err]  08:20:03 - BNB: active entry guard SET — executing trade in background
+2026-07-02T08:20:04.620069149Z [err]  08:20:03 - BNB: entry SHORT score at 549.2500 | margin=100.00 notional=2000.00 size=3.64000000
+2026-07-02T08:21:09.632718832Z [err]  08:21:05 - BNB: entry timeout — cancelling order oid=55852481709
+2026-07-02T08:21:09.632727871Z [err]  08:21:05 - BNB: cancel open order oid=55852481709
+2026-07-02T08:21:16.696557192Z [err]  08:21:15 - BNB: entry not filled; setup skipped
+2026-07-02T08:23:42.630965488Z [err]  INFO:     100.64.0.12:44536 - "WebSocket /ws/logs" [accepted]
+2026-07-02T08:23:42.630972619Z [err]  INFO:     connection open
+2026-07-02T08:23:42.630979412Z [inf]  INFO:     100.64.0.9:53190 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:23:42.631003304Z [inf]  INFO:     100.64.0.11:60630 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:23:45.363872993Z [inf]  INFO:     100.64.0.2:11556 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:23:46.868289107Z [inf]  INFO:     100.64.0.8:16640 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:23:48.404650904Z [inf]  INFO:     100.64.0.10:41404 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:23:52.091493603Z [inf]  INFO:     100.64.0.9:25780 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:23:57.517847391Z [inf]  INFO:     100.64.0.2:17448 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:24:00.880721250Z [err]  INFO:     connection closed
+2026-07-02T08:25:13.938395125Z [err]  08:25:04 - BNB 2026-07-02 08:24:00+00:00: setup SHORT [ranging/range_fade] score=90 conf=A price=549.3900 obi=-0.23(n=25) bb_w=0.06%
+2026-07-02T08:25:13.938413530Z [err]  08:25:04 - BNB: score breakdown: bb_touch=+25 | directional_vol=+10 | ema50_trend=+10 | regime_ok=+5 | rsi_1m=+20 | rsi_5m=+10 | trend_15m=+15 | bb_width=+5 | bb_pct_b=-10 | time_filter=+10 | spread_penalty=-10
+2026-07-02T08:25:13.938423945Z [err]  08:25:04 - BNB: risk sizing — risk=3.00 USD sl=0.100% notional=2000.00 margin=100.00 (full)
+2026-07-02T08:25:13.938432431Z [err]  08:25:04 - BNB: active entry guard SET — executing trade in background
+2026-07-02T08:25:13.938439735Z [err]  08:25:04 - BNB: entry SHORT score at 549.3900 | margin=100.00 notional=2000.00 size=3.63900000
+2026-07-02T08:25:13.938448262Z [err]  08:25:05 - BNB: score 90 >= taker threshold — using market entry
+2026-07-02T08:25:13.938457718Z [err]  08:25:06 - BNB: filled 3.63900000 @ 549.0940 | TP1=548.7589 TP2=548.3958 SL=549.6431 | risk=2.00 backstop=4.50 | deadline=08:30
+2026-07-02T08:25:19.455210638Z [err]  INFO:     100.64.0.13:51454 - "WebSocket /ws/logs" [accepted]
+2026-07-02T08:25:19.455219795Z [err]  INFO:     connection open
+2026-07-02T08:25:19.455226167Z [inf]  INFO:     100.64.0.8:45892 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:25:20.718573051Z [inf]  INFO:     100.64.0.4:31058 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:25:25.059772717Z [inf]  INFO:     100.64.0.11:61990 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:25:30.693133206Z [inf]  INFO:     100.64.0.9:54606 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:25:35.702228731Z [inf]  INFO:     100.64.0.8:21476 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:25:40.961806621Z [inf]  INFO:     100.64.0.3:45014 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:25:45.978348726Z [inf]  INFO:     100.64.0.11:61508 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:25:50.352437208Z [inf]  INFO:     100.64.0.13:13694 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:25:50.352444851Z [inf]  INFO:     100.64.0.8:44872 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:25:55.341459671Z [inf]  INFO:     100.64.0.3:23518 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:25:56.697420232Z [err]  INFO:     connection closed
+2026-07-02T08:26:03.095649391Z [err]  08:26:02 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-07-02T08:26:03.095656821Z [err]  08:26:02 - ETH: margin usage 100.0% > limit 70.0% — skipping
+2026-07-02T08:27:08.844958205Z [err]  08:27:05 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-07-02T08:27:48.859267730Z [inf]  INFO:     100.64.0.12:18168 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:27:48.859289269Z [inf]  INFO:     100.64.0.6:57354 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:27:48.859298476Z [inf]  INFO:     100.64.0.9:38488 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:27:48.859423613Z [err]  INFO:     100.64.0.9:40524 - "WebSocket /ws/logs" [accepted]
+2026-07-02T08:27:48.859431856Z [err]  INFO:     connection open
+2026-07-02T08:27:54.643662831Z [inf]  INFO:     100.64.0.6:47596 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:27:58.195614809Z [inf]  INFO:     100.64.0.6:47596 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:28:05.376788197Z [inf]  INFO:     100.64.0.6:47596 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:28:07.319883710Z [err]  08:28:05 - ETH: margin usage 99.9% > limit 70.0% — skipping
+2026-07-02T08:28:07.319891005Z [err]  08:28:05 - BNB: active entry guard expired after 181s — clearing
+2026-07-02T08:28:07.319898294Z [err]  08:28:05 - BNB: margin usage 99.9% > limit 70.0% — skipping
+2026-07-02T08:28:08.285052562Z [inf]  INFO:     100.64.0.7:38960 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:28:12.920652222Z [inf]  INFO:     100.64.0.12:51768 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:28:12.920661271Z [inf]  INFO:     100.64.0.6:46526 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:28:19.129918700Z [inf]  INFO:     100.64.0.4:39090 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:28:22.887737000Z [inf]  INFO:     100.64.0.9:20598 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:28:28.507573310Z [inf]  INFO:     100.64.0.12:47432 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:28:34.273587707Z [inf]  INFO:     100.64.0.3:26626 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:28:35.936322190Z [err]  INFO:     connection closed
+2026-07-02T08:29:06.255135172Z [err]  08:29:02 - BTC: margin usage 100.1% > limit 70.0% — skipping
+2026-07-02T08:29:57.672317679Z [err]  08:29:49 - BNB: margin usage 99.5% > limit 70.0% — skipping
+2026-07-02T08:30:04.686004279Z [err]  08:30:02 - ETH: margin usage 99.5% > limit 70.0% — skipping
+2026-07-02T08:30:09.304728002Z [err]  08:30:07 - BNB: cancel open order oid=55852619727
+2026-07-02T08:30:09.304734025Z [err]  08:30:08 - BNB: cancel open order oid=55852620305
+2026-07-02T08:30:11.552563779Z [err]  08:30:10 - BNB: time-stop market close size=3.63900000
+2026-07-02T08:30:11.552571934Z [err]  08:30:10 - BTC: margin usage 99.5% > limit 70.0% — skipping
+2026-07-02T08:30:14.018646712Z [err]  08:30:13 - BNB: trade closed reason=time_stop net_pnl=0.001166
+2026-07-02T08:30:14.018652562Z [err]  08:30:13 - BNB: recorded — win=True pnl=0.0012 | day_pnl=-0.0040 | trades_today=3
+2026-07-02T08:31:16.289232733Z [err]  08:31:05 - ETH 2026-07-02 08:30:00+00:00: setup LONG [ranging/range_fade] score=65 conf=B price=1632.2000 obi=0.65(n=26) bb_w=0.25%
+2026-07-02T08:31:16.289238961Z [err]  08:31:05 - ETH: score breakdown: vwap_stretch_base=+25 | regime_ok=+5 | rsi_1m=+10 | rsi_5m=+10 | time_filter=+10 | obi_bonus=+15 | funding_bias=-10
+2026-07-02T08:31:16.289245868Z [err]  08:31:05 - ETH: risk sizing — risk=3.00 USD sl=0.129% notional=1500.00 margin=75.00 (full)
+2026-07-02T08:31:16.289252499Z [err]  08:31:05 - ETH: active entry guard SET — executing trade in background
+2026-07-02T08:31:16.289261323Z [err]  08:31:05 - ETH: entry LONG score at 1632.2000 | margin=75.00 notional=1500.00 size=0.91930000
+2026-07-02T08:32:09.979690002Z [err]  08:32:07 - ETH: entry timeout — cancelling order oid=55852804418
+2026-07-02T08:32:09.979699400Z [err]  08:32:07 - ETH: cancel open order oid=55852804418
+2026-07-02T08:32:19.536814000Z [err]  08:32:17 - ETH: entry not filled; setup skipped
+2026-07-02T08:33:47.274725722Z [err]  INFO:     100.64.0.13:42226 - "WebSocket /ws/logs" [accepted]
+2026-07-02T08:33:47.274834059Z [err]  INFO:     connection open
+2026-07-02T08:33:47.274846094Z [inf]  INFO:     100.64.0.5:36348 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:33:47.274855668Z [inf]  INFO:     100.64.0.9:57842 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:33:51.477611749Z [inf]  INFO:     100.64.0.9:57842 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:33:55.249195701Z [inf]  INFO:     100.64.0.5:35792 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:34:03.057700019Z [inf]  INFO:     100.64.0.2:44588 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:34:06.109407634Z [inf]  INFO:     100.64.0.9:11176 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:34:06.109413780Z [err]  08:34:06 - ETH 2026-07-02 08:33:00+00:00: setup LONG [ranging/range_fade] score=45 conf=C price=1632.2000 obi=0.15(n=25) bb_w=0.14%
+2026-07-02T08:34:06.109419787Z [err]  08:34:06 - ETH: score breakdown: vwap_stretch_base=+25 | regime_ok=+5 | rsi_1m=+10 | rsi_5m=+10 | bb_width=+5 | time_filter=+10 | spread_penalty=-10 | funding_bias=-10
+2026-07-02T08:34:06.109425103Z [err]  08:34:06 - ETH: risk sizing — risk=1.80 USD sl=0.129% notional=1395.91 margin=69.80 (half)
+2026-07-02T08:34:06.109431281Z [err]  08:34:06 - ETH: active entry guard SET — executing trade in background
+2026-07-02T08:34:06.109437632Z [err]  08:34:06 - ETH: entry LONG score at 1632.2000 | margin=69.80 notional=1395.91 size=0.85550000
+2026-07-02T08:34:11.270805005Z [inf]  INFO:     100.64.0.11:30660 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:34:13.962593459Z [inf]  INFO:     100.64.0.13:18210 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:34:16.163276203Z [inf]  INFO:     100.64.0.5:57052 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:34:18.149768112Z [inf]  INFO:     100.64.0.11:30674 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:34:18.149777781Z [inf]  INFO:     100.64.0.2:48684 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:34:20.340414353Z [inf]  INFO:     100.64.0.5:57052 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:34:26.532489404Z [inf]  INFO:     100.64.0.10:42400 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:34:31.166358020Z [inf]  INFO:     100.64.0.2:42564 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:34:35.451410414Z [inf]  INFO:     100.64.0.8:11612 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:34:39.903755941Z [inf]  INFO:     100.64.0.13:52056 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:34:44.054818085Z [inf]  INFO:     100.64.0.9:38816 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:34:45.506493323Z [inf]  INFO:     100.64.0.10:45686 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:34:51.471677416Z [inf]  INFO:     100.64.0.6:48856 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:34:55.234300385Z [inf]  INFO:     100.64.0.2:12062 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:34:57.045340536Z [err]  INFO:     connection closed
+2026-07-02T08:35:15.990195616Z [err]  08:35:06 - BTC 2026-07-02 08:34:00+00:00: block: OBI=0.39 (buyers dominant, smoothed) (price 60551.0000)
+2026-07-02T08:35:15.990202511Z [err]  08:35:10 - ETH: entry timeout — cancelling order oid=55852907739
+2026-07-02T08:35:15.990209098Z [err]  08:35:10 - ETH: cancel open order oid=55852907739
+2026-07-02T08:35:22.148457616Z [err]  08:35:20 - ETH: entry not filled; setup skipped
+2026-07-02T08:36:13.326837890Z [err]  08:36:04 - BTC 2026-07-02 08:35:00+00:00: block: OBI=0.53 (buyers dominant, smoothed) (price 60572.0000)
+2026-07-02T08:37:07.609693728Z [err]  08:37:05 - BTC 2026-07-02 08:36:00+00:00: block: OBI=0.49 (buyers dominant, smoothed) (price 60612.0000)
+2026-07-02T08:37:07.609700164Z [err]  08:37:06 - ETH 2026-07-02 08:36:00+00:00: block: trend_against + deep_bb_break: high risk fade (price 1625.9000)
+2026-07-02T08:37:07.609707986Z [err]  08:37:06 - BNB 2026-07-02 08:36:00+00:00: setup SHORT [ranging/range_fade] score=115 conf=A+ price=549.5400 obi=-0.20(n=26) bb_w=0.14%
+2026-07-02T08:37:07.609715514Z [err]  08:37:06 - BNB: score breakdown: bb_touch=+25 | ema50_trend=+10 | regime_ok=+5 | rsi_1m=+20 | trend_15m=+15 | bb_width=+5 | bb_pct_b=+10 | reversal_confirm=+15 | time_filter=+10
+2026-07-02T08:37:07.609722234Z [err]  08:37:06 - BNB: risk sizing — risk=3.00 USD sl=0.100% notional=2000.00 margin=100.00 (full)
+2026-07-02T08:37:07.609729287Z [err]  08:37:06 - BNB: active entry guard SET — executing trade in background
+2026-07-02T08:37:07.609736242Z [err]  08:37:06 - BNB: entry SHORT score at 549.5400 | margin=100.00 notional=2000.00 size=3.63800000
+2026-07-02T08:37:07.609742651Z [err]  08:37:06 - BNB: score 115 >= taker threshold — using market entry
+2026-07-02T08:37:09.607325818Z [err]  08:37:08 - BNB: filled 3.63800000 @ 549.3608 | TP1=549.0084 TP2=548.6266 SL=549.9101 | risk=2.00 backstop=4.50 | deadline=08:42
+2026-07-02T08:38:11.793720355Z [err]  08:38:02 - BTC: margin usage 99.6% > limit 70.0% — skipping
+2026-07-02T08:38:11.793723637Z [err]  08:38:03 - ETH: margin usage 99.6% > limit 70.0% — skipping
+2026-07-02T08:39:13.458456965Z [err]  08:39:06 - ETH: margin usage 99.8% > limit 70.0% — skipping
+2026-07-02T08:39:20.387253883Z [err]  INFO:     100.64.0.11:30652 - "WebSocket /ws/logs" [accepted]
+2026-07-02T08:39:20.387262945Z [err]  INFO:     connection open
+2026-07-02T08:39:20.387270527Z [inf]  INFO:     100.64.0.4:22632 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:39:21.841600761Z [inf]  INFO:     100.64.0.12:26484 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:39:26.545543145Z [inf]  INFO:     100.64.0.10:19996 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:39:32.522871641Z [inf]  INFO:     100.64.0.12:34014 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:39:37.915190097Z [inf]  INFO:     100.64.0.7:61702 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:39:41.797881951Z [inf]  INFO:     100.64.0.7:61702 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:39:45.501978941Z [inf]  INFO:     100.64.0.12:26962 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:39:47.536126835Z [inf]  INFO:     100.64.0.10:30312 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:39:50.020270601Z [inf]  INFO:     100.64.0.6:34822 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:39:50.020277378Z [inf]  INFO:     100.64.0.12:26962 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:39:50.020285002Z [err]  INFO:     connection closed
+2026-07-02T08:40:18.997272939Z [err]  08:40:09 - BTC: margin usage 99.8% > limit 70.0% — skipping
+2026-07-02T08:40:18.997280424Z [err]  08:40:09 - BNB: active entry guard expired after 183s — clearing
+2026-07-02T08:40:18.997288194Z [err]  08:40:10 - BNB: margin usage 99.8% > limit 70.0% — skipping
+2026-07-02T08:41:12.405872043Z [err]  08:41:03 - ETH: margin usage 99.7% > limit 70.0% — skipping
+2026-07-02T08:41:18.455096362Z [err]  08:41:17 - BNB: margin usage 99.7% > limit 70.0% — skipping
+2026-07-02T08:42:09.926365752Z [err]  08:42:03 - BTC: margin usage 100.0% > limit 70.0% — skipping
+2026-07-02T08:42:09.926373486Z [err]  08:42:04 - ETH: margin usage 100.0% > limit 70.0% — skipping
+2026-07-02T08:42:09.926380324Z [err]  08:42:09 - BNB: cancel open order oid=55853022057
+2026-07-02T08:42:11.794057818Z [err]  08:42:10 - BNB: cancel open order oid=55853022937
+2026-07-02T08:42:14.000477083Z [err]  08:42:12 - BNB: time-stop market close size=3.63800000
+2026-07-02T08:42:16.013890499Z [err]  08:42:15 - BNB: trade closed reason=time_stop net_pnl=-1.115320
+2026-07-02T08:42:16.013896684Z [err]  08:42:15 - BNB: single-loss cooldown until 08:47 (5m)
+2026-07-02T08:42:16.013903703Z [err]  08:42:15 - BNB: recorded — win=False pnl=-1.1153 | day_pnl=-1.1194 | trades_today=4
+2026-07-02T08:42:17.975197520Z [err]  08:42:17 - BNB: risk block: cooldown 4m còn lại (đến 08:47)
+2026-07-02T08:43:20.410858386Z [err]  08:43:18 - BNB: risk block: cooldown 3m còn lại (đến 08:47)
+2026-07-02T08:44:24.884220544Z [err]  08:44:21 - BNB: risk block: cooldown 2m còn lại (đến 08:47)
+2026-07-02T08:45:28.098195046Z [err]  08:45:23 - BNB: risk block: cooldown 1m còn lại (đến 08:47)
+2026-07-02T08:46:10.559364619Z [err]  INFO:     100.64.0.5:16802 - "WebSocket /ws/logs" [accepted]
+2026-07-02T08:46:10.559372279Z [err]  INFO:     connection open
+2026-07-02T08:46:10.559380574Z [inf]  INFO:     100.64.0.7:10882 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:46:10.559389023Z [inf]  INFO:     100.64.0.13:24566 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:46:10.559396899Z [inf]  INFO:     100.64.0.11:10902 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:46:14.813906250Z [inf]  INFO:     100.64.0.4:22392 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:46:19.065376118Z [inf]  INFO:     100.64.0.8:46418 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:46:24.276574318Z [inf]  INFO:     100.64.0.3:38784 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:46:24.276580156Z [err]  08:46:23 - BNB: risk block: cooldown 0m còn lại (đến 08:47)
+2026-07-02T08:46:24.276585986Z [inf]  INFO:     100.64.0.13:57286 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:46:26.120126129Z [inf]  INFO:     100.64.0.4:28434 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:46:27.943412984Z [inf]  INFO:     100.64.0.13:57286 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:46:32.756603707Z [inf]  INFO:     100.64.0.11:62476 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:46:35.003545940Z [inf]  INFO:     100.64.0.5:20826 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:46:37.049226092Z [err]  INFO:     connection closed
+2026-07-02T08:49:41.634437557Z [err]  INFO:     100.64.0.11:22962 - "WebSocket /ws/logs" [accepted]
+2026-07-02T08:49:41.634444578Z [err]  INFO:     connection open
+2026-07-02T08:49:41.634450658Z [inf]  INFO:     100.64.0.9:52062 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:49:43.589202806Z [inf]  INFO:     100.64.0.3:60158 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:49:47.817999930Z [inf]  INFO:     100.64.0.9:54322 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:49:53.026666831Z [inf]  INFO:     100.64.0.7:60628 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:49:56.778452691Z [inf]  INFO:     100.64.0.8:44146 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:50:02.445702931Z [inf]  INFO:     100.64.0.2:51704 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:50:07.225126556Z [inf]  INFO:     100.64.0.8:41418 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:50:07.225133328Z [inf]  INFO:     100.64.0.13:49596 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:50:08.438853302Z [inf]  INFO:     100.64.0.7:58878 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:50:10.504343882Z [inf]  INFO:     100.64.0.10:23704 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:50:10.504351677Z [inf]  INFO:     100.64.0.9:60380 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:50:17.764484648Z [inf]  INFO:     100.64.0.3:33720 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:50:19.470353914Z [inf]  INFO:     100.64.0.9:45128 - "GET / HTTP/1.1" 200 OK
+2026-07-02T08:50:19.470361640Z [err]  INFO:     connection closed
+2026-07-02T08:50:19.470369435Z [inf]  INFO:     100.64.0.9:45128 - "GET /static/main.js HTTP/1.1" 304 Not Modified
+2026-07-02T08:50:19.470376551Z [inf]  INFO:     100.64.0.8:26424 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+2026-07-02T08:50:19.470726405Z [inf]  INFO:     100.64.0.3:33720 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:50:19.470738652Z [err]  INFO:     100.64.0.6:27368 - "WebSocket /ws/logs" [accepted]
+2026-07-02T08:50:19.470745054Z [err]  INFO:     connection open
+2026-07-02T08:50:19.470751006Z [inf]  INFO:     100.64.0.10:26334 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T08:50:26.464387528Z [inf]  INFO:     100.64.0.3:13494 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:50:31.727750025Z [inf]  INFO:     100.64.0.13:52360 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:50:35.624484414Z [inf]  INFO:     100.64.0.9:55148 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T08:50:37.077550479Z [err]  INFO:     connection closed

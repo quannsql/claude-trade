@@ -19,7 +19,7 @@ import os
 from tabulate import tabulate
 
 from indicators import add_indicators, score_setup
-from filters import compute_dynamic_levels, compute_risk_sizing
+from filters import compute_dynamic_levels, compute_risk_sizing, estimate_fee_edge
 
 # ---------------------------------------------------------
 # BACKTEST CONFIGURATION — BTC ONLY (ETH đã bị loại bỏ)
@@ -70,9 +70,10 @@ COIN_CONFIG: dict[str, dict] = {
         "time_stop_minutes": 10,
         "bb_width_max_pct": 1.4,
         "bb_width_warn_pct": 0.9,
-        "min_score_full": 65,
-        "min_score_half": 40,
-        "max_loss_per_trade_usd": 3.5,
+        # v3.1: đồng bộ ngưỡng với triết lý mới — bản cũ 40/65 để lọt setup
+        # C-grade score 45 vào lệnh (live 08:33 ETH score=45 vẫn entry)
+        "min_score_full": 72,
+        "min_score_half": 55,
         "use_regime_filter": True,
         # ETH margin nhỏ hơn ($1500) nên % nhỉnh hơn để đạt cùng lượng USD
         "tp1_pct_max": 0.20,
@@ -133,6 +134,11 @@ BASE_CONFIG = {
     # ── Entry execution v3 ──
     "taker_entry_min_score": 85,     # setup A/A+ → vào market (IOC), khỏi lỡ lệnh đẹp
     "reversal_cancel_pct": 0.08,     # giá quay đầu 0.08% mà chưa fill → hủy limit ngay
+
+    # ── v3.1 FEE GATE: edge tối thiểu sau phí round-trip ──
+    # TP1 ước tính phải >= (fee vào + fee ra taker) + fee_edge_min_pct,
+    # nếu không thì skip setup (coin ATR bé → không cách nào dương EV).
+    "fee_edge_min_pct": 0.04,
 
     # Hard dollar stop-loss floor (fallback khi không tính được planned risk)
     "max_loss_per_trade_usd": 4.5,
@@ -691,6 +697,11 @@ def run_symbol_backtest(symbol: str, cfg: dict) -> pd.DataFrame:
 
         entry_price = df1.iloc[i1]["close"]
         atr_5m = setup.get("atr_5m", 0.0)
+
+        # v3.1 FEE GATE (parity với live): TP1 est phải đủ trả phí round-trip
+        fee_edge = estimate_fee_edge(entry_price, atr_5m, cfg)
+        if not fee_edge["viable_maker"]:
+            continue
 
         # v3: size theo rủi ro USD cố định (loss ≈ win) thay vì notional cố định
         sizing = compute_risk_sizing(entry_price, atr_5m, cfg, score_full)

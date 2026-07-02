@@ -708,7 +708,8 @@ def _load_live_chart_payload(address: str, symbols: list[str]) -> dict[str, Any]
     wins = 0
     parsed_times = []
     last_fill_time = 0
-    
+    fees_total = 0.0
+
     for index, row in enumerate(fills, start=1):
         dt = _parse_datetime(row[0])
         coin = row[1]
@@ -724,7 +725,8 @@ def _load_live_chart_payload(address: str, symbols: list[str]) -> dict[str, Any]
             fee = 0.0
             
         pnl = gross_pnl - fee  # Tính Net PnL chuẩn
-        
+        fees_total += fee
+
         if dt:
             parsed_times.append(dt)
             day_key = dt.date().isoformat()
@@ -799,7 +801,7 @@ def _load_live_chart_payload(address: str, symbols: list[str]) -> dict[str, Any]
             "max_drawdown_pct": round(max_drawdown, 2),
             "final_equity_usd": round(final_equity, 4),
             "trades_per_day": round(len(fills) / days_span, 2),
-            "total_fees_usd": 0,
+            "total_fees_usd": round(fees_total, 4),
             "expectancy_usd": round(sum(net_values) / len(fills), 6) if fills else 0,
             "best_trade_usd": round(max(net_values), 6) if net_values else 0,
             "worst_trade_usd": round(min(net_values), 6) if net_values else 0,

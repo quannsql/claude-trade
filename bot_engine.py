@@ -54,7 +54,7 @@ from hyperliquid.info import Info
 from hyperliquid.utils import constants
 
 from indicators import add_indicators, score_setup
-from filters import compute_risk_sizing
+from filters import compute_risk_sizing, estimate_fee_edge
 from run_backtest import CONFIG, COIN_CONFIG
 
 
@@ -475,6 +475,8 @@ def _get_orderbook_analysis(info: Info, coin: str, current_price: float = 0.0, d
         "bid_wall_price": None,
         "ask_wall_price": None,
         "spread_pct": 0.0,
+        "best_bid": 0.0,
+        "best_ask": 0.0,
     }
     try:
         l2 = info.l2_snapshot(coin)
@@ -487,9 +489,11 @@ def _get_orderbook_analysis(info: Info, coin: str, current_price: float = 0.0, d
         if not raw_bids or not raw_asks:
             return result
 
-        # Spread
+        # Spread + bbo (bbo dùng cho maker-first close)
         best_bid = float(raw_bids[0].get("px", 0))
         best_ask = float(raw_asks[0].get("px", 0))
+        result["best_bid"] = best_bid
+        result["best_ask"] = best_ask
         if best_bid > 0:
             result["spread_pct"] = (best_ask - best_bid) / best_bid * 100
         if current_price <= 0:
@@ -801,13 +805,39 @@ async def _wait_entry_fill(
     last_summary = FillSummary()
     cancel_reason = "entry timeout"
 
+    gone_no_pos = 0
+    gone_with_pos = 0
+
     while time.monotonic() < deadline:
         fills = await _call(_fills_by_oid, info, address, start_ms, coin, oid)
         last_summary = _summarize_fills(fills, oid)
         if last_summary.size >= target_size * 0.999:
             return last_summary
+
+        # ── FIX CRITICAL (02/07): race condition với market/IOC entry ──
+        # Market order fill NGAY nhưng user_fills API trễ 1-2s → bản cũ thấy
+        # "order biến mất + chưa có fill" → kết luận not-filled → position
+        # thành orphan (BTC 08:05 live: orphan 2 phút, đóng khẩn cấp, mất $1.33 phí).
+        # Fix: xác nhận qua position trực tiếp trước khi kết luận.
         if oid is not None and not await _call(_is_order_open, info, address, coin, oid) and last_summary.size <= 0:
-            return last_summary
+            pos_size, pos_px = await _call(_position_for_coin, info, address, coin)
+            if abs(pos_size) > POSITION_EPSILON:
+                gone_with_pos += 1
+                gone_no_pos = 0
+                if gone_with_pos >= 3:
+                    # fills API vẫn chưa propagate sau ~3 vòng — adopt position
+                    logger.warning(
+                        "%s: order gone + fills lagging — adopting position size=%.8f as fill",
+                        coin, abs(pos_size),
+                    )
+                    last_summary.size = abs(pos_size)
+                    last_summary.notional = abs(pos_size) * (pos_px or signal_price or 0.0)
+                    return last_summary
+            else:
+                gone_no_pos += 1
+                gone_with_pos = 0
+                if gone_no_pos >= 2:
+                    return last_summary  # xác nhận 2 lần: thật sự không fill
 
         # ── v3: Cancel-on-reversal — giá đã quay đầu (bounce/drop bắt đầu)
         # mà limit chưa fill → cơ hội đã đi, hủy ngay thay vì chờ hết 60s.
@@ -869,7 +899,7 @@ async def _market_close_remaining(
         close_size = abs(pos_size)
         if close_size <= POSITION_EPSILON:
             return None
-        logger.info("%s: time-stop market close size=%.8f", coin, close_size)
+        logger.info("%s: market close remaining size=%.8f", coin, close_size)
         response = await _call(exchange.market_close, coin, close_size, None, MARKET_CLOSE_SLIPPAGE)
         oid = _extract_oid(response)
         if oid is not None:
@@ -883,6 +913,51 @@ async def _market_close_remaining(
         return None
 
 
+async def _close_position_maker_first(
+    exchange: Exchange, info: Info, address: str, coin: str,
+    managed_oids: set[int], timeout_seconds: int = 20,
+) -> None:
+    """
+    v3.1 FEE FIX: đóng position bằng Alo limit tại bbo trước (phí maker 0.015%),
+    chỉ fallback market (taker 0.045%) nếu không khớp trong timeout_seconds.
+
+    Dùng cho time_stop — exit trung tính, không gấp. Live 02/07: 4/6 lệnh thoát
+    bằng time_stop taker, mỗi lệnh mất thêm ~$0.6/2000 notional so với maker.
+    KHÔNG dùng cho hard SL / emergency (ưu tiên tốc độ).
+    """
+    try:
+        pos_size, _ = await _call(_position_for_coin, info, address, coin)
+        close_size = abs(pos_size)
+        if close_size <= POSITION_EPSILON:
+            return
+        is_buy_exit = pos_size < 0  # short → mua lại để đóng
+
+        ob = _latest_ob_analysis.get(coin) or {}
+        # Đứng ĐÚNG bbo phía mình: sell exit đặt tại ask, buy exit đặt tại bid
+        px = ob.get("best_bid") if is_buy_exit else ob.get("best_ask")
+        if px and px > 0:
+            size_r = _round_size(exchange, coin, close_size)
+            oid, _ = await _place_limit(exchange, coin, is_buy_exit, size_r, px, True, "Alo")
+            if oid is not None:
+                managed_oids.add(oid)
+                logger.info(
+                    "%s: maker-first close %.8f @ %.5g (chờ %ds trước khi market)",
+                    coin, size_r, px, timeout_seconds,
+                )
+                deadline = time.monotonic() + timeout_seconds
+                while time.monotonic() < deadline:
+                    await asyncio.sleep(ORDER_POLL_SECONDS)
+                    pos_size, _ = await _call(_position_for_coin, info, address, coin)
+                    if abs(pos_size) <= POSITION_EPSILON:
+                        logger.info("%s: maker close filled — saved taker fee", coin)
+                        return
+                await _cancel_if_open(exchange, info, address, coin, oid)
+    except Exception as exc:
+        logger.warning("%s: maker-first close failed (%s) — fallback market", coin, exc)
+
+    await _market_close_remaining(exchange, info, address, coin, managed_oids)
+
+
 async def _final_net_pnl(info: Info, address: str, coin: str, start_ms: int, managed_oids: set[int]) -> float:
     await asyncio.sleep(2)
     fills = await _call(info.user_fills_by_time, address, max(0, start_ms - 5_000))
@@ -893,14 +968,24 @@ async def _final_net_pnl(info: Info, address: str, coin: str, start_ms: int, man
     # (bao gồm partial fills bị fragmented của cùng 1 entry order)
     coin_fills = [f for f in fills if f.get("coin") == coin]
 
+    # ── FIX CRITICAL (02/07): closedPnl từ API là GROSS (chưa trừ phí)!
+    # Bằng chứng live: bot ghi +$0.0012 cho lệnh BNB 08:24 trong khi
+    # trade_history thật = -$1.797 (chênh đúng bằng fee $1.798).
+    # → mọi thống kê win/loss, day_pnl, daily_loss_limit đều sai nếu không trừ fee.
+    def _net(fill_list):
+        return sum(
+            _to_float(f.get("closedPnl")) - _to_float(f.get("fee"))
+            for f in fill_list
+        )
+
     # Ưu tiên: fills trong managed_oids (chính xác nhất)
     related = [f for f in coin_fills if int(f.get("oid", -1)) in managed_oids]
     if related:
-        return sum(_to_float(f.get("closedPnl")) for f in related)
+        return _net(related)
 
     # Fallback: tất cả fills của coin trong time window (nếu oid tracking bị mất)
     logger.warning("%s: no managed_oid fills found, using all coin fills in window", coin)
-    return sum(_to_float(f.get("closedPnl")) for f in coin_fills)
+    return _net(coin_fills)
 
 
 async def _wait_for_position_flat(info: Info, address: str, coin: str, timeout_seconds: int = 30) -> bool:
@@ -1007,8 +1092,21 @@ async def _execute_setup(
     # B/C setup vẫn maker để tối ưu phí.
     entry_order_type = cfg.get("entry_order_type", "limit")
     if score >= cfg.get("taker_entry_min_score", 85):
-        entry_order_type = "market"
-        logger.info("%s: score %d >= taker threshold — using market entry", coin, score)
+        # v3.1 FEE FIX: taker chỉ khi TP1 đủ trả taker round-trip.
+        # Live 02/07: 2 lệnh BNB taker vào + time_stop taker ra = 0.09% phí
+        # trong khi TP1 chỉ 0.06% → thua chắc từ lúc đặt lệnh.
+        edge = estimate_fee_edge(signal_price, atr_5m, cfg)
+        if edge["viable_taker"]:
+            entry_order_type = "market"
+            logger.info(
+                "%s: score %d >= taker threshold, TP1 est %.3f%% > %.3f%% fees — market entry",
+                coin, score, edge["tp1_pct_est"], edge["required_taker_pct"],
+            )
+        else:
+            logger.info(
+                "%s: score %d đạt taker nhưng TP1 est %.3f%% < %.3f%% (taker fees+edge) — giữ maker",
+                coin, score, edge["tp1_pct_est"], edge["required_taker_pct"],
+            )
 
     if entry_order_type == "market":
         slippage = max(cfg.get("slippage_pct", 0.0) / 100, 0.002)
@@ -1152,7 +1250,8 @@ async def _execute_setup(
                 exit_reason = "time_stop"
                 for oid in (tp1_oid, tp2_oid, sl_oid):
                     await _cancel_if_open(exchange, info, address, coin, oid)
-                await _market_close_remaining(exchange, info, address, coin, managed_oids)
+                # v3.1: time_stop là exit trung tính — thử maker trước để tiết kiệm phí
+                await _close_position_maker_first(exchange, info, address, coin, managed_oids)
                 await _wait_for_position_flat(info, address, coin)
                 break
 
@@ -1489,6 +1588,19 @@ async def _scan_coin(
             _log_setup_csv(coin, signal_ts, current_price, setup, "below_threshold")
             return
 
+        # ── v3.1 FEE GATE: TP1 ước tính phải đủ trả phí round-trip + edge tối thiểu.
+        # Coin volatility thấp (BNB ATR ~0.06%) → TP1 < phí → mọi lệnh âm EV
+        # từ lúc đặt. Fee ăn 4.3x gross profit trong live 02/07.
+        fee_edge = estimate_fee_edge(current_price, setup.get("atr_5m", 0.0), effective_cfg)
+        if not fee_edge["viable_maker"]:
+            _log_throttled(
+                f"feegate:{coin}", 300,
+                "%s: FEE GATE — TP1 est %.3f%% < fees+edge %.3f%% (ATR %.3f%% quá bé so với phí) — skipping",
+                coin, fee_edge["tp1_pct_est"], fee_edge["required_maker_pct"], fee_edge["atr_pct"],
+            )
+            _log_setup_csv(coin, signal_ts, current_price, setup, "fee_gate")
+            return
+
         # ── v3: Size theo rủi ro USD cố định (loss ≈ win) ──
         score_full = score >= min_full
         sizing = compute_risk_sizing(
@@ -1544,6 +1656,10 @@ async def run_bot_async():
         "OBI smoothing=%ds window (min %d samples) | reversal_cancel=%.2f%% | circuit breaker=%d fails/60s",
         OBI_WINDOW_SEC, OBI_MIN_SAMPLES,
         CONFIG.get("reversal_cancel_pct", 0.0), API_FAILURE_THRESHOLD,
+    )
+    logger.info(
+        "v3.1 FEE: gate TP1>=fees+%.2f%% | maker-first time_stop close | net PnL = closedPnl - fees",
+        CONFIG.get("fee_edge_min_pct", 0.04),
     )
     logger.info(
         "Guards: entry=%ds | SL cooldown=%dm | max margin=%.0f%% | daily_loss=%.2f | max_trades/day=%d | disabled=%s",
