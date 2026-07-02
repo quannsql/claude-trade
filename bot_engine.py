@@ -35,9 +35,12 @@ IMPROVEMENT #6 — PARTIAL FILL PNL TRACKING
 """
 
 import asyncio
+import csv
+import json
 import logging
 import os
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, ROUND_DOWN
@@ -51,6 +54,7 @@ from hyperliquid.info import Info
 from hyperliquid.utils import constants
 
 from indicators import add_indicators, score_setup
+from filters import compute_risk_sizing
 from run_backtest import CONFIG, COIN_CONFIG
 
 
@@ -61,6 +65,8 @@ if not logger.handlers:
     formatter = logging.Formatter("%(asctime)s - %(message)s", datefmt="%H:%M:%S")
     ch.setFormatter(formatter)
     logger.addHandler(ch)
+# Fix log đôi: không propagate lên root logger (uvicorn/app.py có handler riêng)
+logger.propagate = False
 
 
 PRIVATE_KEY = os.environ.get("HL_PRIVATE_KEY", "")
@@ -82,9 +88,8 @@ SL_SINGLE_COOLDOWN_MINUTES = int(os.environ.get("HL_SL_COOLDOWN_MINUTES", "3"))
 # ── FIX #3: Giới hạn tổng margin usage ──
 MAX_MARGIN_USAGE_PCT = float(os.environ.get("HL_MAX_MARGIN_PCT", "0.70"))  # max 70% account dùng làm margin
 
-# ── HARD DOLLAR SL: đóng ngay nếu unrealized loss vượt ngưỡng này ──
-# Tránh tình huống như ETH -$7 vì price trượt dài không chạm % SL
-HARD_DOLLAR_SL_USD = float(os.environ.get("HL_HARD_DOLLAR_SL", "3.0"))
+# ── HARD DOLLAR SL floor: backstop tối thiểu (v3: backstop thực = planned_risk × mult) ──
+HARD_DOLLAR_SL_USD = float(os.environ.get("HL_HARD_DOLLAR_SL", "4.5"))
 HARD_DOLLAR_SL_CHECK_INTERVAL = int(os.environ.get("HL_HARD_SL_INTERVAL", "5"))  # check mỗi N giây
 
 # ── FIX #1: Track active entry orders để chống stacking ──
@@ -97,6 +102,32 @@ _coin_locks: dict[str, asyncio.Lock] = {}
 
 # Theo dõi thời gian orphan position của từng coin
 _orphan_timers: dict[str, float] = {}
+
+# ── v3: OBI smoothing — buffer mẫu OBI per coin, lấy mỗi scan cycle (3s) ──
+OBI_WINDOW_SEC = int(os.environ.get("HL_OBI_WINDOW_SEC", "90"))
+OBI_MIN_SAMPLES = int(os.environ.get("HL_OBI_MIN_SAMPLES", "3"))
+_obi_buffers: dict[str, deque] = {}
+_latest_ob_analysis: dict[str, dict] = {}
+
+# ── v3: Candle cache — chỉ refetch khi nến mới ĐÃ đóng (giảm ~20x REST call) ──
+_candle_cache: dict[tuple[str, str], dict[str, Any]] = {}
+
+# ── v3: Funding rate cache (meta_and_asset_ctxs là call nặng) ──
+_funding_cache: dict[str, dict[str, Any]] = {}
+FUNDING_CACHE_TTL_SEC = 120
+
+# ── v3: API circuit breaker — nhiều lỗi liên tiếp → tạm dừng MỞ LỆNH MỚI ──
+# (vòng quản lý vị thế đang mở vẫn chạy bình thường)
+_api_failures: deque = deque()
+API_FAILURE_WINDOW_SEC = 60
+API_FAILURE_THRESHOLD = int(os.environ.get("HL_API_FAILURE_THRESHOLD", "6"))
+
+# ── v3: Throttle log lặp (cooldown/risk block) ──
+_last_throttled_log: dict[str, float] = {}
+
+# ── v3: CSV log — mọi setup (kể cả bị block) + mọi trade, để tune weight theo data thật ──
+SETUP_LOG_PATH = os.environ.get("HL_SETUP_LOG", "setups_log.csv")
+TRADE_LOG_PATH = os.environ.get("HL_TRADE_LOG", "trades_log.csv")
 
 
 @dataclass
@@ -220,6 +251,78 @@ def configured_live_coins() -> list[str]:
     if raw:
         return [item.strip().upper() for item in raw.split(",") if item.strip()]
     return [_symbol_to_coin(s) for s in CONFIG.get("symbols", [])]
+
+
+def _record_api_failure() -> None:
+    now = time.time()
+    _api_failures.append(now)
+    while _api_failures and now - _api_failures[0] > API_FAILURE_WINDOW_SEC:
+        _api_failures.popleft()
+
+
+def _api_circuit_open() -> bool:
+    """True nếu quá nhiều lỗi API trong 60s — tạm dừng mở lệnh mới."""
+    now = time.time()
+    while _api_failures and now - _api_failures[0] > API_FAILURE_WINDOW_SEC:
+        _api_failures.popleft()
+    return len(_api_failures) >= API_FAILURE_THRESHOLD
+
+
+def _log_throttled(key: str, interval_sec: float, msg: str, *args) -> None:
+    """Log tối đa 1 lần mỗi interval_sec cho mỗi key — chống spam log."""
+    now = time.time()
+    if now - _last_throttled_log.get(key, 0.0) >= interval_sec:
+        _last_throttled_log[key] = now
+        logger.info(msg, *args)
+
+
+def _append_csv(path: str, row: dict) -> None:
+    """Append 1 dòng vào CSV, tự viết header nếu file mới. Không bao giờ raise."""
+    try:
+        exists = os.path.exists(path)
+        with open(path, "a", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=list(row.keys()))
+            if not exists:
+                writer.writeheader()
+            writer.writerow(row)
+    except Exception as exc:
+        logger.debug("csv append failed (%s): %s", path, exc)
+
+
+def _log_setup_csv(coin: str, signal_ts: pd.Timestamp, price: float,
+                   setup: dict, decision: str) -> None:
+    _append_csv(SETUP_LOG_PATH, {
+        "ts": signal_ts.isoformat(),
+        "coin": coin,
+        "regime": setup.get("regime", ""),
+        "entry_mode": setup.get("entry_mode", ""),
+        "direction": setup.get("direction") or "",
+        "score": setup.get("score", 0),
+        "confidence": setup.get("confidence", ""),
+        "obi": round(setup.get("obi", 0.0), 4),
+        "price": price,
+        "bb_width_pct": round(setup.get("bb_width_pct", 0.0), 4),
+        "decision": decision,
+        "block_reason": "; ".join(setup.get("block_reasons", [])),
+        "details": json.dumps(setup.get("score_details", {})),
+    })
+
+
+def _log_trade_csv(result: "TradeResult", score: int, regime: str, obi: float) -> None:
+    _append_csv(TRADE_LOG_PATH, {
+        "entry_time": result.entry_time.isoformat(),
+        "exit_time": result.exit_time.isoformat(),
+        "coin": result.coin,
+        "direction": result.direction,
+        "score": score,
+        "regime": regime,
+        "obi": round(obi, 4),
+        "exit_reason": result.exit_reason,
+        "filled_size": result.filled_size,
+        "entry_price": result.entry_price,
+        "net_pnl": round(result.net_pnl, 6),
+        "win": result.win,
+    })
 
 
 def _to_float(value: Any, default: float = 0.0) -> float:
@@ -354,13 +457,14 @@ def _fills_by_oid(info: Info, address: str, start_ms: int, coin: str, oid: int |
     return [fill for fill in fills if fill.get("coin") == coin and int(fill.get("oid", -1)) == oid]
 
 
-def _get_orderbook_analysis(info: Info, coin: str, current_price: float, depth: int = 20) -> dict:
+def _get_orderbook_analysis(info: Info, coin: str, current_price: float = 0.0, depth: int = 20) -> dict:
     """
     Phân tích sổ lệnh nâng cao:
-    - OBI: orderbook imbalance (đã có)
+    - OBI: orderbook imbalance (snapshot — làm mượt qua _smoothed_obi)
     - Wall: phát hiện lệnh lớn bất thường (> 3x average level size)
     - Spread: bid-ask spread hiện tại (%)
     - Near wall: wall nằm trong 0.1% của current price
+    current_price=0 → dùng mid của sổ lệnh.
     """
     result = {
         "obi": 0.0,
@@ -386,6 +490,8 @@ def _get_orderbook_analysis(info: Info, coin: str, current_price: float, depth: 
         best_ask = float(asks[0].get("px", 0))
         if best_bid > 0:
             result["spread_pct"] = (best_ask - best_bid) / best_bid * 100
+        if current_price <= 0:
+            current_price = (best_bid + best_ask) / 2
 
         # OBI
         bid_vol = sum(float(b.get("sz", 0)) for b in bids)
@@ -427,6 +533,38 @@ def _get_orderbook_analysis(info: Info, coin: str, current_price: float, depth: 
     return result
 
 
+def _sample_obi(info: Info, coin: str) -> None:
+    """
+    Lấy 1 mẫu OBI vào buffer (gọi mỗi scan cycle ~3s, kể cả khi đang có
+    vị thế/cooldown để buffer luôn ấm). Đây là call REST duy nhất chạy
+    mỗi cycle — mọi thứ khác đều cache.
+    """
+    ob = _get_orderbook_analysis(info, coin, 0.0, 20)
+    _latest_ob_analysis[coin] = ob
+    buf = _obi_buffers.setdefault(coin, deque())
+    now = time.time()
+    buf.append((now, ob.get("obi", 0.0)))
+    while buf and now - buf[0][0] > OBI_WINDOW_SEC:
+        buf.popleft()
+
+
+def _smoothed_obi(coin: str) -> tuple[float, int]:
+    """
+    OBI làm mượt = trung bình các mẫu trong OBI_WINDOW_SEC gần nhất.
+    Trả về (obi_mean, n_samples). Dưới OBI_MIN_SAMPLES mẫu → (0.0, n)
+    để scoring bỏ qua OBI (an toàn hơn là tin 1 snapshot nhiễu).
+    """
+    buf = _obi_buffers.get(coin)
+    if not buf:
+        return 0.0, 0
+    now = time.time()
+    samples = [v for (t, v) in buf if now - t <= OBI_WINDOW_SEC]
+    n = len(samples)
+    if n < OBI_MIN_SAMPLES:
+        return 0.0, n
+    return sum(samples) / n, n
+
+
 def _get_funding_rate(info: Info, coin: str) -> float:
     """Lấy funding rate hiện tại của coin. Trả về 0.0 nếu lỗi."""
     try:
@@ -441,6 +579,17 @@ def _get_funding_rate(info: Info, coin: str) -> float:
     except Exception:
         return 0.0
     return 0.0
+
+
+def _get_funding_rate_cached(info: Info, coin: str) -> float:
+    """Funding rate với cache TTL — meta_and_asset_ctxs là call nặng."""
+    ent = _funding_cache.get(coin)
+    now = time.time()
+    if ent is not None and now - ent["ts"] < FUNDING_CACHE_TTL_SEC:
+        return ent["val"]
+    val = _get_funding_rate(info, coin)
+    _funding_cache[coin] = {"ts": now, "val": val}
+    return val
 
 
 def fetch_hyperliquid_candles(
@@ -489,11 +638,41 @@ def get_effective_config(coin: str) -> dict:
     return {**CONFIG, **overrides}
 
 
-def _latest_setup(info: Info, coin: str, effective_cfg: dict) -> tuple[dict[str, Any], float, pd.Timestamp] | None:
-    asof_ms = _now_ms()
-    df15 = fetch_hyperliquid_candles(info, coin, "15m", LOOKBACK_15M, asof_ms)
-    df5 = fetch_hyperliquid_candles(info, coin, "5m", LOOKBACK_5M, asof_ms)
-    df1 = fetch_hyperliquid_candles(info, coin, "1m", LOOKBACK_1M, asof_ms)
+def _cached_candles(info: Info, coin: str, interval: str, lookback: int) -> pd.DataFrame:
+    """
+    Candle fetch với cache thông minh: chỉ refetch khi nến MỚI đã đóng.
+    Nến cuối trong df có open=T → đóng tại T+iv → nến kế tiếp available
+    từ T+2iv. Trước thời điểm đó mọi fetch đều trả về dữ liệu y hệt
+    → dùng cache. Giảm REST call từ ~60/phút xuống ~1-3/phút mỗi khung.
+    """
+    key = (coin, interval)
+    ent = _candle_cache.get(key)
+    now = _now_ms()
+    if ent is not None and now < ent["next_fetch_ms"]:
+        return ent["df"]
+
+    iv = _interval_ms(interval)
+    df = fetch_hyperliquid_candles(info, coin, interval, lookback, now)
+    if df.empty:
+        # fetch lỗi/rỗng → giữ cache cũ nếu có, thử lại sau 3s
+        if ent is not None:
+            ent["next_fetch_ms"] = now + 3_000
+            return ent["df"]
+        return df
+
+    last_open_ms = int(df.iloc[-1]["timestamp"].timestamp() * 1000)
+    next_fetch = last_open_ms + 2 * iv + 2_000
+    if next_fetch <= now:
+        next_fetch = now + 3_000  # nến mới lẽ ra phải có nhưng chưa — retry sớm
+    _candle_cache[key] = {"df": df, "next_fetch_ms": next_fetch}
+    return df
+
+
+def _latest_setup(info: Info, coin: str, effective_cfg: dict,
+                  obi_smooth: float, ob_analysis: dict) -> tuple[dict[str, Any], float, pd.Timestamp] | None:
+    df15 = _cached_candles(info, coin, "15m", LOOKBACK_15M)
+    df5 = _cached_candles(info, coin, "5m", LOOKBACK_5M)
+    df1 = _cached_candles(info, coin, "1m", LOOKBACK_1M)
     if df15.empty or df5.empty or df1.empty:
         logger.warning("%s: empty candle data", coin)
         return None
@@ -502,11 +681,13 @@ def _latest_setup(info: Info, coin: str, effective_cfg: dict) -> tuple[dict[str,
     i5 = _align_index(signal_ts, df5)
     i15 = _align_index(signal_ts, df15)
     current_price = float(df1.iloc[i1]["close"])
-    ob_analysis = _get_orderbook_analysis(info, coin, current_price, 20)
-    funding_rate = _get_funding_rate(info, coin)
-    obi = ob_analysis.get("obi", 0.0)
-    setup = score_setup(i15, df15, i5, df5, i1, df1, hour_utc=signal_ts.hour, cfg=effective_cfg, obi=obi, ob_analysis=ob_analysis, funding_rate=funding_rate)
-    setup["obi"] = obi
+    funding_rate = _get_funding_rate_cached(info, coin)
+    setup = score_setup(
+        i15, df15, i5, df5, i1, df1,
+        hour_utc=signal_ts.hour, cfg=effective_cfg,
+        obi=obi_smooth, ob_analysis=ob_analysis, funding_rate=funding_rate,
+    )
+    setup["obi"] = obi_smooth
     return setup, current_price, signal_ts
 
 
@@ -520,12 +701,16 @@ async def _call(fn, *args, **kwargs):
         try:
             return await asyncio.to_thread(fn, *args, **kwargs)
         except Exception as exc:
+            _record_api_failure()
+            # Rate limit / gateway lỗi → backoff dài hơn
+            err_text = str(exc)
+            is_rate_limited = "429" in err_text or "502" in err_text or "504" in err_text
             if attempt == max_retries - 1:
                 if not is_write:
-                    logger.warning("API call %s failed after %d attempts: %s", fn_name, max_retries, exc)
+                    logger.warning("API call %s failed after %d attempts: %s", fn_name, max_retries, str(exc)[:200])
                 raise
-            delay = base_delay * (2 ** attempt)
-            logger.info("API call %s failed: %s. Retrying in %ds...", fn_name, exc, delay)
+            delay = base_delay * (2 ** attempt) * (3 if is_rate_limited else 1)
+            logger.info("API call %s failed (retry in %.0fs): %s", fn_name, delay, str(exc)[:120])
             await asyncio.sleep(delay)
 
 
@@ -596,9 +781,13 @@ async def _wait_entry_fill(
     target_size: float,
     start_ms: int,
     timeout_seconds: int,
+    is_buy: bool = True,
+    signal_price: float = 0.0,
+    reversal_cancel_pct: float = 0.0,
 ) -> FillSummary:
     deadline = time.monotonic() + timeout_seconds
     last_summary = FillSummary()
+    cancel_reason = "entry timeout"
 
     while time.monotonic() < deadline:
         fills = await _call(_fills_by_oid, info, address, start_ms, coin, oid)
@@ -607,10 +796,28 @@ async def _wait_entry_fill(
             return last_summary
         if oid is not None and not await _call(_is_order_open, info, address, coin, oid) and last_summary.size <= 0:
             return last_summary
+
+        # ── v3: Cancel-on-reversal — giá đã quay đầu (bounce/drop bắt đầu)
+        # mà limit chưa fill → cơ hội đã đi, hủy ngay thay vì chờ hết 60s.
+        # Chống adverse selection: đứng chờ tiếp chỉ fill khi giá xuyên qua entry.
+        if reversal_cancel_pct > 0 and signal_price > 0:
+            try:
+                mids = await _call(info.all_mids)
+                mid = _to_float(mids.get(coin)) if isinstance(mids, dict) else 0.0
+                if mid > 0:
+                    rev = reversal_cancel_pct / 100
+                    escaped = (is_buy and mid >= signal_price * (1 + rev)) or \
+                              (not is_buy and mid <= signal_price * (1 - rev))
+                    if escaped:
+                        cancel_reason = f"price reverted {reversal_cancel_pct}% without fill"
+                        break
+            except Exception:
+                pass
+
         await asyncio.sleep(ORDER_POLL_SECONDS)
 
     # ── FIX #4: Cancel và xác nhận không còn position orphan ──
-    logger.info("%s: entry timeout — cancelling order oid=%s", coin, oid)
+    logger.info("%s: %s — cancelling order oid=%s", coin, cancel_reason, oid)
     await _cancel_if_open(exchange, info, address, coin, oid)
 
     # Poll lại _position_for_coin vài lần thay vì 1 lần để vượt qua độ trễ API
@@ -702,6 +909,40 @@ def _clear_active_entry(coin: str) -> None:
     logger.debug("%s: active entry guard cleared", coin)
 
 
+async def _resolve_exit_reason(
+    info: Info, address: str, coin: str, start_ms: int,
+    tp1_oid: int | None, tp2_oid: int | None, sl_oid: int | None, stage: str,
+) -> str:
+    """
+    Xác định lý do thoát THẬT khi position flat, dựa trên fills của từng oid.
+    Fix nhãn cũ 'SL_or_external_flat' gán cho cả lệnh TP2 thắng → làm bẩn
+    dữ liệu phân tích.
+    """
+    async def _oid_filled(oid: int | None) -> bool:
+        if oid is None:
+            return False
+        try:
+            fills = await _call(_fills_by_oid, info, address, start_ms, coin, oid)
+            return _summarize_fills(fills, oid).size > POSITION_EPSILON
+        except Exception:
+            return False
+
+    try:
+        if stage == "tp2":
+            if await _oid_filled(tp2_oid):
+                return "TP2"
+            if await _oid_filled(sl_oid):
+                return "SL_after_TP1"
+        else:
+            if await _oid_filled(sl_oid):
+                return "SL"
+            if await _oid_filled(tp1_oid):
+                return "TP1_flat"
+        return "external_flat"
+    except Exception:
+        return "external_flat"
+
+
 async def _execute_setup(
     exchange: Exchange,
     info: Info,
@@ -750,7 +991,15 @@ async def _execute_setup(
         _clear_active_entry(coin)
         return None
 
-    if cfg.get("entry_order_type") == "market":
+    # ── v3: Setup A/A+ (score cao) → vào TAKER để không lỡ lệnh đẹp nhất.
+    # Log cũ cho thấy lệnh không fill toàn là lệnh giá đảo chiều ngay (winner).
+    # B/C setup vẫn maker để tối ưu phí.
+    entry_order_type = cfg.get("entry_order_type", "limit")
+    if score >= cfg.get("taker_entry_min_score", 85):
+        entry_order_type = "market"
+        logger.info("%s: score %d >= taker threshold — using market entry", coin, score)
+
+    if entry_order_type == "market":
         slippage = max(cfg.get("slippage_pct", 0.0) / 100, 0.002)
         response = await _call(
             exchange.market_open, coin, is_entry_buy, size, signal_price,
@@ -758,6 +1007,7 @@ async def _execute_setup(
         )
         entry_oid = _extract_oid(response)
         timeout_seconds = 30
+        reversal_cancel_pct = 0.0
     else:
         tif = "Alo" if cfg.get("use_maker_for_entry", True) else "Gtc"
         entry_oid, response = await _place_limit(
@@ -769,6 +1019,7 @@ async def _execute_setup(
                 exchange, coin, is_entry_buy, size, entry_price, False, "Gtc"
             )
         timeout_seconds = max(1, int(cfg.get("limit_timeout_bars", 1))) * 60
+        reversal_cancel_pct = cfg.get("reversal_cancel_pct", 0.0)
 
     if entry_oid is None:
         logger.warning("%s: entry order not accepted: %s", coin, response)
@@ -778,23 +1029,33 @@ async def _execute_setup(
 
     entry_fill = await _wait_entry_fill(
         info, exchange, address, coin, entry_oid, size, start_ms, timeout_seconds,
+        is_buy=is_entry_buy, signal_price=signal_price,
+        reversal_cancel_pct=reversal_cancel_pct,
     )
 
     if entry_fill.size <= POSITION_EPSILON or entry_fill.avg_price is None:
-        logger.info("%s: entry not filled within timeout; setup skipped", coin)
+        logger.info("%s: entry not filled; setup skipped", coin)
         _clear_active_entry(coin)
         return None
 
     if entry_fill.size < size * 0.999:
         if entry_fill.size < size * 0.25:
             logger.warning(
-                "%s: partial entry fill %.8f / %.8f is too small (< 25%%); closing as garbage to free bot.",
+                "%s: partial entry fill %.8f / %.8f is too small (< 25%%); closing as garbage.",
                 coin, entry_fill.size, size,
             )
             await _market_close_remaining(exchange, info, address, coin, managed_oids)
+            await _wait_for_position_flat(info, address, coin)
+            # v3 FIX: PnL của garbage close (phí + slippage) trước đây KHÔNG được
+            # ghi vào RiskState → day_pnl lệch. Giờ trả về TradeResult đầy đủ.
+            net_pnl = await _final_net_pnl(info, address, coin, start_ms, managed_oids)
             _clear_active_entry(coin)
-            return None
-            
+            return TradeResult(
+                coin, direction, "partial_garbage", net_pnl,
+                entry_fill.size, entry_fill.avg_price or signal_price,
+                signal_ts.to_pydatetime(), datetime.now(timezone.utc),
+            )
+
         logger.warning(
             "%s: partial entry fill %.8f / %.8f; managing remainder",
             coin, entry_fill.size, size,
@@ -814,6 +1075,7 @@ async def _execute_setup(
             tp1_pct_max=cfg.get("tp1_pct_max", 0.30),
             tp2_pct_max=cfg.get("tp2_pct_max", 0.60),
             sl_pct_max=cfg.get("sl_pct_max", 0.40),
+            sl_pct_min=cfg.get("sl_pct_min", 0.0),
         )
         tp1_price = levels["tp1_price"]
         tp2_price = levels["tp2_price"]
@@ -836,9 +1098,20 @@ async def _execute_setup(
         tp1_size = filled_size
     deadline = datetime.now(timezone.utc) + timedelta(minutes=cfg["time_stop_minutes"])
 
+    # ── v3: Hard dollar SL = BACKSTOP theo planned risk, không phải stop chính.
+    # Planned risk = notional × khoảng cách SL. Backstop = planned × 1.5.
+    # (Bản cũ: $3 cứng trên $2000 notional = 0.15% < %SL → SL trigger thành trang trí.)
+    sl_dist_pct = abs(avg_entry - sl_price) / avg_entry if avg_entry > 0 else 0.0
+    planned_risk_usd = filled_size * avg_entry * sl_dist_pct
+    hard_sl_usd = max(
+        planned_risk_usd * cfg.get("hard_sl_backstop_mult", 1.5),
+        HARD_DOLLAR_SL_USD,
+    )
+
     logger.info(
-        "%s: filled %.8f @ %.4f | TP1=%.4f TP2=%.4f SL=%.4f | deadline=%s",
+        "%s: filled %.8f @ %.4f | TP1=%.4f TP2=%.4f SL=%.4f | risk=%.2f backstop=%.2f | deadline=%s",
         coin, filled_size, avg_entry, tp1_price, tp2_price, sl_price,
+        planned_risk_usd, hard_sl_usd,
         deadline.strftime("%H:%M"),
     )
 
@@ -875,7 +1148,10 @@ async def _execute_setup(
             if abs_pos <= 0.0002:  # Bỏ qua dust (< $12)
                 if abs_pos > POSITION_EPSILON:
                     logger.warning("%s: dust position detected (size=%.8f) — ignoring to prevent $10 limit error", coin, abs_pos)
-                exit_reason = "SL_or_external_flat" if stage != "tp2_done" else "TP2"
+                # v3: xác định lý do thoát THẬT từ fills (TP2/SL/TP1_flat/external)
+                exit_reason = await _resolve_exit_reason(
+                    info, address, coin, start_ms, tp1_oid, tp2_oid, sl_oid, stage,
+                )
                 break
 
             # ── HARD DOLLAR SL: kiểm tra mỗi HARD_DOLLAR_SL_CHECK_INTERVAL giây ──
@@ -891,10 +1167,10 @@ async def _execute_setup(
                         pos = item.get("position", {})
                         if pos.get("coin") == coin:
                             unrealized_pnl = _to_float(pos.get("unrealizedPnl"))
-                            if unrealized_pnl < -HARD_DOLLAR_SL_USD:
+                            if unrealized_pnl < -hard_sl_usd:
                                 logger.warning(
-                                    "%s: HARD DOLLAR SL triggered! unrealized_pnl=%.4f < -%.2f — emergency close",
-                                    coin, unrealized_pnl, HARD_DOLLAR_SL_USD,
+                                    "%s: HARD SL BACKSTOP triggered! unrealized_pnl=%.4f < -%.2f — emergency close",
+                                    coin, unrealized_pnl, hard_sl_usd,
                                 )
                                 exit_reason = "hard_dollar_sl"
                                 for oid in (tp1_oid, tp2_oid, sl_oid):
@@ -992,6 +1268,8 @@ async def _execute_and_record(
     atr_5m: float,
     risk: RiskState,
     effective_cfg: dict | None = None,
+    regime: str = "",
+    obi: float = 0.0,
 ) -> None:
     try:
         result = await _execute_setup(
@@ -1001,6 +1279,7 @@ async def _execute_and_record(
         )
         if result is not None:
             risk.record_trade(result)
+            _log_trade_csv(result, score, regime, obi)
             logger.info(
                 "%s: recorded — win=%s pnl=%.4f | day_pnl=%.4f | trades_today=%d",
                 coin, result.win, result.net_pnl,
@@ -1033,9 +1312,14 @@ async def _scan_coin(
             logger.debug("%s: coin disabled — skipping", coin)
             return
 
+        # ── v3: Sample OBI MỖI cycle (kể cả cooldown/đang có lệnh) để buffer
+        # smoothing luôn ấm. Đây là call REST duy nhất chạy mỗi 3s.
+        try:
+            await _call(_sample_obi, info, coin)
+        except Exception:
+            pass
+
         # ── FIX #1: Active entry guard — kiểm tra TRƯỚC khi gọi API ──
-        # Nếu đã gửi entry order trong ACTIVE_ENTRY_TIMEOUT_SEC giây qua,
-        # KHÔNG được mở lệnh mới bất kể API trả về gì.
         active_ts = _active_entry.get(coin)
         if active_ts is not None:
             elapsed = time.time() - active_ts
@@ -1046,7 +1330,6 @@ async def _scan_coin(
                 )
                 return
             else:
-                # Timeout — clear guard và tiến hành kiểm tra bình thường
                 logger.warning(
                     "%s: active entry guard expired after %.0fs — clearing",
                     coin, elapsed,
@@ -1056,19 +1339,44 @@ async def _scan_coin(
         now_utc = datetime.now(timezone.utc)
         can_trade, reason = risk.can_trade(coin, now_utc)
         if not can_trade:
-            logger.info("%s: risk block: %s", coin, reason)
+            # v3: throttle — log 1 lần/phút thay vì mỗi 3s (log cũ ngập cooldown spam)
+            _log_throttled(f"riskblock:{coin}", 60, "%s: risk block: %s", coin, reason)
             return
+
+        # ── v3: New-candle gate — mọi call nặng (user_state, open_orders, 5m/15m
+        # candles, funding) chỉ chạy khi có nến 1m MỚI đóng (~1 lần/phút).
+        df1 = await _call(_cached_candles, info, coin, "1m", LOOKBACK_1M)
+        if df1 is None or df1.empty:
+            return
+        signal_ts = df1.iloc[len(df1) - 1]["timestamp"]
+        if last_signal_ts.get(coin) == signal_ts:
+            return
+
+        # ── v3: Circuit breaker — API đang lỗi hàng loạt → không mở lệnh mới.
+        # (Monitoring loop của vị thế đang mở vẫn chạy độc lập.)
+        if _api_circuit_open():
+            _log_throttled(
+                f"circuit:{coin}", 30,
+                "%s: API circuit OPEN (%d failures/60s) — pausing new entries",
+                coin, len(_api_failures),
+            )
+            return
+
+        # Claim nến này ngay — nếu bước sau lỗi transient thì bỏ qua tín hiệu
+        # của phút này thay vì retry dồn dập mỗi 3s.
+        last_signal_ts[coin] = signal_ts
 
         # ── FIX #3: Kiểm tra tổng margin usage ──
         ms = await _get_cached_margin_summary(info, address)
         if ms is None:
-            logger.warning("%s: margin_summary is 0 or failed to fetch (check network/balance) — skipping for safety", coin)
+            logger.warning("%s: margin_summary failed to fetch — skipping for safety", coin)
             return
 
         if ms["account_value"] > 0:
             margin_usage_pct = ms["total_margin_used"] / ms["account_value"]
             if margin_usage_pct > MAX_MARGIN_USAGE_PCT:
-                logger.info(
+                _log_throttled(
+                    f"margin:{coin}", 60,
                     "%s: margin usage %.1f%% > limit %.1f%% — skipping",
                     coin, margin_usage_pct * 100, MAX_MARGIN_USAGE_PCT * 100,
                 )
@@ -1111,60 +1419,67 @@ async def _scan_coin(
         else:
             _orphan_timers.pop(coin, None)
 
+        # ── v3: OBI đã làm mượt (rolling mean 90s) thay vì snapshot đơn lẻ ──
+        obi_smooth, obi_n = _smoothed_obi(coin)
+        ob_analysis = _latest_ob_analysis.get(coin, {})
+
         effective_cfg = get_effective_config(coin)
-        latest = await _call(_latest_setup, info, coin, effective_cfg)
+        latest = await _call(_latest_setup, info, coin, effective_cfg, obi_smooth, ob_analysis)
         if latest is None:
             return
-        setup, current_price, signal_ts = latest
+        setup, current_price, signal_ts_setup = latest
         obi = setup.get("obi", 0.0)
-
-        if last_signal_ts.get(coin) == signal_ts:
-            return
-        last_signal_ts[coin] = signal_ts
 
         if setup["hard_block"] or setup["direction"] is None:
             reason_text = setup["block_reasons"][0] if setup["block_reasons"] else "no direction"
-            logger.info("%s %s: block: %s (price %.4f)", coin, signal_ts, reason_text, current_price)
+            if setup["hard_block"]:
+                logger.info("%s %s: block: %s (price %.4f)", coin, signal_ts, reason_text, current_price)
+                _log_setup_csv(coin, signal_ts, current_price, setup, "hard_block")
             return
 
         score = setup["score"]
         direction = setup["direction"]
-        
-        # Cập nhật lại confidence
-        setup["score"] = score
-        if score >= 100:
-            setup["confidence"] = "A+"
-        elif score >= 80:
-            setup["confidence"] = "A"
-        elif score >= 60:
-            setup["confidence"] = "B"
-        else:
-            setup["confidence"] = "C"
 
         logger.info(
-            "%s %s: setup %s score=%s conf=%s price=%.4f obi=%.2f bb_w=%.2f%% squeeze=%s",
-            coin, signal_ts, direction.upper(), score, setup.get("confidence", "?"),
-            current_price, obi,
-            setup.get("bb_width_pct", 0), setup.get("bb_squeeze", False),
+            "%s %s: setup %s [%s/%s] score=%s conf=%s price=%.4f obi=%.2f(n=%d) bb_w=%.2f%%",
+            coin, signal_ts, direction.upper(),
+            setup.get("regime", "?"), setup.get("entry_mode", "?"),
+            score, setup.get("confidence", "?"),
+            current_price, obi, obi_n,
+            setup.get("bb_width_pct", 0),
         )
-        # Log score breakdown cho debug
         score_details = setup.get("score_details", {})
         if score_details:
             parts = [f"{k}={v:+d}" for k, v in score_details.items() if v != 0]
             if parts:
                 logger.info("%s: score breakdown: %s", coin, " | ".join(parts))
 
-        if score < effective_cfg["min_score_half"]:
+        # ── v3: Asia session (01-06 UTC) nâng ngưỡng thay vì penalty -5 ──
+        bump = effective_cfg.get("asia_score_bump", 0) if 1 <= signal_ts.hour <= 6 else 0
+        min_half = effective_cfg["min_score_half"] + bump
+        min_full = effective_cfg.get("min_score_full", CONFIG["min_score_full"]) + bump
+
+        if score < min_half:
+            _log_setup_csv(coin, signal_ts, current_price, setup, "below_threshold")
             return
 
-        margin_full = effective_cfg.get("margin_full", CONFIG.get("margin_full", 100.0))
-        margin_half = effective_cfg.get("margin_half", CONFIG.get("margin_half", 50.0))
-        min_score_full = effective_cfg.get("min_score_full", CONFIG["min_score_full"])
+        # ── v3: Size theo rủi ro USD cố định (loss ≈ win) ──
+        score_full = score >= min_full
+        sizing = compute_risk_sizing(
+            current_price, setup.get("atr_5m", 0.0), effective_cfg, score_full,
+        )
+        margin = sizing["margin"]
+        if margin <= 0:
+            return
 
-        margin = margin_full if score >= min_score_full else margin_half
+        logger.info(
+            "%s: risk sizing — risk=%.2f USD sl=%.3f%% notional=%.2f margin=%.2f (%s)",
+            coin, sizing["risk_usd"], sizing["sl_pct"], sizing["notional"], margin,
+            "full" if score_full else "half",
+        )
+        _log_setup_csv(coin, signal_ts, current_price, setup, "entered")
 
         # ── FIX #1: Set active entry guard NGAY KHI quyết định trade ──
-        # Từ đây đến khi _execute_setup hoàn thành, mọi poll cycle sẽ bị chặn.
         _active_entry[coin] = time.time()
         logger.info("%s: active entry guard SET — executing trade in background", coin)
 
@@ -1175,29 +1490,42 @@ async def _scan_coin(
                 score, setup.get("atr_5m", 0.0),
                 risk,
                 effective_cfg=effective_cfg,
+                regime=setup.get("regime", ""),
+                obi=obi,
             )
         )
 
 
 async def run_bot_async():
     logger.info("=" * 60)
-    logger.info("STARTING BOT ENGINE — BTC ONLY MODE")
+    logger.info("STARTING BOT ENGINE v3 — DUAL REGIME | RISK SIZING | OBI SMOOTH")
     logger.info("=" * 60)
     logger.info(
-        "Profile=%s | entry=%s | TP1=%.3f%% | TP2=%.3f%% | SL=%.3f%% | time_stop=%sm",
+        "Profile=%s | entry=%s (taker if score>=%d) | limit_offset=%.3f%% | time_stop=%sm",
         CONFIG["profile_name"], CONFIG["entry_order_type"],
-        CONFIG["tp1_pct"], CONFIG["tp2_pct"], CONFIG["sl_pct"],
+        CONFIG.get("taker_entry_min_score", 85),
+        CONFIG.get("limit_offset_pct", 0.0),
         CONFIG["time_stop_minutes"],
     )
     logger.info(
-        "FIX #1: Active entry guard=%ds | FIX #2: SL cooldown=%dm | FIX #3: Max margin=%.0f%%",
-        ACTIVE_ENTRY_TIMEOUT_SEC, SL_SINGLE_COOLDOWN_MINUTES, MAX_MARGIN_USAGE_PCT * 100,
+        "Risk/trade=%.2f USD (half=%.0f%%) | SL=%.1fxATR [%.2f-%.2f%%] | backstop=x%.1f | thresholds half/full=%d/%d (+%d Asia)",
+        CONFIG.get("risk_per_trade_usd", 3.0), CONFIG.get("risk_half_scale", 0.6) * 100,
+        CONFIG.get("sl_atr_mult", 1.2), CONFIG.get("sl_pct_min", 0.10), CONFIG.get("sl_pct_max", 0.40),
+        CONFIG.get("hard_sl_backstop_mult", 1.5),
+        CONFIG["min_score_half"], CONFIG["min_score_full"], CONFIG.get("asia_score_bump", 0),
     )
     logger.info(
-        "HARD DOLLAR SL=%.2f USD | DISABLED COINS=%s | daily_loss_limit=%.2f USD | max_trades/day=%d",
-        HARD_DOLLAR_SL_USD, ",".join(DISABLED_COINS) if DISABLED_COINS else "none",
-        CONFIG.get("daily_loss_limit_usd", 0), CONFIG.get("max_trades_per_day", 0),
+        "OBI smoothing=%ds window (min %d samples) | reversal_cancel=%.2f%% | circuit breaker=%d fails/60s",
+        OBI_WINDOW_SEC, OBI_MIN_SAMPLES,
+        CONFIG.get("reversal_cancel_pct", 0.0), API_FAILURE_THRESHOLD,
     )
+    logger.info(
+        "Guards: entry=%ds | SL cooldown=%dm | max margin=%.0f%% | daily_loss=%.2f | max_trades/day=%d | disabled=%s",
+        ACTIVE_ENTRY_TIMEOUT_SEC, SL_SINGLE_COOLDOWN_MINUTES, MAX_MARGIN_USAGE_PCT * 100,
+        CONFIG.get("daily_loss_limit_usd", 0), CONFIG.get("max_trades_per_day", 0),
+        ",".join(DISABLED_COINS) if DISABLED_COINS else "none",
+    )
+    logger.info("Setup log: %s | Trade log: %s", SETUP_LOG_PATH, TRADE_LOG_PATH)
 
     if not PRIVATE_KEY:
         logger.error("ERROR: No private key. Set HL_PRIVATE_KEY.")

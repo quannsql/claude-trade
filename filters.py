@@ -108,6 +108,89 @@ def detect_regime(df15: pd.DataFrame, i15: int, adx_period: int = 14) -> str:
         return "transitioning"
 
 
+def detect_trend_regime(df15: pd.DataFrame, i15: int, df5: pd.DataFrame, i5: int) -> str:
+    """
+    Phân loại regime cho dual-mode engine:
+        'trend_up'   — EMA50(15m) dốc lên rõ + EMA9>EMA21>EMA50 xếp tầng trên 5m
+        'trend_down' — ngược lại
+        'ranging'    — còn lại (mặc định, an toàn cho mean-reversion)
+
+    Trend regime yêu cầu CẢ HAI điều kiện (slope 15m + stack 5m) để tránh
+    flip-flop khi thị trường chỉ nhích nhẹ.
+    """
+    if i15 < 6 or i5 < 1 or i15 >= len(df15) or i5 >= len(df5):
+        return "ranging"
+
+    row15 = df15.iloc[i15]
+    row5 = df5.iloc[i5]
+
+    ema50_now = row15.get("ema50")
+    ema50_5ago = df15.iloc[i15 - 5].get("ema50")
+    slope_pct = 0.0
+    if (ema50_now is not None and ema50_5ago is not None
+            and not pd.isna(ema50_now) and not pd.isna(ema50_5ago)
+            and ema50_5ago > 0):
+        slope_pct = (ema50_now - ema50_5ago) / ema50_5ago * 100
+
+    ema9_5 = row5.get("ema9")
+    ema21_5 = row5.get("ema21")
+    ema50_5 = row5.get("ema50")
+    if any(v is None or pd.isna(v) for v in (ema9_5, ema21_5, ema50_5)):
+        return "ranging"
+
+    stack_up = ema9_5 > ema21_5 > ema50_5
+    stack_down = ema9_5 < ema21_5 < ema50_5
+
+    if slope_pct > 0.12 and stack_up:
+        return "trend_up"
+    if slope_pct < -0.12 and stack_down:
+        return "trend_down"
+    return "ranging"
+
+
+def compute_risk_sizing(price: float, atr_5m: float, cfg: dict, score_full: bool = True) -> dict:
+    """
+    Size vị thế theo rủi ro USD cố định (loss ≈ win ≈ risk_per_trade_usd):
+
+        sl_pct   = clamp(sl_atr_mult × ATR%, sl_pct_min, sl_pct_max)
+        notional = risk_usd / sl_pct
+
+    → khi SL % chạm, lỗ đúng ~risk_usd bất kể volatility. Hard dollar SL chỉ
+    còn là backstop (risk_usd × hard_sl_backstop_mult), không phải stop chính.
+
+    Trả về dict {notional, margin, sl_pct, risk_usd}.
+    """
+    leverage = cfg.get("leverage", 20)
+    risk_usd = cfg.get("risk_per_trade_usd", 3.0)
+    if not score_full:
+        risk_usd *= cfg.get("risk_half_scale", 0.6)
+
+    sl_mult = cfg.get("sl_atr_mult", 1.5)
+    sl_pct_min = cfg.get("sl_pct_min", 0.10)
+    sl_pct_max = cfg.get("sl_pct_max", 0.40)
+
+    if price <= 0:
+        return {"notional": 0.0, "margin": 0.0, "sl_pct": sl_pct_min, "risk_usd": risk_usd}
+
+    atr_pct = (atr_5m / price * 100) if atr_5m > 0 else 0.0
+    sl_pct = atr_pct * sl_mult
+    if sl_pct <= 0:
+        sl_pct = cfg.get("sl_pct", 0.20)
+    sl_pct = min(max(sl_pct, sl_pct_min), sl_pct_max)
+
+    notional = risk_usd / (sl_pct / 100)
+    max_notional = cfg.get("margin_full", 100.0) * leverage
+    min_notional = cfg.get("min_notional_usd", 20.0)
+    notional = min(max(notional, min_notional), max_notional)
+
+    return {
+        "notional": notional,
+        "margin": notional / leverage,
+        "sl_pct": sl_pct,
+        "risk_usd": risk_usd,
+    }
+
+
 def momentum_strength(df5: pd.DataFrame, i5: int, lookback: int = 5) -> float | None:
     """
     Calculate ATR-normalized momentum on 5m timeframe.
@@ -176,6 +259,7 @@ def compute_dynamic_levels(
     tp1_pct_max: float = 0.30,
     tp2_pct_max: float = 0.60,
     sl_pct_max: float = 0.40,
+    sl_pct_min: float = 0.0,
 ) -> dict:
     """
     Compute ATR-based dynamic TP/SL levels with max caps.
@@ -195,7 +279,7 @@ def compute_dynamic_levels(
 
     tp1_pct = min(tp1_pct_calc, tp1_pct_max)
     tp2_pct = min(tp2_pct_calc, tp2_pct_max)
-    sl_pct = min(sl_pct_calc, sl_pct_max)
+    sl_pct = min(max(sl_pct_calc, sl_pct_min), sl_pct_max)
 
     if direction == "long":
         tp1_price = entry_price * (1 + tp1_pct / 100)

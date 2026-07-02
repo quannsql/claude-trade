@@ -19,7 +19,7 @@ import os
 from tabulate import tabulate
 
 from indicators import add_indicators, score_setup
-from filters import compute_dynamic_levels
+from filters import compute_dynamic_levels, compute_risk_sizing
 
 # ---------------------------------------------------------
 # BACKTEST CONFIGURATION — BTC ONLY (ETH đã bị loại bỏ)
@@ -47,15 +47,19 @@ COIN_CONFIG: dict[str, dict] = {
         "time_stop_minutes": 10,
         "bb_width_max_pct": 1.0,
         "bb_width_warn_pct": 0.6,
-        "min_score_full": 65,
-        "min_score_half": 45,
-        "max_loss_per_trade_usd": 3.0,
-        "use_regime_filter": False,
-        # Giảm TP để chốt lời ngắn ($2.5 - $3)
+        # v3: nâng ngưỡng — loại bỏ setup C-grade (score 45-54 trong log cũ
+        # toàn counter-trend fade chất lượng thấp)
+        "min_score_full": 72,
+        "min_score_half": 55,
+        "use_regime_filter": True,
+        # v3: TP/SL cân bằng — SL 1.2x ATR thay vì 1.5x để loss ≈ win.
+        # Sizing theo risk_per_trade_usd nên % không còn quyết định dollar loss.
         "tp1_pct_max": 0.15,
         "tp2_pct_max": 0.30,
         "tp1_atr_mult": 0.8,
         "tp2_atr_mult": 1.6,
+        "sl_atr_mult": 1.2,
+        "sl_pct_max": 0.30,
     },
     "ETH": {
         "tp1_pct": 0.15,
@@ -104,17 +108,34 @@ BASE_CONFIG = {
     "bb_width_max_pct": 1.0,         # BB width > này → soft penalty nặng (-15)
     "bb_width_warn_pct": 0.6,        # BB width > này → soft penalty nhẹ (-5)
     "bb_pct_b_deep_threshold": 0.15, # %B phá qua sâu hơn threshold → penalty
-    "use_time_filter": True,         # Soft penalty Asia session, bonus London/NY
-    "use_rsi_divergence": True,      # RSI divergence check (+15 nếu phát hiện)
-    "use_stoch_cross": True,         # StochRSI %K/%D cross check (+15)
-    "use_macd_momentum": True,       # MACD histogram momentum check (+10)
+    "use_time_filter": True,         # Bonus London/NY (+10)
+    "use_rsi_divergence": True,      # RSI divergence check
+    "use_stoch_cross": True,         # StochRSI %K/%D cross check
+    "use_macd_momentum": True,       # MACD histogram momentum check
     "use_candle_5m": True,           # 5m candlestick pattern bonus (+10)
     "use_bb_width_filter": True,     # BB width soft penalty (không hard block)
     "use_bb_pct_b": True,            # BB %B depth bonus/penalty
 
-    # Hard dollar stop-loss: đóng ngay nếu unrealized loss vượt ngưỡng này
-    # Bảo vệ khỏi loss lớn không chạm % SL (ví dụ ETH -$7)
-    "max_loss_per_trade_usd": 3.0,
+    # ── Scoring Engine v3 config ──
+    "use_dual_regime": True,         # trend → pullback thuận trend; range → fade
+    "vwap_min_hour_utc": 3,          # vwap_stretch_base cần VWAP >= 3h dữ liệu/ngày
+    "asia_score_bump": 10,           # 01-06 UTC: min_score_half/full +10
+
+    # ── Risk sizing v3: loss ≈ win ≈ risk_per_trade_usd ──
+    # notional = risk_usd / sl_pct → chạm SL % lỗ đúng ~risk_usd.
+    "risk_per_trade_usd": 3.0,       # rủi ro USD mỗi lệnh full-score
+    "risk_half_scale": 0.6,          # lệnh half-score chịu 60% risk
+    "sl_pct_min": 0.10,              # sàn SL % — tránh notional phình khi ATR bé
+    "min_notional_usd": 20.0,        # sàn notional (Hyperliquid min order $10)
+    "hard_sl_backstop_mult": 1.5,    # hard dollar SL = planned risk × 1.5 (BACKSTOP,
+                                     # không còn là stop chính fire trước % SL)
+
+    # ── Entry execution v3 ──
+    "taker_entry_min_score": 85,     # setup A/A+ → vào market (IOC), khỏi lỡ lệnh đẹp
+    "reversal_cancel_pct": 0.08,     # giá quay đầu 0.08% mà chưa fill → hủy limit ngay
+
+    # Hard dollar stop-loss floor (fallback khi không tính được planned risk)
+    "max_loss_per_trade_usd": 4.5,
 
     "data_dir": "data",
     "output_dir": "results",
@@ -129,22 +150,20 @@ PROFILES = {
         "leverage": 20,
         "margin_full": 100.0,
         "margin_half": 50.0,
-        "min_score_half": 50,
-        "min_score_full": 70,
+        # v3: nâng ngưỡng (COIN_CONFIG BTC override: 55/72)
+        "min_score_half": 55,
+        "min_score_full": 72,
 
         "tp1_pct": 0.10,
         "tp2_pct": 0.20,
         "sl_pct": 0.20,
-        "time_stop_minutes": 30,
-
-        # Hard dollar SL override: thoát ngay nếu lỗ quá $3 (không phụ thuộc %)
-        "max_loss_per_trade_usd": 3.0,
+        "time_stop_minutes": 10,
 
         "move_sl_to_breakeven_after_tp1": True,
         "use_dynamic_tp_sl": True,
         "tp1_atr_mult": 1.2,
         "tp2_atr_mult": 2.5,
-        "sl_atr_mult": 1.5,
+        "sl_atr_mult": 1.2,
         "tp1_pct_max": 0.30,
         "tp2_pct_max": 0.60,
         "sl_pct_max": 0.40,
@@ -152,18 +171,20 @@ PROFILES = {
         "entry_order_type": "limit",
         "use_maker_for_entry": True,
         "use_maker_for_tp": True,
-        "limit_offset_pct": 0.0,
+        # v3: limit đặt SÂU HƠN vào vùng stretch 0.035% — fill = entry tốt hơn,
+        # giảm adverse selection (trước đây chỉ fill khi giá xuyên qua entry)
+        "limit_offset_pct": 0.035,
         "limit_timeout_bars": 1,
         "slippage_pct": 0.0,
 
         "allowed_hours_utc": list(range(0, 24)),
-        "max_trades_per_day": 40,
-        "daily_loss_limit_usd": 12.0,
+        "max_trades_per_day": 60,
+        "daily_loss_limit_usd": 15.0,
         "cooldown_minutes": 5,
         "max_consecutive_losses": 3,
         "min_equity_usd": 50.0,
 
-        "use_regime_filter": False,
+        "use_regime_filter": True,
         "use_momentum_filter": False,
     },
 
@@ -397,6 +418,7 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
             tp1_pct_max=cfg.get("tp1_pct_max", 0.30),
             tp2_pct_max=cfg.get("tp2_pct_max", 0.60),
             sl_pct_max=cfg.get("sl_pct_max", 0.40),
+            sl_pct_min=cfg.get("sl_pct_min", 0.0),
         )
         tp1_price = levels["tp1_price"]
         tp2_price = levels["tp2_price"]
@@ -417,6 +439,16 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
             tp1_price = fill_price * (1 - tp1_pct)
             tp2_price = fill_price * (1 - tp2_pct)
             sl_price = fill_price * (1 + sl_pct)
+
+    # ------- Hard dollar SL = BACKSTOP (v3) -------
+    # Planned risk khi chạm % SL = notional × sl_pct. Backstop chỉ fire khi
+    # loss vượt planned risk × hard_sl_backstop_mult (giá trượt qua SL, gap...)
+    # — không còn là stop chính chặt hơn % SL như bản cũ.
+    planned_risk_usd = notional * sl_pct
+    backstop_usd = max(
+        planned_risk_usd * cfg.get("hard_sl_backstop_mult", 1.5),
+        cfg.get("max_loss_per_trade_usd") or 0.0,
+    )
 
     # ------- Trailing stop config -------
     use_trailing = cfg.get("use_trailing_stop", False)
@@ -476,10 +508,9 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
             hit_tp1 = (not tp1_hit) and low <= tp1_price
             hit_tp2 = tp1_hit and low <= tp2_price
 
-        # Hard dollar stop-loss: thoát khẩn cấp nếu unrealized loss vượt ngưỡng USD
-        # Kiểm tra dựa trên close của nến hiện tại (conservative estimate)
-        # Bảo vệ khỏi trường hợp giá trượt dài nhưng chưa chạm % SL
-        max_loss_usd = cfg.get("max_loss_per_trade_usd", None)
+        # Hard dollar stop-loss BACKSTOP: thoát khẩn cấp nếu loss vượt
+        # planned risk × backstop mult (giá trượt qua SL/gap)
+        max_loss_usd = backstop_usd if backstop_usd > 0 else None
         if max_loss_usd is not None and not hit_sl:
             if direction == "long":
                 unrealized_pct = (close - fill_price) / fill_price
@@ -651,13 +682,22 @@ def run_symbol_backtest(symbol: str, cfg: dict) -> pd.DataFrame:
             continue
 
         score = setup["score"]
-        if score < cfg["min_score_half"]:
-            continue
 
-        margin = cfg["margin_full"] if score >= cfg["min_score_full"] else cfg["margin_half"]
+        # v3: Asia session (01-06 UTC) nâng ngưỡng thay vì penalty -5
+        bump = cfg.get("asia_score_bump", 0) if 1 <= ts.hour <= 6 else 0
+        if score < cfg["min_score_half"] + bump:
+            continue
+        score_full = score >= cfg["min_score_full"] + bump
 
         entry_price = df1.iloc[i1]["close"]
         atr_5m = setup.get("atr_5m", 0.0)
+
+        # v3: size theo rủi ro USD cố định (loss ≈ win) thay vì notional cố định
+        sizing = compute_risk_sizing(entry_price, atr_5m, cfg, score_full)
+        margin = sizing["margin"]
+        if margin <= 0:
+            continue
+
         trade = simulate_trade(setup["direction"], entry_price, ts, df1, i1, margin, cfg, atr_5m=atr_5m)
 
         if trade is None:
