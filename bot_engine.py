@@ -1247,8 +1247,14 @@ async def _execute_setup(
             best_bid, best_ask = await _call(_fresh_bbo, info, coin)
             if is_entry_buy and best_bid > 0:
                 entry_price = max(entry_price, best_bid)
+                # Giá đã rơi XUYÊN QUA offset (offset >= ask) → Alo sẽ bị reject
+                # "would have immediately matched" (live 14:42 ETH). Snap về bid.
+                if best_ask > 0 and entry_price >= best_ask:
+                    entry_price = best_bid
             elif not is_entry_buy and best_ask > 0:
                 entry_price = min(entry_price, best_ask)
+                if best_bid > 0 and entry_price <= best_bid:
+                    entry_price = best_ask
         except Exception:
             pass  # giữ entry_price theo offset nếu không lấy được bbo
         entry_oid, response = await _place_limit(
@@ -1816,12 +1822,18 @@ async def run_bot_async():
         CONFIG.get("limit_offset_pct", 0.0),
         CONFIG["time_stop_minutes"],
     )
+    # Ngưỡng HIỆU DỤNG per-coin (COIN_CONFIG override CONFIG — banner cũ chỉ in
+    # giá trị profile nên gây nhầm khi COIN_CONFIG đã hạ ngưỡng)
+    eff_thresholds = " ".join(
+        f"{c}={get_effective_config(c)['min_score_half']}/{get_effective_config(c)['min_score_full']}"
+        for c in configured_live_coins()
+    )
     logger.info(
-        "Risk/trade=%.2f USD (half=%.0f%%) | SL=%.1fxATR [%.2f-%.2f%%] | backstop=x%.1f | thresholds half/full=%d/%d (+%d Asia)",
+        "Risk/trade=%.2f USD (half=%.0f%%) | SL=%.1fxATR [%.2f-%.2f%%] | backstop=x%.1f | thresholds half/full: %s (+%d Asia)",
         CONFIG.get("risk_per_trade_usd", 3.0), CONFIG.get("risk_half_scale", 0.6) * 100,
         CONFIG.get("sl_atr_mult", 1.2), CONFIG.get("sl_pct_min", 0.10), CONFIG.get("sl_pct_max", 0.40),
         CONFIG.get("hard_sl_backstop_mult", 1.5),
-        CONFIG["min_score_half"], CONFIG["min_score_full"], CONFIG.get("asia_score_bump", 0),
+        eff_thresholds, CONFIG.get("asia_score_bump", 0),
     )
     logger.info(
         "OBI smoothing=%ds window (min %d samples) | reversal_cancel=%.2f%% | circuit breaker=%d fails/60s",
