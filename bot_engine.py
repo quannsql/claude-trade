@@ -114,7 +114,8 @@ _trades_buffers: dict[str, dict[int, dict]] = {}
 CVD_WINDOW_SEC = int(os.environ.get("HL_CVD_WINDOW_SEC", "180"))
 
 # ── v3.3: entry re-quote — dời lệnh maker bám theo bbo mỗi N giây ──
-ENTRY_REQUOTE_SECONDS = int(os.environ.get("HL_ENTRY_REQUOTE_SEC", "15"))
+# v3.4: 15→10s — maker-only entry nên bám giá sát hơn để bù khả năng khớp
+ENTRY_REQUOTE_SECONDS = int(os.environ.get("HL_ENTRY_REQUOTE_SEC", "10"))
 
 # ── v3: Candle cache — chỉ refetch khi nến mới ĐÃ đóng (giảm ~20x REST call) ──
 _candle_cache: dict[tuple[str, str], dict[str, Any]] = {}
@@ -1268,7 +1269,7 @@ async def _execute_setup(
     # Log cũ cho thấy lệnh không fill toàn là lệnh giá đảo chiều ngay (winner).
     # B/C setup vẫn maker để tối ưu phí.
     entry_order_type = cfg.get("entry_order_type", "limit")
-    if score >= cfg.get("taker_entry_min_score", 85):
+    if score >= cfg.get("taker_entry_min_score", 85) and cfg.get("allow_taker_entry", True):
         # v3.1 FEE FIX: taker chỉ khi TP1 đủ trả taker round-trip.
         # Live 02/07: 2 lệnh BNB taker vào + time_stop taker ra = 0.09% phí
         # trong khi TP1 chỉ 0.06% → thua chắc từ lúc đặt lệnh.
@@ -1289,8 +1290,9 @@ async def _execute_setup(
     # mạnh nhất (live 15:09 ETH score 93: bounce +0.08%/47s đúng như dự đoán
     # nhưng reversal_cancel hủy lệnh → trắng tay). Được đuổi bằng market CHỈ KHI
     # lệnh đủ trả phí taker (viable_taker); không đủ → hủy như cũ.
+    # v3.4: allow_taker_entry=False → tắt luôn chase (maker tuyệt đối theo yêu cầu).
     chase_edge = estimate_fee_edge(signal_price, atr_5m, cfg)
-    allow_taker_chase = bool(chase_edge["viable_taker"])
+    allow_taker_chase = bool(chase_edge["viable_taker"]) and cfg.get("allow_taker_entry", True)
 
     if entry_order_type == "market":
         slippage = max(cfg.get("slippage_pct", 0.0) / 100, 0.002)
@@ -1900,11 +1902,16 @@ async def run_bot_async():
     logger.info("=" * 60)
     logger.info("STARTING BOT ENGINE v3 — DUAL REGIME | RISK SIZING | OBI SMOOTH")
     logger.info("=" * 60)
+    taker_mode = (
+        f"taker if score>={CONFIG.get('taker_entry_min_score', 85)}"
+        if CONFIG.get("allow_taker_entry", True) else "MAKER-ONLY (taker entry OFF)"
+    )
     logger.info(
-        "Profile=%s | entry=%s (taker if score>=%d) | limit_offset=%.3f%% | time_stop=%sm",
+        "Profile=%s | entry=%s (%s) | limit_offset=%.3f%% | requote=%ds | time_stop=%sm",
         CONFIG["profile_name"], CONFIG["entry_order_type"],
-        CONFIG.get("taker_entry_min_score", 85),
+        taker_mode,
         CONFIG.get("limit_offset_pct", 0.0),
+        ENTRY_REQUOTE_SECONDS,
         CONFIG["time_stop_minutes"],
     )
     # Ngưỡng HIỆU DỤNG per-coin (COIN_CONFIG override CONFIG — banner cũ chỉ in

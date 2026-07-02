@@ -145,8 +145,14 @@ BASE_CONFIG = {
 
     # ── v3.2 FEE: taker entry phải DƯ DẢ trả phí, không phải vừa đủ ──
     # required_taker = taker_RT × taker_rt_mult + fee_edge_min_pct
-    # (0.09% × 2 + 0.06% = 0.24% TP1 tối thiểu mới được vào market)
     "taker_rt_mult": 2.0,
+
+    # ── v3.4 MAKER-ONLY ENTRY: tắt toàn bộ taker ở ENTRY (cả market entry
+    # score>=85 lẫn taker-chase khi giá bật). Entry chỉ còn Alo maker 0.015%
+    # + join bbo + re-quote bám giá. Taker duy nhất còn lại: SL/emergency.
+    # Đánh đổi: sóng bật nhanh không kịp khớp sẽ bị lỡ (reversal_cancel hủy).
+    # Muốn bật lại taker cho lệnh A-grade: đổi False → True.
+    "allow_taker_entry": False,
 
     # ── v3.2 FEE: maker-first close đuổi theo bbo (chase) ──
     # v3.1 đặt 1 lệnh Alo tĩnh rồi chờ 20s → giá nhích 1 tick là rơi xuống
