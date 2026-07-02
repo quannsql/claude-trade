@@ -1,0 +1,177 @@
+2026-07-02T07:36:46.256326270Z [inf]  Starting Container
+2026-07-02T07:36:47.472165893Z [err]  INFO:     Started server process [1]
+2026-07-02T07:36:47.472172584Z [err]  INFO:     Waiting for application startup.
+2026-07-02T07:36:47.472178069Z [err]  07:36:47 - ============================================================
+2026-07-02T07:36:47.472183855Z [err]  07:36:47 - STARTING BOT ENGINE v3 — DUAL REGIME | RISK SIZING | OBI SMOOTH
+2026-07-02T07:36:47.472190516Z [err]  07:36:47 - ============================================================
+2026-07-02T07:36:47.472197595Z [err]  07:36:47 - Profile=btc_high_freq | entry=limit (taker if score>=85) | limit_offset=0.035% | time_stop=5m
+2026-07-02T07:36:47.472202869Z [err]  07:36:47 - Risk/trade=3.00 USD (half=60%) | SL=1.2xATR [0.10-0.40%] | backstop=x1.5 | thresholds half/full=55/72 (+0 Asia)
+2026-07-02T07:36:47.472208770Z [err]  07:36:47 - OBI smoothing=90s window (min 3 samples) | reversal_cancel=0.08% | circuit breaker=6 fails/60s
+2026-07-02T07:36:47.472214687Z [err]  07:36:47 - Guards: entry=180s | SL cooldown=5m | max margin=70% | daily_loss=15.00 | max_trades/day=60 | disabled=none
+2026-07-02T07:36:47.472221360Z [err]  07:36:47 - Setup log: setups_log.csv | Trade log: trades_log.csv
+2026-07-02T07:36:48.030224154Z [err]  07:36:47 - Wallet=0x8FF6e34281254C21aB15f240232E19F1eaC92dB0 monitoring=BTC,ETH,BNB
+2026-07-02T07:36:48.030229773Z [err]  INFO:     Application startup complete.
+2026-07-02T07:36:48.030411860Z [err]  INFO:     Uvicorn running on http://0.0.0.0:8080 (Press CTRL+C to quit)
+2026-07-02T07:36:51.626479844Z [err]  07:36:51 - BNB: entry SHORT score at 547.8500 | margin=100.00 notional=2000.00 size=3.64900000
+2026-07-02T07:36:51.626553185Z [err]  07:36:51 - BNB 2026-07-02 07:24:00+00:00: setup SHORT [ranging/range_fade] score=80 conf=A price=547.8500 obi=0.00(n=1) bb_w=0.10%
+2026-07-02T07:36:51.626560821Z [err]  07:36:51 - BNB: score breakdown: bb_touch=+25 | directional_vol=+10 | ema50_trend=+10 | vwap_stretch=+10 | regime_ok=+5 | rsi_1m=+10 | trend_15m=+15 | bb_width=+5 | bb_pct_b=-10 | time_filter=+10 | spread_penalty=-10
+2026-07-02T07:36:51.626568271Z [err]  07:36:51 - BNB: risk sizing — risk=3.00 USD sl=0.100% notional=2000.00 margin=100.00 (full)
+2026-07-02T07:36:51.626575833Z [err]  07:36:51 - BNB: active entry guard SET — executing trade in background
+2026-07-02T07:37:11.272767312Z [err]  07:37:04 - BTC 2026-07-02 07:36:00+00:00: block: OBI=0.73 (buyers dominant, smoothed) (price 60520.0000)
+2026-07-02T07:37:12.861701118Z [err]  07:37:12 - BNB: price reverted 0.08% without fill — cancelling order oid=55851148056
+2026-07-02T07:37:12.861707303Z [err]  07:37:12 - BNB: cancel open order oid=55851148056
+2026-07-02T07:37:32.475964975Z [err]  07:37:22 - BNB: entry not filled; setup skipped
+2026-07-02T07:37:52.477326576Z [inf]  INFO:     100.64.0.2:56000 - "GET / HTTP/1.1" 200 OK
+2026-07-02T07:37:52.477332660Z [inf]  INFO:     100.64.0.3:39236 - "GET /static/style.css HTTP/1.1" 200 OK
+2026-07-02T07:37:52.477337164Z [inf]  INFO:     100.64.0.4:58314 - "GET /static/main.js HTTP/1.1" 200 OK
+2026-07-02T07:37:52.477341832Z [err]  INFO:     100.64.0.6:40022 - "WebSocket /ws/logs" [accepted]
+2026-07-02T07:37:52.477346378Z [err]  INFO:     connection open
+2026-07-02T07:37:52.477351094Z [inf]  INFO:     100.64.0.5:20776 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T07:37:52.477356173Z [inf]  INFO:     100.64.0.4:58314 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:37:56.609326334Z [inf]  INFO:     100.64.0.6:40034 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:38:01.593437444Z [inf]  INFO:     100.64.0.2:62438 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:38:06.636222340Z [inf]  INFO:     100.64.0.6:48646 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:38:09.686272649Z [err]  INFO:     connection closed
+2026-07-02T07:44:43.281283612Z [err]  INFO:     100.64.0.8:11234 - "WebSocket /ws/logs" [accepted]
+2026-07-02T07:44:43.281293192Z [err]  INFO:     connection open
+2026-07-02T07:44:43.281300002Z [inf]  INFO:     100.64.0.7:28444 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T07:44:43.281306385Z [inf]  INFO:     100.64.0.4:60060 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:44:43.281313844Z [inf]  INFO:     100.64.0.9:41150 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:44:47.345339551Z [inf]  INFO:     100.64.0.10:34102 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:44:52.286717817Z [inf]  INFO:     100.64.0.11:10540 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:44:56.821075096Z [inf]  INFO:     100.64.0.5:39064 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:45:02.574542395Z [inf]  INFO:     100.64.0.6:60486 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:45:05.680429115Z [inf]  INFO:     100.64.0.6:60486 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T07:45:06.666027180Z [inf]  INFO:     100.64.0.6:60494 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:45:11.710748598Z [inf]  INFO:     100.64.0.12:16988 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:45:17.474868712Z [inf]  INFO:     100.64.0.12:16988 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:45:21.719892969Z [inf]  INFO:     100.64.0.9:18720 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T07:45:21.959433499Z [inf]  INFO:     100.64.0.9:18706 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:45:22.522512241Z [inf]  INFO:     100.64.0.3:26992 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:45:26.930382092Z [inf]  INFO:     100.64.0.12:54526 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:45:28.001424111Z [err]  INFO:     connection closed
+2026-07-02T07:47:08.714552526Z [err]  07:47:03 - BTC 2026-07-02 07:46:00+00:00: block: OBI=0.57 (buyers dominant, smoothed) (price 60521.0000)
+2026-07-02T07:47:08.714576708Z [err]  07:47:04 - BNB 2026-07-02 07:46:00+00:00: block: OBI=-0.39 (sellers dominant, smoothed) (price 547.6000)
+2026-07-02T07:48:08.193558152Z [err]  07:48:03 - BTC 2026-07-02 07:47:00+00:00: setup SHORT [ranging/range_fade] score=120 conf=A+ price=60521.0000 obi=-0.14(n=28) bb_w=0.16%
+2026-07-02T07:48:08.193566318Z [err]  07:48:03 - BTC: score breakdown: bb_touch=+25 | directional_vol=+5 | ema50_trend=+10 | regime_ok=+5 | rsi_1m=+10 | candle_1m=+10 | trend_15m=+15 | bb_width=+5 | bb_pct_b=+10 | time_filter=+10 | ask_wall=+15 | spread_penalty=-10 | funding_bias=+10
+2026-07-02T07:48:08.193572023Z [err]  07:48:03 - BTC: risk sizing — risk=3.00 USD sl=0.152% notional=1976.06 margin=98.80 (full)
+2026-07-02T07:48:08.193576445Z [err]  07:48:03 - BTC: active entry guard SET — executing trade in background
+2026-07-02T07:48:08.193581406Z [err]  07:48:03 - BTC: entry SHORT score at 60521.0000 | margin=98.80 notional=1976.06 size=0.03263000
+2026-07-02T07:48:08.193586850Z [err]  07:48:03 - BTC: score 120 >= taker threshold — using market entry
+2026-07-02T07:48:08.193592290Z [err]  INFO:     100.64.0.2:45754 - "WebSocket /ws/logs" [accepted]
+2026-07-02T07:48:08.193597026Z [err]  INFO:     connection open
+2026-07-02T07:48:08.193601845Z [inf]  INFO:     100.64.0.7:42902 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T07:48:08.193606985Z [inf]  INFO:     100.64.0.4:13818 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:48:11.589292533Z [inf]  INFO:     100.64.0.11:33880 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:48:15.242051382Z [inf]  INFO:     100.64.0.11:33880 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:48:20.308690374Z [inf]  INFO:     100.64.0.5:41876 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:48:24.752579131Z [inf]  INFO:     100.64.0.7:38230 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:48:30.465217241Z [inf]  INFO:     100.64.0.4:53456 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:48:33.718023793Z [inf]  INFO:     100.64.0.10:58168 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T07:48:35.491304234Z [inf]  INFO:     100.64.0.10:58174 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:48:36.600897776Z [err]  07:48:36 - BTC: entry timeout — cancelling order oid=55851481167
+2026-07-02T07:48:39.751591051Z [err]  07:48:39 - BTC: partial fill after cancel: size=0.02730000 — will manage this position
+2026-07-02T07:48:39.751600286Z [err]  07:48:39 - BTC: partial entry fill 0.02730000 / 0.03263000; managing remainder
+2026-07-02T07:48:39.751607248Z [err]  07:48:39 - BTC: filled 0.02730000 @ 60458.2553 | TP1=60397.0012 TP2=60335.7471 SL=60550.1365 | risk=2.51 backstop=4.50 | deadline=07:58
+2026-07-02T07:48:39.811241596Z [inf]  INFO:     100.64.0.12:48122 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:48:44.756308370Z [inf]  INFO:     100.64.0.7:56986 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:48:49.829583405Z [inf]  INFO:     100.64.0.2:17642 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:48:55.039292494Z [inf]  INFO:     100.64.0.4:18936 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:48:59.130803732Z [inf]  INFO:     100.64.0.2:31754 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T07:48:59.875771337Z [inf]  INFO:     100.64.0.11:50784 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:49:00.980721994Z [inf]  INFO:     100.64.0.11:50792 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:49:00.980728650Z [inf]  INFO:     100.64.0.4:25068 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:49:00.980734866Z [inf]  INFO:     100.64.0.5:47354 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T07:49:03.808647807Z [inf]  INFO:     100.64.0.13:29196 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T07:49:04.887302828Z [inf]  INFO:     100.64.0.12:16482 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:49:10.055408504Z [inf]  INFO:     100.64.0.7:49686 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:49:15.158802504Z [inf]  INFO:     100.64.0.8:33344 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:49:20.189709965Z [inf]  INFO:     100.64.0.12:36448 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:49:25.146677375Z [inf]  INFO:     100.64.0.8:45720 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:49:30.152516175Z [inf]  INFO:     100.64.0.12:32842 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:49:34.341841192Z [inf]  INFO:     100.64.0.4:37618 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T07:49:35.255936564Z [inf]  INFO:     100.64.0.11:60308 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:49:42.267456335Z [inf]  INFO:     100.64.0.7:59868 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:49:45.292190919Z [inf]  INFO:     100.64.0.4:53652 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:49:50.649632488Z [inf]  INFO:     100.64.0.12:41378 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:49:53.323560054Z [err]  07:49:53 - BTC: TP1 threshold reached (pos=0.01365000); moving to TP2
+2026-07-02T07:49:53.323567797Z [err]  07:49:53 - BTC: cancel open order oid=55851502560
+2026-07-02T07:49:55.372603426Z [inf]  INFO:     100.64.0.12:41378 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:49:59.873517280Z [inf]  INFO:     100.64.0.3:20220 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:50:03.714683008Z [inf]  INFO:     100.64.0.2:15780 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T07:50:04.770414176Z [inf]  INFO:     100.64.0.7:48540 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:50:05.699564390Z [err]  07:50:05 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:50:08.588104962Z [err]  07:50:08 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:50:09.995184658Z [inf]  INFO:     100.64.0.12:21476 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:50:11.561343207Z [err]  07:50:11 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:50:14.542418207Z [err]  07:50:14 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:50:14.887189344Z [inf]  INFO:     100.64.0.10:34736 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:50:17.638998598Z [err]  07:50:17 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:50:19.987243313Z [inf]  INFO:     100.64.0.10:34736 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:50:20.733166734Z [err]  07:50:20 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:50:23.817097293Z [err]  07:50:23 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:50:24.917742896Z [inf]  INFO:     100.64.0.5:45752 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:50:26.911991638Z [err]  07:50:26 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:50:29.929370622Z [inf]  INFO:     100.64.0.3:37876 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:50:29.991748421Z [err]  07:50:29 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:50:33.083490879Z [err]  07:50:33 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:50:33.748711173Z [inf]  INFO:     100.64.0.4:61794 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T07:50:35.016787211Z [inf]  INFO:     100.64.0.12:50408 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:50:36.698829831Z [err]  07:50:36 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:50:39.813264878Z [err]  07:50:39 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:50:39.996356073Z [inf]  INFO:     100.64.0.10:43008 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:50:41.048597955Z [inf]  INFO:     100.64.0.9:20216 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:50:41.168542851Z [inf]  INFO:     100.64.0.7:26772 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T07:50:42.821558583Z [err]  07:50:42 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:50:42.821569971Z [inf]  INFO:     100.64.0.11:42086 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:50:42.821579793Z [inf]  INFO:     100.64.0.10:43008 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T07:50:44.950894803Z [inf]  INFO:     100.64.0.10:43008 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:50:45.783006521Z [err]  07:50:45 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:50:48.887113326Z [err]  07:50:48 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:50:50.069267401Z [inf]  INFO:     100.64.0.3:22364 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:50:52.056353880Z [err]  07:50:51 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:50:55.061331613Z [err]  07:50:54 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:50:56.985808416Z [inf]  INFO:     100.64.0.2:46554 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:50:58.068134440Z [err]  07:50:57 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:51:00.143174274Z [inf]  INFO:     100.64.0.12:34364 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:51:01.077330454Z [err]  07:51:00 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:51:03.898934915Z [inf]  INFO:     100.64.0.13:23770 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T07:51:04.085433604Z [err]  07:51:04 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:51:05.046214758Z [inf]  INFO:     100.64.0.4:10344 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T07:51:05.046221644Z [err]  07:51:05 - BTC: active entry guard expired after 182s — clearing
+2026-07-02T07:51:07.095320060Z [err]  07:51:06 - BNB: risk sizing — risk=3.00 USD sl=0.100% notional=2000.00 margin=100.00 (full)
+2026-07-02T07:51:07.095339306Z [err]  07:51:06 - BNB: active entry guard SET — executing trade in background
+2026-07-02T07:51:07.095348710Z [err]  07:51:06 - BNB: entry SHORT score at 548.4200 | margin=100.00 notional=2000.00 size=3.64500000
+2026-07-02T07:51:07.095371929Z [err]  07:51:06 - BNB 2026-07-02 07:50:00+00:00: setup SHORT [ranging/range_fade] score=75 conf=B price=548.4200 obi=-0.21(n=26) bb_w=0.13%
+2026-07-02T07:51:07.095379733Z [err]  07:51:06 - BNB: score breakdown: bb_touch=+25 | directional_vol=+5 | ema50_trend=+10 | regime_ok=+5 | rsi_1m=+20 | trend_15m=+15 | bb_width=+5 | bb_pct_b=-10 | time_filter=+10 | spread_penalty=-10
+2026-07-02T07:51:07.177578650Z [err]  07:51:07 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:51:08.118130915Z [err]  INFO:     connection closed
+2026-07-02T07:51:10.339256272Z [err]  07:51:10 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:51:13.425881669Z [err]  07:51:13 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:51:16.537773463Z [err]  07:51:16 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:51:19.602935795Z [err]  07:51:19 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:51:23.284551064Z [err]  07:51:22 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:51:26.176091956Z [err]  07:51:25 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:51:29.163087025Z [err]  07:51:28 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:51:32.243962211Z [err]  07:51:31 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:51:35.251605896Z [err]  07:51:35 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:51:38.356232421Z [err]  07:51:38 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:51:41.305406739Z [err]  07:51:41 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:51:44.426648576Z [err]  07:51:44 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:51:47.424115028Z [err]  07:51:47 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:51:50.497529572Z [err]  07:51:50 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:51:53.658676707Z [err]  07:51:53 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:51:56.752323596Z [err]  07:51:56 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:51:59.838613906Z [err]  07:51:59 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:52:02.653065363Z [err]  07:52:02 - BTC 2026-07-02 07:51:00+00:00: block: 5m_and_15m_trend_against: counter-trend fade blocked (price 60326.0000)
+2026-07-02T07:52:02.935166792Z [err]  07:52:02 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:52:06.557542304Z [err]  07:52:06 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:52:09.504298416Z [err]  07:52:09 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:52:10.874716646Z [err]  07:52:10 - BNB: entry timeout — cancelling order oid=55851583213
+2026-07-02T07:52:10.964819745Z [err]  07:52:10 - BNB: cancel open order oid=55851583213
+2026-07-02T07:52:12.573710147Z [err]  07:52:12 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:52:15.617558760Z [err]  07:52:15 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:52:18.667901795Z [err]  07:52:18 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:52:21.637129929Z [err]  07:52:21 - BNB: entry not filled; setup skipped
+2026-07-02T07:52:21.637135069Z [err]  07:52:21 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'
+2026-07-02T07:52:24.940025752Z [err]  07:52:24 - BTC: active monitoring loop error: unsupported operand type(s) for *: 'float' and 'NoneType'

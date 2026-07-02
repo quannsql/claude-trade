@@ -908,7 +908,7 @@ async def _wait_for_position_flat(info: Info, address: str, coin: str, timeout_s
     while time.monotonic() < deadline:
         pos_size, pos_entry_px = await _call(_position_for_coin, info, address, coin)
         # Bỏ qua dust position (< $12) bằng notional
-        if abs(pos_size) * pos_entry_px <= 12: 
+        if abs(pos_size) * (pos_entry_px or 0.0) <= 12: 
             return True
         await asyncio.sleep(ORDER_POLL_SECONDS)
     return False
@@ -1156,7 +1156,7 @@ async def _execute_setup(
                 await _wait_for_position_flat(info, address, coin)
                 break
 
-            if abs_pos * pos_entry_px <= 12:  # Bỏ qua dust (< $12)
+            if abs_pos * (pos_entry_px or 0.0) <= 12:  # Bỏ qua dust (< $12)
                 if abs_pos > POSITION_EPSILON:
                     logger.warning("%s: dust position detected (size=%.8f) — ignoring to prevent $10 limit error", coin, abs_pos)
                 # v3: xác định lý do thoát THẬT từ fills (TP2/SL/TP1_flat/external)
