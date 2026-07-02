@@ -111,26 +111,26 @@ def detect_regime(df15: pd.DataFrame, i15: int, adx_period: int = 14) -> str:
 def detect_trend_regime(df15: pd.DataFrame, i15: int, df5: pd.DataFrame, i5: int) -> str:
     """
     Phân loại regime cho dual-mode engine:
-        'trend_up'   — EMA50(15m) dốc lên rõ + EMA9>EMA21>EMA50 xếp tầng trên 5m
+        'trend_up'   — EMA21(5m) dốc lên rõ + EMA9>EMA21>EMA50 xếp tầng trên 5m (nhanh hơn)
         'trend_down' — ngược lại
         'ranging'    — còn lại (mặc định, an toàn cho mean-reversion)
 
-    Trend regime yêu cầu CẢ HAI điều kiện (slope 15m + stack 5m) để tránh
-    flip-flop khi thị trường chỉ nhích nhẹ.
+    Trend regime yêu cầu CẢ HAI điều kiện (slope 5m + stack 5m) để tránh
+    flip-flop khi thị trường chỉ nhích nhẹ, kết hợp 15m như xác nhận phụ.
     """
-    if i15 < 6 or i5 < 1 or i15 >= len(df15) or i5 >= len(df5):
+    if i15 < 6 or i5 < 5 or i15 >= len(df15) or i5 >= len(df5):
         return "ranging"
 
     row15 = df15.iloc[i15]
     row5 = df5.iloc[i5]
 
-    ema50_now = row15.get("ema50")
-    ema50_5ago = df15.iloc[i15 - 5].get("ema50")
-    slope_pct = 0.0
-    if (ema50_now is not None and ema50_5ago is not None
-            and not pd.isna(ema50_now) and not pd.isna(ema50_5ago)
-            and ema50_5ago > 0):
-        slope_pct = (ema50_now - ema50_5ago) / ema50_5ago * 100
+    ema21_5_now = row5.get("ema21")
+    ema21_5_5ago = df5.iloc[i5 - 5].get("ema21")
+    slope_5m_pct = 0.0
+    if (ema21_5_now is not None and ema21_5_5ago is not None
+            and not pd.isna(ema21_5_now) and not pd.isna(ema21_5_5ago)
+            and ema21_5_5ago > 0):
+        slope_5m_pct = (ema21_5_now - ema21_5_5ago) / ema21_5_5ago * 100
 
     ema9_5 = row5.get("ema9")
     ema21_5 = row5.get("ema21")
@@ -141,9 +141,9 @@ def detect_trend_regime(df15: pd.DataFrame, i15: int, df5: pd.DataFrame, i5: int
     stack_up = ema9_5 > ema21_5 > ema50_5
     stack_down = ema9_5 < ema21_5 < ema50_5
 
-    if slope_pct > 0.12 and stack_up:
+    if slope_5m_pct > 0.08 and stack_up:
         return "trend_up"
-    if slope_pct < -0.12 and stack_down:
+    if slope_5m_pct < -0.08 and stack_down:
         return "trend_down"
     return "ranging"
 
@@ -200,7 +200,12 @@ def estimate_fee_edge(price: float, atr_5m: float, cfg: dict) -> dict:
 
     Điều kiện:
       viable_maker: TP1_est >= maker_in + taker_out + fee_edge_min_pct
-      viable_taker: TP1_est >= taker_in + taker_out + fee_edge_min_pct
+      viable_taker: TP1_est >= (taker_in + taker_out) × taker_rt_mult + fee_edge_min_pct
+
+    v3.2 FEE: taker round-trip phải chỉ là PHẦN NHỎ của TP1 (mặc định ×2 dư dả),
+    không phải "vừa đủ trả phí". Live 02/07: 3 lệnh BTC taker entry với TP1 est
+    0.150% vs required 0.130% (biên 0.02%!) — tất cả time_stop thua, phí taker
+    2 chiều $0.90/lệnh trên notional $1000-2000.
 
     - Không viable_maker → BỎ setup hoàn toàn (không có cách nào dương EV)
     - viable_maker nhưng không viable_taker → chỉ được vào maker,
@@ -209,6 +214,7 @@ def estimate_fee_edge(price: float, atr_5m: float, cfg: dict) -> dict:
     taker = cfg.get("taker_fee_pct", 0.045)
     maker = cfg.get("maker_fee_pct", 0.015)
     min_edge = cfg.get("fee_edge_min_pct", 0.04)
+    taker_rt_mult = cfg.get("taker_rt_mult", 2.0)
 
     atr_pct = (atr_5m / price * 100) if (price > 0 and atr_5m > 0) else 0.0
     if cfg.get("use_dynamic_tp_sl", False) and atr_pct > 0:
@@ -218,7 +224,7 @@ def estimate_fee_edge(price: float, atr_5m: float, cfg: dict) -> dict:
         tp1_pct_est = cfg.get("tp1_pct", 0.10)
 
     required_maker = maker + taker + min_edge
-    required_taker = taker + taker + min_edge
+    required_taker = (taker + taker) * taker_rt_mult + min_edge
 
     return {
         "tp1_pct_est": tp1_pct_est,

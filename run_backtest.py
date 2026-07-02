@@ -138,7 +138,22 @@ BASE_CONFIG = {
     # ── v3.1 FEE GATE: edge tối thiểu sau phí round-trip ──
     # TP1 ước tính phải >= (fee vào + fee ra taker) + fee_edge_min_pct,
     # nếu không thì skip setup (coin ATR bé → không cách nào dương EV).
-    "fee_edge_min_pct": 0.04,
+    # v3.2: 0.04 → 0.06 — live 27/06-02/07 phí = $79 trên gross -$97; các lệnh
+    # TP1 sát ngưỡng phí đều âm sau fee. Edge tối thiểu phải >= phí maker RT.
+    "fee_edge_min_pct": 0.06,
+
+    # ── v3.2 FEE: taker entry phải DƯ DẢ trả phí, không phải vừa đủ ──
+    # required_taker = taker_RT × taker_rt_mult + fee_edge_min_pct
+    # (0.09% × 2 + 0.06% = 0.24% TP1 tối thiểu mới được vào market)
+    "taker_rt_mult": 2.0,
+
+    # ── v3.2 FEE: maker-first close đuổi theo bbo (chase) ──
+    # v3.1 đặt 1 lệnh Alo tĩnh rồi chờ 20s → giá nhích 1 tick là rơi xuống
+    # market taker. Live 02/07: taker CLOSE = $40/$79 tổng phí (51%).
+    "maker_close_timeout_s": 45,     # tổng thời gian cố maker trước khi market
+    "maker_close_requote_s": 6,      # bbo dịch → dời lệnh theo sau mỗi N giây
+    "maker_close_abort_pct": 0.10,   # giá chạy ngược quá % này → market ngay
+                                     # (vị thế không còn SL trong lúc chờ maker)
 
     # Hard dollar stop-loss floor (fallback khi không tính được planned risk)
     "max_loss_per_trade_usd": 4.5,
@@ -152,7 +167,7 @@ PROFILES = {
     # Phương châm: trade nhiều lệnh BTC nhỏ, lãi ít mỗi lệnh nhưng tổng dương.
     # ETH bị loại. Bù đắp bằng max_trades_per_day=40 và min_score_half=45.
     "btc_high_freq": {
-        "symbols": ["BTCUSDT", "ETHUSDT", "BNBUSDT"],
+        "symbols": ["BTCUSDT", "ETHUSDT"],
         "leverage": 20,
         "margin_full": 100.0,
         "margin_half": 50.0,
@@ -486,15 +501,23 @@ def simulate_trade(direction: str, entry_price: float, entry_time,
         bar = df1.iloc[idx]
         high, low, close = bar["high"], bar["low"], bar["close"]
 
-        # ------- Update trailing stop -------
+        # ------- Update trailing stop & Breakeven -------
+        if direction == "long":
+            favorable = (high - fill_price) / fill_price
+        else:
+            favorable = (fill_price - low) / fill_price
+
+        max_favorable_move = max(max_favorable_move, favorable)
+
+        if cfg.get("move_sl_to_breakeven_after_mfe_pct", True):
+            mfe_threshold = tp1_pct * 0.5
+            if max_favorable_move >= mfe_threshold:
+                if direction == "long":
+                    sl_price = max(sl_price, fill_price)
+                else:
+                    sl_price = min(sl_price, fill_price)
+
         if use_trailing:
-            if direction == "long":
-                favorable = (high - fill_price) / fill_price
-            else:
-                favorable = (fill_price - low) / fill_price
-
-            max_favorable_move = max(max_favorable_move, favorable)
-
             if max_favorable_move >= trailing_activate_pct:
                 # Trail: move SL to lock a portion of the best move
                 lock_amount = max_favorable_move * trailing_lock_pct

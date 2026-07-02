@@ -1,0 +1,516 @@
+2026-07-02T09:29:27.409741569Z [inf]  Starting Container
+2026-07-02T09:29:29.322274186Z [err]  09:29:28 - ============================================================
+2026-07-02T09:29:29.322281313Z [err]  09:29:28 - Profile=btc_high_freq | entry=limit (taker if score>=85) | limit_offset=0.035% | time_stop=5m
+2026-07-02T09:29:29.322290440Z [err]  09:29:28 - Risk/trade=3.00 USD (half=60%) | SL=1.2xATR [0.10-0.40%] | backstop=x1.5 | thresholds half/full=55/72 (+0 Asia)
+2026-07-02T09:29:29.322295944Z [err]  INFO:     Started server process [1]
+2026-07-02T09:29:29.322298708Z [err]  09:29:28 - OBI smoothing=90s window (min 3 samples) | reversal_cancel=0.08% | circuit breaker=6 fails/60s
+2026-07-02T09:29:29.322303443Z [err]  09:29:28 - v3.1 FEE: gate TP1>=fees+0.04% | maker-first time_stop close | net PnL = closedPnl - fees
+2026-07-02T09:29:29.322306341Z [err]  INFO:     Waiting for application startup.
+2026-07-02T09:29:29.322311725Z [err]  09:29:28 - Guards: entry=180s | SL cooldown=5m | max margin=70% | daily_loss=15.00 | max_trades/day=60 | disabled=none
+2026-07-02T09:29:29.322320108Z [err]  09:29:28 - Setup log: setups_log.csv | Trade log: trades_log.csv
+2026-07-02T09:29:29.322322525Z [err]  09:29:28 - ============================================================
+2026-07-02T09:29:29.322331446Z [err]  09:29:28 - STARTING BOT ENGINE v3 — DUAL REGIME | RISK SIZING | OBI SMOOTH
+2026-07-02T09:29:30.376921746Z [err]  09:29:29 - Wallet=0x8FF6e34281254C21aB15f240232E19F1eaC92dB0 monitoring=BTC,ETH,BNB
+2026-07-02T09:29:30.376937146Z [err]  INFO:     Application startup complete.
+2026-07-02T09:29:30.376945422Z [err]  INFO:     Uvicorn running on http://0.0.0.0:8080 (Press CTRL+C to quit)
+2026-07-02T09:29:32.335923272Z [err]  09:29:32 - ETH 2026-07-02 09:28:00+00:00: setup LONG [ranging/range_fade] score=110 conf=A+ price=1635.4000 obi=0.00(n=1) bb_w=0.06%
+2026-07-02T09:29:32.335928165Z [err]  09:29:32 - ETH: score breakdown: bb_touch=+25 | directional_vol=+5 | ema50_trend=+10 | regime_ok=+5 | rsi_1m=+10 | trend_15m=+15 | bb_width=+5 | bb_pct_b=+10 | time_filter=+10 | bid_wall=+15
+2026-07-02T09:29:32.335933617Z [err]  09:29:32 - ETH: risk sizing — risk=3.00 USD sl=0.239% notional=1254.23 margin=62.71 (full)
+2026-07-02T09:29:32.335938426Z [err]  09:29:32 - ETH: active entry guard SET — executing trade in background
+2026-07-02T09:29:32.335943791Z [err]  09:29:32 - ETH: entry LONG score at 1635.4000 | margin=62.71 notional=1254.23 size=0.76710000
+2026-07-02T09:29:32.335950200Z [err]  09:29:32 - ETH: score 110 >= taker threshold, TP1 est 0.199% > 0.130% fees — market entry
+2026-07-02T09:29:33.339920084Z [err]  09:29:33 - BNB 2026-07-02 09:27:00+00:00: block: regime_filter: 4 consecutive bullish 15m candles (price 550.1200)
+2026-07-02T09:30:12.980278535Z [err]  09:30:09 - BNB: FEE GATE — TP1 est 0.074% < fees+edge 0.100% (ATR 0.061% quá bé so với phí) — skipping
+2026-07-02T09:30:12.980313203Z [err]  09:30:04 - ETH: entry timeout — cancelling order oid=55854530555
+2026-07-02T09:30:12.980321139Z [err]  09:30:08 - ETH: partial fill after cancel: size=0.58750000 — will manage this position
+2026-07-02T09:30:12.980328592Z [err]  09:30:08 - ETH: partial entry fill 0.58750000 / 0.76710000; managing remainder
+2026-07-02T09:30:12.980336031Z [err]  09:30:08 - ETH: filled 0.58750000 @ 1637.1509 | TP1=1640.4107 TP2=1643.6704 SL=1633.2392 | risk=2.30 backstop=4.50 | deadline=09:40
+2026-07-02T09:30:12.980342783Z [err]  09:30:09 - BNB 2026-07-02 09:29:00+00:00: setup SHORT [ranging/range_fade] score=55 conf=C price=550.1200 obi=-0.46(n=11) bb_w=0.23%
+2026-07-02T09:30:12.980349879Z [err]  09:30:09 - BNB: score breakdown: rsi_extreme_touch=+35 | regime_ok=+5 | time_filter=+10 | obi_bonus=+15 | spread_penalty=-10
+2026-07-02T09:32:13.424205904Z [err]  09:32:04 - BTC 2026-07-02 09:31:00+00:00: block: 5m_and_15m_trend_against: counter-trend fade blocked (price 60730.0000)
+2026-07-02T09:32:33.010064903Z [err]  09:32:32 - ETH: active entry guard expired after 180s — clearing
+2026-07-02T09:32:33.010081185Z [err]  09:32:32 - ETH: existing exposure (pos=0.58750000 orders=2) — skipping
+2026-07-02T09:33:13.077728627Z [err]  09:33:04 - BTC 2026-07-02 09:32:00+00:00: block: OBI=0.61 (buyers dominant, smoothed) (price 60751.0000)
+2026-07-02T09:34:13.097764962Z [err]  09:34:04 - BTC 2026-07-02 09:33:00+00:00: block: 5m_and_15m_trend_against: counter-trend fade blocked (price 60819.0000)
+2026-07-02T09:34:13.097774032Z [err]  09:34:08 - ETH: existing exposure (pos=0.58750000 orders=2) — skipping
+2026-07-02T09:36:14.101990429Z [err]  09:36:05 - BNB 2026-07-02 09:35:00+00:00: block: trend_against + deep_bb_break: high risk fade (price 552.5200)
+2026-07-02T09:36:14.102057846Z [err]  09:36:05 - ETH: existing exposure (pos=0.58750000 orders=2) — skipping
+2026-07-02T09:36:54.501302015Z [err]  09:36:48 - ETH: TP1 threshold reached (pos=0.29380000); moving to TP2
+2026-07-02T09:36:54.501310332Z [err]  09:36:48 - ETH: cancel open order oid=55854546922
+2026-07-02T09:37:00.551628146Z [err]  09:37:00 - ETH: trade closed reason=TP2 net_pnl=2.301397
+2026-07-02T09:37:00.551632123Z [err]  09:37:00 - ETH: recorded — win=True pnl=2.3014 | day_pnl=2.3014 | trades_today=1
+2026-07-02T09:37:05.160013433Z [err]  09:37:05 - BTC 2026-07-02 09:36:00+00:00: block: OBI=0.76 (buyers dominant, smoothed) (price 60874.0000)
+2026-07-02T09:37:06.701144261Z [err]  09:37:06 - ETH 2026-07-02 09:36:00+00:00: block: OBI=0.45 (buyers dominant, smoothed) (price 1644.0000)
+2026-07-02T09:38:07.454535494Z [err]  09:38:06 - ETH 2026-07-02 09:37:00+00:00: block: OBI=0.26 (buyers dominant, smoothed) (price 1646.8000)
+2026-07-02T09:38:57.520819770Z [err]  09:38:48 - BNB 2026-07-02 09:37:00+00:00: setup SHORT [ranging/range_fade] score=70 conf=B price=552.5200 obi=-0.24(n=26) bb_w=0.76%
+2026-07-02T09:38:57.520827851Z [err]  09:38:48 - BNB: score breakdown: bb_touch=+25 | ema50_trend=-15 | vwap_stretch=+20 | regime_ok=+5 | rsi_1m=+20 | rsi_5m=+10 | bb_width=-5 | bb_pct_b=+10 | time_filter=+10 | spread_penalty=-10
+2026-07-02T09:38:57.520847403Z [err]  09:38:48 - BNB: FEE GATE — TP1 est 0.070% < fees+edge 0.100% (ATR 0.058% quá bé so với phí) — skipping
+2026-07-02T09:39:05.535466999Z [err]  09:39:05 - ETH 2026-07-02 09:38:00+00:00: block: OBI=0.54 (buyers dominant, smoothed) (price 1653.4000)
+2026-07-02T09:39:05.794676405Z [err]  09:39:05 - BNB 2026-07-02 09:38:00+00:00: block: trend_against + deep_bb_break: high risk fade (price 553.8000)
+2026-07-02T09:40:06.227522002Z [err]  09:40:05 - ETH 2026-07-02 09:39:00+00:00: block: 5m_and_15m_trend_against: counter-trend fade blocked (price 1651.6000)
+2026-07-02T09:41:06.058815770Z [err]  09:41:05 - ETH 2026-07-02 09:40:00+00:00: block: trend_against without candle reversal: high risk fade (price 1650.3000)
+2026-07-02T09:42:05.815251256Z [err]  09:42:04 - BTC 2026-07-02 09:41:00+00:00: block: OBI=0.79 (buyers dominant, smoothed) (price 61679.0000)
+2026-07-02T09:42:05.815258444Z [err]  09:42:04 - ETH 2026-07-02 09:41:00+00:00: block: OBI=0.65 (buyers dominant, smoothed) (price 1655.1000)
+2026-07-02T09:43:05.794539886Z [err]  09:42:57 - BNB: score breakdown: rsi_extreme_touch=+35 | regime_ok=+5 | bb_width=-15 | time_filter=+10
+2026-07-02T09:43:05.794558435Z [err]  09:43:05 - ETH 2026-07-02 09:42:00+00:00: block: OBI=0.84 (buyers dominant, smoothed) (price 1649.8000)
+2026-07-02T09:43:05.794569163Z [err]  09:43:05 - BNB 2026-07-02 09:42:00+00:00: setup SHORT [ranging/range_fade] score=25 conf=C price=554.6200 obi=-0.24(n=26) bb_w=1.30%
+2026-07-02T09:43:05.794576930Z [err]  09:43:05 - BNB: score breakdown: rsi_extreme_touch=+35 | regime_ok=+5 | bb_width=-15 | time_filter=+10 | spread_penalty=-10
+2026-07-02T09:43:05.794621056Z [err]  09:42:57 - BNB 2026-07-02 09:41:00+00:00: setup SHORT [ranging/range_fade] score=35 conf=C price=553.8000 obi=-0.23(n=26) bb_w=1.22%
+2026-07-02T09:44:06.048886188Z [err]  09:44:04 - BTC 2026-07-02 09:43:00+00:00: block: trend_against without candle reversal: high risk fade (price 61096.0000)
+2026-07-02T09:46:26.720754671Z [err]  09:46:23 - BNB 2026-07-02 09:45:00+00:00: block: trend_against without candle reversal: high risk fade (price 554.6200)
+2026-07-02T09:52:10.438104765Z [err]  09:52:05 - ETH 2026-07-02 09:51:00+00:00: setup LONG [trend_up/trend_pullback] score=50 conf=C price=1646.3000 obi=-0.25(n=26) bb_w=1.17%
+2026-07-02T09:52:10.438112878Z [err]  09:52:05 - ETH: score breakdown: pullback_zone=+30 | rsi_5m_intact=+5 | trend_15m=+15 | obi_penalty=-10 | bid_wall=+10 | spread_penalty=-10 | time_filter=+10
+2026-07-02T09:53:10.407934930Z [err]  09:53:06 - ETH 2026-07-02 09:52:00+00:00: setup LONG [trend_up/trend_pullback] score=65 conf=B price=1647.6000 obi=0.12(n=26) bb_w=1.07%
+2026-07-02T09:53:10.407940365Z [err]  09:53:06 - ETH: score breakdown: pullback_zone=+30 | rsi_5m_intact=+5 | candle_1m=+10 | trend_15m=+15 | directional_vol=+5 | spread_penalty=-10 | time_filter=+10
+2026-07-02T09:53:10.407947103Z [err]  09:53:06 - ETH: risk sizing — risk=1.80 USD sl=0.358% notional=502.71 margin=25.14 (half)
+2026-07-02T09:53:10.407952550Z [err]  09:53:06 - ETH: active entry guard SET — executing trade in background
+2026-07-02T09:53:10.407960706Z [err]  09:53:06 - ETH: entry LONG score at 1647.6000 | margin=25.14 notional=502.71 size=0.30520000
+2026-07-02T09:54:20.101753621Z [err]  09:54:10 - ETH: entry timeout — cancelling order oid=55855517172
+2026-07-02T09:54:20.101761267Z [err]  09:54:10 - ETH: cancel open order oid=55855517172
+2026-07-02T09:54:21.232708325Z [err]  09:54:20 - ETH: entry not filled; setup skipped
+2026-07-02T09:55:00.761795425Z [err]  INFO:     connection open
+2026-07-02T09:55:00.761862130Z [err]  INFO:     100.64.0.2:50212 - "WebSocket /ws/logs" [accepted]
+2026-07-02T09:55:00.761869327Z [err]  INFO:     connection open
+2026-07-02T09:55:00.761878142Z [inf]  INFO:     100.64.0.3:48906 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T09:55:00.761887316Z [inf]  INFO:     100.64.0.2:50216 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:55:00.761894210Z [inf]  INFO:     100.64.0.4:62012 - "GET / HTTP/1.1" 200 OK
+2026-07-02T09:55:00.761901327Z [err]  INFO:     connection closed
+2026-07-02T09:55:00.761911224Z [inf]  INFO:     100.64.0.5:13084 - "GET /static/main.js HTTP/1.1" 200 OK
+2026-07-02T09:55:00.761918737Z [inf]  INFO:     100.64.0.6:29086 - "GET /static/style.css HTTP/1.1" 200 OK
+2026-07-02T09:55:00.761925918Z [inf]  INFO:     100.64.0.7:13072 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:55:00.761933154Z [inf]  INFO:     100.64.0.2:50216 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T09:55:00.761939728Z [err]  INFO:     100.64.0.8:38280 - "WebSocket /ws/logs" [accepted]
+2026-07-02T09:55:02.703303772Z [inf]  INFO:     100.64.0.2:49268 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:55:04.119313388Z [inf]  INFO:     100.64.0.5:27710 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:55:04.750132208Z [inf]  INFO:     100.64.0.9:38836 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T09:55:07.886345933Z [inf]  INFO:     100.64.0.10:12530 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:55:12.296670060Z [inf]  INFO:     100.64.0.6:33354 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:55:17.953109518Z [inf]  INFO:     100.64.0.5:13594 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:55:22.459880578Z [inf]  INFO:     100.64.0.10:20444 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:55:26.495635968Z [inf]  INFO:     100.64.0.2:27442 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T09:55:28.173475807Z [inf]  INFO:     100.64.0.10:20444 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:55:32.419952935Z [inf]  INFO:     100.64.0.11:20294 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:55:34.243187442Z [err]  INFO:     connection closed
+2026-07-02T09:56:14.356074731Z [err]  09:56:04 - ETH 2026-07-02 09:55:00+00:00: setup LONG [trend_up/trend_pullback] score=70 conf=B price=1647.1000 obi=0.57(n=27) bb_w=0.62%
+2026-07-02T09:56:14.356079684Z [err]  09:56:04 - ETH: score breakdown: pullback_zone=+30 | rsi_5m_intact=+5 | trend_15m=+15 | directional_vol=+5 | obi_bonus=+15 | spread_penalty=-10 | time_filter=+10
+2026-07-02T09:56:14.356088129Z [err]  09:56:04 - ETH: risk sizing — risk=1.80 USD sl=0.350% notional=514.64 margin=25.73 (half)
+2026-07-02T09:56:14.356093772Z [err]  09:56:04 - ETH: active entry guard SET — executing trade in background
+2026-07-02T09:56:14.356099112Z [err]  09:56:04 - ETH: entry LONG score at 1647.1000 | margin=25.73 notional=514.64 size=0.31250000
+2026-07-02T09:57:14.220724940Z [err]  09:57:05 - ETH: entry timeout — cancelling order oid=55855656159
+2026-07-02T09:57:14.220732736Z [err]  09:57:05 - ETH: cancel open order oid=55855656159
+2026-07-02T09:57:16.275867363Z [err]  09:57:16 - ETH: entry not filled; setup skipped
+2026-07-02T09:57:19.198319965Z [err]  09:57:18 - ETH 2026-07-02 09:56:00+00:00: setup LONG [trend_up/trend_pullback] score=80 conf=A price=1648.3000 obi=0.56(n=26) bb_w=0.57%
+2026-07-02T09:57:19.198327620Z [err]  09:57:18 - ETH: score breakdown: pullback_zone=+30 | rsi_5m_intact=+5 | candle_1m=+10 | trend_15m=+15 | directional_vol=+5 | obi_bonus=+15 | spread_penalty=-10 | time_filter=+10
+2026-07-02T09:57:19.198335516Z [err]  09:57:18 - ETH: risk sizing — risk=3.00 USD sl=0.350% notional=858.36 margin=42.92 (full)
+2026-07-02T09:57:19.198343139Z [err]  09:57:18 - ETH: active entry guard SET — executing trade in background
+2026-07-02T09:57:19.198351565Z [err]  09:57:18 - ETH: entry LONG score at 1648.3000 | margin=42.92 notional=858.36 size=0.52090000
+2026-07-02T09:58:09.000855649Z [err]  09:58:03 - ETH: price reverted 0.08% without fill — cancelling order oid=55855707584
+2026-07-02T09:58:09.000867320Z [err]  09:58:03 - ETH: cancel open order oid=55855707584
+2026-07-02T09:58:09.000874129Z [err]  INFO:     100.64.0.9:31814 - "WebSocket /ws/logs" [accepted]
+2026-07-02T09:58:09.000881299Z [err]  INFO:     connection open
+2026-07-02T09:58:09.000887583Z [inf]  INFO:     100.64.0.2:38908 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T09:58:09.000896532Z [inf]  INFO:     100.64.0.12:49690 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:58:13.930345852Z [inf]  INFO:     100.64.0.3:18830 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:58:13.948794421Z [err]  09:58:13 - ETH: entry not filled; setup skipped
+2026-07-02T09:58:15.886007347Z [err]  09:58:15 - ETH 2026-07-02 09:57:00+00:00: setup LONG [trend_up/trend_pullback] score=70 conf=B price=1649.4000 obi=0.65(n=26) bb_w=0.56%
+2026-07-02T09:58:15.886013578Z [err]  09:58:15 - ETH: score breakdown: pullback_zone=+30 | rsi_5m_intact=+5 | trend_15m=+15 | directional_vol=+5 | obi_bonus=+15 | spread_penalty=-10 | time_filter=+10
+2026-07-02T09:58:15.886077971Z [err]  09:58:15 - ETH: risk sizing — risk=1.80 USD sl=0.349% notional=515.36 margin=25.77 (half)
+2026-07-02T09:58:15.886084995Z [err]  09:58:15 - ETH: active entry guard SET — executing trade in background
+2026-07-02T09:58:15.886090989Z [err]  09:58:15 - ETH: entry LONG score at 1649.4000 | margin=25.77 notional=515.36 size=0.31250000
+2026-07-02T09:58:16.940690898Z [err]  09:58:16 - ETH: price reverted 0.08% without fill — cancelling order oid=55855743409
+2026-07-02T09:58:17.057249204Z [err]  09:58:17 - ETH: cancel open order oid=55855743409
+2026-07-02T09:58:18.809256000Z [inf]  INFO:     100.64.0.12:16942 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:58:23.943395668Z [inf]  INFO:     100.64.0.10:19800 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:58:27.406940863Z [err]  09:58:27 - ETH: entry not filled; setup skipped
+2026-07-02T09:58:29.107087202Z [inf]  INFO:     100.64.0.6:48180 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:58:34.123688966Z [inf]  INFO:     100.64.0.4:43174 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:58:37.464480754Z [inf]  INFO:     100.64.0.8:23874 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T09:58:38.533054704Z [inf]  INFO:     100.64.0.2:27752 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:58:43.697885383Z [inf]  INFO:     100.64.0.5:46030 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:58:46.613027698Z [inf]  INFO:     100.64.0.3:10760 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T09:58:47.458551006Z [inf]  INFO:     100.64.0.3:10762 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:58:50.308481588Z [inf]  INFO:     100.64.0.13:45216 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:58:53.744561980Z [inf]  INFO:     100.64.0.7:45660 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:58:58.609550972Z [inf]  INFO:     100.64.0.2:16248 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:59:03.639971313Z [inf]  INFO:     100.64.0.2:16248 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:59:05.699794704Z [err]  09:59:05 - ETH: entry LONG score at 1648.4000 | margin=25.75 notional=515.05 size=0.31250000
+2026-07-02T09:59:05.699843331Z [err]  09:59:05 - ETH 2026-07-02 09:58:00+00:00: setup LONG [trend_up/trend_pullback] score=70 conf=B price=1648.4000 obi=0.57(n=26) bb_w=0.50%
+2026-07-02T09:59:05.699848663Z [err]  09:59:05 - ETH: score breakdown: pullback_zone=+30 | rsi_5m_intact=+5 | trend_15m=+15 | directional_vol=+5 | obi_bonus=+15 | spread_penalty=-10 | time_filter=+10
+2026-07-02T09:59:05.699855016Z [err]  09:59:05 - ETH: risk sizing — risk=1.80 USD sl=0.349% notional=515.05 margin=25.75 (half)
+2026-07-02T09:59:05.699859342Z [err]  09:59:05 - ETH: active entry guard SET — executing trade in background
+2026-07-02T09:59:06.781319848Z [err]  09:59:06 - ETH: price reverted 0.08% without fill — cancelling order oid=55855771317
+2026-07-02T09:59:06.781327166Z [err]  09:59:06 - ETH: cancel open order oid=55855771317
+2026-07-02T09:59:07.833933447Z [inf]  INFO:     100.64.0.3:57098 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T09:59:08.822399404Z [inf]  INFO:     100.64.0.7:16614 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:59:13.470964183Z [inf]  INFO:     100.64.0.3:57112 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:59:17.105883162Z [err]  09:59:17 - ETH: entry not filled; setup skipped
+2026-07-02T09:59:18.518219150Z [inf]  INFO:     100.64.0.6:11160 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:59:24.110984677Z [inf]  INFO:     100.64.0.11:55310 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:59:28.490444976Z [inf]  INFO:     100.64.0.6:15266 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:59:33.356284188Z [inf]  INFO:     100.64.0.4:23616 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:59:37.466453935Z [inf]  INFO:     100.64.0.9:23306 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T09:59:38.471601493Z [inf]  INFO:     100.64.0.7:14768 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:59:43.451540102Z [inf]  INFO:     100.64.0.6:25822 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:59:47.509838169Z [inf]  INFO:     100.64.0.10:26508 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T09:59:48.516860290Z [inf]  INFO:     100.64.0.11:58034 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:59:48.949998458Z [inf]  INFO:     100.64.0.3:46210 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:59:53.829454908Z [inf]  INFO:     100.64.0.12:17060 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T09:59:58.549719225Z [inf]  INFO:     100.64.0.2:46120 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:00:04.039240643Z [inf]  INFO:     100.64.0.4:19806 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:00:07.718130495Z [inf]  INFO:     100.64.0.9:57424 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T10:00:09.665265314Z [inf]  INFO:     100.64.0.6:60924 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:00:16.678388524Z [inf]  INFO:     100.64.0.11:16058 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:00:18.658173098Z [inf]  INFO:     100.64.0.10:26272 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:00:23.824066854Z [inf]  INFO:     100.64.0.12:62512 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:00:28.782190423Z [inf]  INFO:     100.64.0.4:46626 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:00:33.800475863Z [inf]  INFO:     100.64.0.6:26662 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:00:35.062971186Z [err]  INFO:     connection closed
+2026-07-02T10:01:05.152111881Z [err]  10:01:04 - BTC 2026-07-02 10:00:00+00:00: setup LONG [trend_up/trend_pullback] score=85 conf=A price=61250.0000 obi=0.55(n=26) bb_w=1.03%
+2026-07-02T10:01:05.152132467Z [err]  10:01:04 - BTC: score breakdown: pullback_zone=+30 | rsi_5m_intact=+5 | trend_15m=+15 | obi_bonus=+15 | bid_wall=+10 | time_filter=+10
+2026-07-02T10:01:05.152140684Z [err]  10:01:04 - BTC: risk sizing — risk=3.00 USD sl=0.300% notional=1000.00 margin=50.00 (full)
+2026-07-02T10:01:05.152149850Z [err]  10:01:04 - BTC: active entry guard SET — executing trade in background
+2026-07-02T10:01:05.152158960Z [err]  10:01:04 - BTC: entry LONG score at 61250.0000 | margin=50.00 notional=1000.00 size=0.01633000
+2026-07-02T10:01:05.172135548Z [err]  10:01:05 - BTC: score 85 >= taker threshold, TP1 est 0.150% > 0.130% fees — market entry
+2026-07-02T10:01:06.311758655Z [err]  INFO:     100.64.0.2:16486 - "WebSocket /ws/logs" [accepted]
+2026-07-02T10:01:06.314702587Z [err]  INFO:     connection open
+2026-07-02T10:01:06.320332265Z [err]  10:01:06 - BTC: filled 0.01633000 @ 61252.3466 | TP1=61344.2251 TP2=61436.1036 SL=61068.5896 | risk=3.00 backstop=4.50 | deadline=10:11
+2026-07-02T10:01:06.435952782Z [inf]  INFO:     100.64.0.4:26304 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T10:01:07.529069215Z [inf]  INFO:     100.64.0.6:27888 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:01:12.288848479Z [inf]  INFO:     100.64.0.12:57010 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:01:17.334322369Z [inf]  INFO:     100.64.0.13:61318 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:01:21.827369725Z [err]  INFO:     connection closed
+2026-07-02T10:02:12.264275484Z [err]  10:02:03 - ETH 2026-07-02 10:01:00+00:00: setup LONG [trend_up/trend_pullback] score=55 conf=C price=1648.4000 obi=0.13(n=26) bb_w=0.38%
+2026-07-02T10:02:12.264285344Z [err]  10:02:03 - ETH: score breakdown: pullback_zone=+30 | rsi_5m_intact=+5 | trend_15m=+15 | directional_vol=+5 | spread_penalty=-10 | time_filter=+10
+2026-07-02T10:02:12.264292087Z [err]  10:02:03 - ETH: risk sizing — risk=1.80 USD sl=0.364% notional=494.45 margin=24.72 (half)
+2026-07-02T10:02:12.264298062Z [err]  10:02:03 - ETH: active entry guard SET — executing trade in background
+2026-07-02T10:02:12.264302752Z [err]  10:02:03 - ETH: entry LONG score at 1648.4000 | margin=24.72 notional=494.45 size=0.30000000
+2026-07-02T10:03:11.830561990Z [err]  INFO:     100.64.0.5:50534 - "WebSocket /ws/logs" [accepted]
+2026-07-02T10:03:11.830570032Z [err]  INFO:     connection open
+2026-07-02T10:03:11.830578929Z [inf]  INFO:     100.64.0.7:50316 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T10:03:11.830585958Z [inf]  INFO:     100.64.0.7:50322 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:03:11.830593711Z [err]  10:03:07 - ETH: entry timeout — cancelling order oid=55855888144
+2026-07-02T10:03:11.830600475Z [err]  10:03:07 - ETH: cancel open order oid=55855888144
+2026-07-02T10:03:11.830607652Z [inf]  INFO:     100.64.0.12:47596 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:03:15.619352358Z [inf]  INFO:     100.64.0.9:39424 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:03:18.088878860Z [err]  10:03:18 - ETH: entry not filled; setup skipped
+2026-07-02T10:03:18.991192227Z [inf]  INFO:     100.64.0.7:22502 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:03:23.891892491Z [inf]  INFO:     100.64.0.12:41766 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:03:27.754649817Z [err]  INFO:     connection closed
+2026-07-02T10:04:07.356670692Z [err]  10:04:05 - BTC: active entry guard expired after 181s — clearing
+2026-07-02T10:04:07.356689295Z [err]  10:04:06 - BTC: existing exposure (pos=0.01633000 orders=2) — skipping
+2026-07-02T10:06:08.686195920Z [err]  10:06:04 - BTC: existing exposure (pos=0.01413000 orders=2) — skipping
+2026-07-02T10:07:09.202592911Z [err]  10:07:04 - BTC: existing exposure (pos=0.01413000 orders=2) — skipping
+2026-07-02T10:07:28.795487464Z [err]  10:07:23 - BNB 2026-07-02 10:06:00+00:00: setup LONG [ranging/range_fade] score=80 conf=A price=553.1200 obi=-0.17(n=27) bb_w=0.13%
+2026-07-02T10:07:28.795503321Z [err]  10:07:23 - BNB: score breakdown: bb_touch=+25 | ema50_trend=+10 | vwap_stretch=+20 | regime_ok=+5 | trend_15m=+15 | bb_width=+5 | bb_pct_b=+10 | time_filter=+10 | obi_penalty=-10 | spread_penalty=-10
+2026-07-02T10:07:28.795509182Z [err]  10:07:23 - BNB: risk sizing — risk=3.00 USD sl=0.118% notional=2000.00 margin=100.00 (full)
+2026-07-02T10:07:28.795515646Z [err]  10:07:23 - BNB: active entry guard SET — executing trade in background
+2026-07-02T10:07:28.795524736Z [err]  10:07:23 - BNB: entry LONG score at 553.1200 | margin=100.00 notional=2000.00 size=3.61700000
+2026-07-02T10:07:28.795533022Z [err]  10:07:24 - BNB: price reverted 0.08% without fill — cancelling order oid=55856065897
+2026-07-02T10:07:28.795539175Z [err]  10:07:25 - BNB: cancel open order oid=55856065897
+2026-07-02T10:07:35.580182623Z [err]  10:07:35 - BNB: entry not filled; setup skipped
+2026-07-02T10:09:26.754579674Z [err]  10:09:23 - BTC: existing exposure (pos=0.01413000 orders=2) — skipping
+2026-07-02T10:11:07.718797625Z [err]  10:11:05 - BTC: existing exposure (pos=0.01413000 orders=2) — skipping
+2026-07-02T10:11:07.804451177Z [err]  10:11:07 - BTC: cancel open order oid=55855849104
+2026-07-02T10:11:08.798442724Z [err]  10:11:08 - BTC: cancel open order oid=55855849735
+2026-07-02T10:11:10.756135583Z [err]  10:11:10 - BTC: maker-first close 0.01413000 @ 61253 (chờ 20s trước khi market)
+2026-07-02T10:11:40.321898157Z [err]  10:11:32 - BTC: cancel open order oid=55856193448
+2026-07-02T10:11:40.321903547Z [err]  10:11:33 - BTC: market close remaining size=0.01413000
+2026-07-02T10:11:40.321909324Z [err]  10:11:37 - BTC: trade closed reason=time_stop net_pnl=-0.803560
+2026-07-02T10:11:40.321918205Z [err]  10:11:37 - BTC: single-loss cooldown until 10:16 (5m)
+2026-07-02T10:11:40.321922994Z [err]  10:11:37 - BTC: recorded — win=False pnl=-0.8036 | day_pnl=-0.8036 | trades_today=1
+2026-07-02T10:11:40.492281756Z [err]  10:11:40 - BTC: risk block: cooldown 4m còn lại (đến 10:16)
+2026-07-02T10:12:10.624445711Z [err]  10:12:04 - ETH 2026-07-02 10:11:00+00:00: setup LONG [trend_up/trend_pullback] score=50 conf=C price=1650.8000 obi=-0.05(n=26) bb_w=0.42%
+2026-07-02T10:12:10.624450406Z [err]  10:12:04 - ETH: score breakdown: pullback_zone=+30 | rsi_5m_intact=+5 | trend_15m=+15 | spread_penalty=-10 | time_filter=+10
+2026-07-02T10:12:50.133373895Z [err]  10:12:41 - BTC: risk block: cooldown 3m còn lại (đến 10:16)
+2026-07-02T10:13:10.120513723Z [err]  10:13:06 - BNB 2026-07-02 10:12:00+00:00: block: 5m_and_15m_trend_against: counter-trend fade blocked (price 554.3000)
+2026-07-02T10:13:50.191515093Z [err]  10:13:45 - BTC: risk block: cooldown 2m còn lại (đến 10:16)
+2026-07-02T10:14:09.790658295Z [err]  10:14:09 - BNB 2026-07-02 10:13:00+00:00: block: 5m_and_15m_trend_against: counter-trend fade blocked (price 554.3000)
+2026-07-02T10:14:49.843417494Z [err]  10:14:47 - BTC: risk block: cooldown 1m còn lại (đến 10:16)
+2026-07-02T10:15:10.044339769Z [err]  10:15:06 - ETH: cancel open order oid=55856316770
+2026-07-02T10:15:10.044464047Z [err]  10:15:05 - ETH 2026-07-02 10:14:00+00:00: setup LONG [trend_up/trend_pullback] score=65 conf=B price=1651.3000 obi=0.44(n=28) bb_w=0.44%
+2026-07-02T10:15:10.044476938Z [err]  10:15:05 - ETH: score breakdown: pullback_zone=+30 | rsi_5m_intact=+5 | trend_15m=+15 | obi_bonus=+15 | spread_penalty=-10 | time_filter=+10
+2026-07-02T10:15:10.044485337Z [err]  10:15:05 - ETH: risk sizing — risk=1.80 USD sl=0.345% notional=521.09 margin=26.05 (half)
+2026-07-02T10:15:10.044495370Z [err]  10:15:05 - ETH: active entry guard SET — executing trade in background
+2026-07-02T10:15:10.044503952Z [err]  10:15:05 - ETH: entry LONG score at 1651.3000 | margin=26.05 notional=521.09 size=0.31560000
+2026-07-02T10:15:10.044511252Z [err]  10:15:06 - BNB 2026-07-02 10:14:00+00:00: block: 5m_and_15m_trend_against: counter-trend fade blocked (price 554.3500)
+2026-07-02T10:15:10.044518547Z [err]  10:15:06 - ETH: price reverted 0.08% without fill — cancelling order oid=55856316770
+2026-07-02T10:15:17.155759230Z [err]  10:15:16 - ETH: entry not filled; setup skipped
+2026-07-02T10:15:56.487952287Z [err]  10:15:48 - BTC: risk block: cooldown 0m còn lại (đến 10:16)
+2026-07-02T10:16:46.761097138Z [err]  10:16:41 - BNB 2026-07-02 10:15:00+00:00: block: trend_against without candle reversal: high risk fade (price 554.3500)
+2026-07-02T10:17:06.252182293Z [err]  10:17:05 - BNB 2026-07-02 10:16:00+00:00: block: trend_against without candle reversal: high risk fade (price 554.4100)
+2026-07-02T10:18:06.689395394Z [err]  10:18:03 - BTC: score 85 >= taker threshold, TP1 est 0.150% > 0.130% fees — market entry
+2026-07-02T10:18:06.689411995Z [err]  10:18:05 - BTC: filled 0.01632000 @ 61286.6985 | TP1=61378.6286 TP2=61470.5586 SL=61102.8384 | risk=3.00 backstop=4.50 | deadline=10:28
+2026-07-02T10:18:06.689464711Z [err]  10:18:03 - BTC 2026-07-02 10:17:00+00:00: setup LONG [trend_up/trend_pullback] score=85 conf=A price=61280.0000 obi=0.15(n=27) bb_w=0.51%
+2026-07-02T10:18:06.689473194Z [err]  10:18:03 - BTC: score breakdown: pullback_zone=+30 | rsi_pullback=+10 | rsi_5m_intact=+5 | trend_15m=+15 | directional_vol=+5 | bid_wall=+10 | time_filter=+10
+2026-07-02T10:18:06.689483629Z [err]  10:18:03 - BTC: risk sizing — risk=3.00 USD sl=0.300% notional=1000.00 margin=50.00 (full)
+2026-07-02T10:18:06.689493673Z [err]  10:18:03 - BTC: active entry guard SET — executing trade in background
+2026-07-02T10:18:06.689501701Z [err]  10:18:03 - BTC: entry LONG score at 61280.0000 | margin=50.00 notional=1000.00 size=0.01632000
+2026-07-02T10:21:08.072140770Z [err]  10:21:00 - BNB 2026-07-02 10:19:00+00:00: block: trend_against without candle reversal: high risk fade (price 554.4100)
+2026-07-02T10:21:08.072147183Z [err]  10:21:07 - BTC: active entry guard expired after 184s — clearing
+2026-07-02T10:21:08.072154026Z [err]  10:21:07 - BTC: existing exposure (pos=0.01632000 orders=2) — skipping
+2026-07-02T10:23:08.248901976Z [err]  10:23:03 - BTC: existing exposure (pos=0.01632000 orders=2) — skipping
+2026-07-02T10:23:08.248906260Z [err]  10:23:04 - ETH 2026-07-02 10:22:00+00:00: setup LONG [trend_up/trend_pullback] score=75 conf=B price=1650.0000 obi=0.50(n=27) bb_w=0.44%
+2026-07-02T10:23:08.248911161Z [err]  10:23:04 - ETH: score breakdown: pullback_zone=+30 | rsi_pullback=+10 | rsi_5m_intact=+5 | trend_15m=+15 | obi_bonus=+15 | spread_penalty=-10 | time_filter=+10
+2026-07-02T10:23:08.248917039Z [err]  10:23:04 - ETH: risk sizing — risk=3.00 USD sl=0.351% notional=854.36 margin=42.72 (full)
+2026-07-02T10:23:08.248921971Z [err]  10:23:04 - ETH: active entry guard SET — executing trade in background
+2026-07-02T10:23:08.248926176Z [err]  10:23:04 - ETH: entry LONG score at 1650.0000 | margin=42.72 notional=854.36 size=0.51790000
+2026-07-02T10:23:37.937576089Z [err]  10:23:32 - ETH: price reverted 0.08% without fill — cancelling order oid=55856595995
+2026-07-02T10:23:37.937582734Z [err]  10:23:32 - ETH: cancel open order oid=55856595995
+2026-07-02T10:23:42.776111477Z [err]  10:23:42 - ETH: entry not filled; setup skipped
+2026-07-02T10:24:12.255875942Z [err]  10:24:03 - BTC: existing exposure (pos=0.01632000 orders=2) — skipping
+2026-07-02T10:24:12.255884143Z [err]  10:24:04 - ETH 2026-07-02 10:23:00+00:00: setup LONG [trend_up/trend_pullback] score=75 conf=B price=1651.8000 obi=0.40(n=26) bb_w=0.42%
+2026-07-02T10:24:12.255892573Z [err]  10:24:04 - ETH: score breakdown: pullback_zone=+30 | rsi_pullback=+10 | rsi_5m_intact=+5 | trend_15m=+15 | obi_bonus=+15 | spread_penalty=-10 | time_filter=+10
+2026-07-02T10:24:12.255898439Z [err]  10:24:04 - ETH: risk sizing — risk=3.00 USD sl=0.351% notional=855.29 margin=42.76 (full)
+2026-07-02T10:24:12.255904542Z [err]  10:24:04 - ETH: active entry guard SET — executing trade in background
+2026-07-02T10:24:12.255910900Z [err]  10:24:04 - ETH: entry LONG score at 1651.8000 | margin=42.76 notional=855.29 size=0.51790000
+2026-07-02T10:25:12.481896579Z [err]  10:25:08 - ETH: entry timeout — cancelling order oid=55856631280
+2026-07-02T10:25:12.481903856Z [err]  10:25:08 - ETH: cancel open order oid=55856631280
+2026-07-02T10:25:12.580584960Z [err]  10:25:12 - ETH: partial fill after cancel: size=0.00620000 — will manage this position
+2026-07-02T10:25:12.580601067Z [err]  10:25:12 - ETH: partial entry fill 0.00620000 / 0.51790000 is too small (< 25%); closing as garbage.
+2026-07-02T10:25:12.743379179Z [err]  10:25:12 - ETH: market close remaining size=0.00620000
+2026-07-02T10:25:16.390659496Z [err]  10:25:16 - ETH: single-loss cooldown until 10:30 (5m)
+2026-07-02T10:25:16.390669809Z [err]  10:25:16 - ETH: recorded — win=False pnl=-0.0061 | day_pnl=2.2953 | trades_today=2
+2026-07-02T10:25:17.387633552Z [err]  10:25:17 - ETH: risk block: cooldown 4m còn lại (đến 10:30)
+2026-07-02T10:26:06.965459085Z [err]  10:26:02 - BTC: existing exposure (pos=0.01632000 orders=2) — skipping
+2026-07-02T10:26:26.450391501Z [err]  INFO:     100.64.0.9:17720 - "WebSocket /ws/logs" [accepted]
+2026-07-02T10:26:26.450405812Z [err]  INFO:     connection open
+2026-07-02T10:26:26.450414189Z [inf]  INFO:     100.64.0.4:10600 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T10:26:26.450420895Z [inf]  INFO:     100.64.0.3:25044 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:26:26.450430445Z [err]  10:26:20 - ETH: risk block: cooldown 3m còn lại (đến 10:30)
+2026-07-02T10:26:26.450438524Z [inf]  INFO:     100.64.0.3:25044 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:26:26.450444300Z [inf]  INFO:     100.64.0.3:25044 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:26:26.450450421Z [inf]  INFO:     100.64.0.10:34878 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T10:26:30.073086530Z [inf]  INFO:     100.64.0.3:25044 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:26:35.166176284Z [inf]  INFO:     100.64.0.9:34580 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:26:40.329626506Z [inf]  INFO:     100.64.0.8:17174 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:26:44.570430136Z [inf]  INFO:     100.64.0.13:45816 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:26:46.484011543Z [err]  INFO:     connection closed
+2026-07-02T10:27:06.569273555Z [err]  10:27:05 - BTC: existing exposure (pos=0.01632000 orders=2) — skipping
+2026-07-02T10:27:26.110870148Z [err]  10:27:22 - ETH: risk block: cooldown 2m còn lại (đến 10:30)
+2026-07-02T10:28:16.459001294Z [err]  10:28:06 - BTC: cancel open order oid=55856421580
+2026-07-02T10:28:16.459009417Z [err]  10:28:07 - BTC: cancel open order oid=55856422068
+2026-07-02T10:28:16.459016461Z [err]  10:28:09 - BTC: maker-first close 0.01632000 @ 61301 (chờ 20s trước khi market)
+2026-07-02T10:28:25.552831690Z [err]  10:28:25 - ETH: risk block: cooldown 1m còn lại (đến 10:30)
+2026-07-02T10:28:30.861332566Z [err]  10:28:30 - BTC: cancel open order oid=55856775332
+2026-07-02T10:28:32.040247472Z [err]  10:28:32 - BTC: market close remaining size=0.01632000
+2026-07-02T10:28:35.676717404Z [err]  10:28:35 - BTC: trade closed reason=time_stop net_pnl=-0.957801
+2026-07-02T10:28:35.676722556Z [err]  10:28:35 - BTC: single-loss cooldown until 10:33 (5m)
+2026-07-02T10:28:35.676726574Z [err]  10:28:35 - BTC: recorded — win=False pnl=-0.9578 | day_pnl=-1.7614 | trades_today=2
+2026-07-02T10:28:35.957678784Z [err]  10:28:35 - BTC: risk block: cooldown 4m còn lại (đến 10:33)
+2026-07-02T10:29:36.468734044Z [err]  10:29:27 - ETH: risk block: cooldown 0m còn lại (đến 10:30)
+2026-07-02T10:29:38.473046973Z [err]  10:29:38 - BTC: risk block: cooldown 3m còn lại (đến 10:33)
+2026-07-02T10:30:28.291506435Z [err]  10:30:20 - ETH 2026-07-02 10:29:00+00:00: setup LONG [trend_up/trend_pullback] score=75 conf=B price=1651.8000 obi=0.65(n=26) bb_w=0.40%
+2026-07-02T10:30:28.291514985Z [err]  10:30:20 - ETH: score breakdown: pullback_zone=+30 | rsi_pullback=+10 | rsi_5m_intact=+5 | trend_15m=+15 | obi_bonus=+15 | spread_penalty=-10 | time_filter=+10
+2026-07-02T10:30:28.291523045Z [err]  10:30:20 - ETH: risk sizing — risk=3.00 USD sl=0.357% notional=839.38 margin=41.97 (full)
+2026-07-02T10:30:28.291664833Z [err]  10:30:20 - ETH: active entry guard SET — executing trade in background
+2026-07-02T10:30:28.291672557Z [err]  10:30:20 - ETH: entry LONG score at 1651.8000 | margin=41.97 notional=839.38 size=0.50830000
+2026-07-02T10:30:28.291679370Z [err]  10:30:21 - ETH: price reverted 0.08% without fill — cancelling order oid=55856848022
+2026-07-02T10:30:28.291686948Z [err]  10:30:21 - ETH: cancel open order oid=55856848022
+2026-07-02T10:30:32.477081925Z [err]  10:30:32 - ETH: entry not filled; setup skipped
+2026-07-02T10:30:40.138293282Z [err]  10:30:40 - BTC: risk block: cooldown 2m còn lại (đến 10:33)
+2026-07-02T10:31:09.687234769Z [err]  10:31:03 - ETH 2026-07-02 10:30:00+00:00: setup LONG [trend_up/trend_pullback] score=80 conf=A price=1652.3000 obi=0.56(n=27) bb_w=0.40%
+2026-07-02T10:31:09.687240250Z [err]  10:31:03 - ETH: score breakdown: pullback_zone=+30 | rsi_pullback=+10 | rsi_5m_intact=+5 | trend_15m=+15 | directional_vol=+5 | obi_bonus=+15 | spread_penalty=-10 | time_filter=+10
+2026-07-02T10:31:09.687245674Z [err]  10:31:03 - ETH: risk sizing — risk=3.00 USD sl=0.357% notional=839.63 margin=41.98 (full)
+2026-07-02T10:31:09.687252421Z [err]  10:31:03 - ETH: active entry guard SET — executing trade in background
+2026-07-02T10:31:09.687258046Z [err]  10:31:03 - ETH: entry LONG score at 1652.3000 | margin=41.98 notional=839.63 size=0.50830000
+2026-07-02T10:31:50.161094268Z [err]  10:31:41 - BTC: risk block: cooldown 1m còn lại (đến 10:33)
+2026-07-02T10:32:10.292762208Z [err]  10:32:04 - ETH: entry timeout — cancelling order oid=55856870475
+2026-07-02T10:32:10.292769919Z [err]  10:32:04 - ETH: cancel open order oid=55856870475
+2026-07-02T10:32:10.292777733Z [err]  10:32:09 - ETH: partial fill after cancel: size=0.26860000 — will manage this position
+2026-07-02T10:32:10.292785513Z [err]  10:32:09 - ETH: partial entry fill 0.26860000 / 0.50830000; managing remainder
+2026-07-02T10:32:10.292793610Z [err]  10:32:09 - ETH: filled 0.26860000 @ 1651.7000 | TP1=1655.0034 TP2=1658.3068 SL=1645.7963 | risk=1.59 backstop=4.50 | deadline=10:42
+2026-07-02T10:32:50.468595581Z [err]  10:32:42 - BTC: risk block: cooldown 0m còn lại (đến 10:33)
+2026-07-02T10:33:40.692614140Z [err]  10:33:39 - BTC 2026-07-02 10:32:00+00:00: setup LONG [trend_up/trend_pullback] score=80 conf=A price=61335.0000 obi=0.38(n=28) bb_w=0.45%
+2026-07-02T10:33:40.692621285Z [err]  10:33:39 - BTC: score breakdown: pullback_zone=+30 | rsi_5m_intact=+5 | trend_15m=+15 | directional_vol=+5 | obi_bonus=+15 | bid_wall=+10 | spread_penalty=-10 | time_filter=+10
+2026-07-02T10:33:40.692629141Z [err]  10:33:39 - BTC: risk sizing — risk=3.00 USD sl=0.300% notional=1000.00 margin=50.00 (full)
+2026-07-02T10:33:40.692636639Z [err]  10:33:39 - BTC: active entry guard SET — executing trade in background
+2026-07-02T10:33:40.692643885Z [err]  10:33:39 - BTC: entry LONG score at 61335.0000 | margin=50.00 notional=1000.00 size=0.01630000
+2026-07-02T10:34:10.740304954Z [err]  10:34:05 - ETH: active entry guard expired after 182s — clearing
+2026-07-02T10:34:10.740310635Z [err]  10:34:06 - ETH: existing exposure (pos=0.26860000 orders=2) — skipping
+2026-07-02T10:34:50.352218089Z [err]  10:34:43 - BTC: entry timeout — cancelling order oid=55856954021
+2026-07-02T10:34:50.352236100Z [err]  10:34:43 - BTC: cancel open order oid=55856954021
+2026-07-02T10:34:54.159969322Z [err]  10:34:54 - BTC: entry not filled; setup skipped
+2026-07-02T10:35:34.596435625Z [err]  10:35:25 - ETH: existing exposure (pos=0.26860000 orders=2) — skipping
+2026-07-02T10:36:14.876338652Z [err]  INFO:     100.64.0.10:60058 - "WebSocket /ws/logs" [accepted]
+2026-07-02T10:36:14.876343388Z [err]  INFO:     connection open
+2026-07-02T10:36:14.876349332Z [inf]  INFO:     100.64.0.7:34812 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T10:36:14.876360483Z [inf]  INFO:     100.64.0.3:58070 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:36:14.876365301Z [inf]  INFO:     100.64.0.3:58070 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:36:14.876370770Z [inf]  INFO:     100.64.0.6:20028 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:36:14.876376291Z [inf]  INFO:     100.64.0.2:44626 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T10:36:18.130316646Z [inf]  INFO:     100.64.0.3:58070 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:36:23.305026723Z [inf]  INFO:     100.64.0.11:38862 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:36:28.425511841Z [inf]  INFO:     100.64.0.3:11160 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:36:33.504740951Z [inf]  INFO:     100.64.0.13:30958 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:36:37.562203417Z [inf]  INFO:     100.64.0.13:30958 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T10:36:38.549642797Z [inf]  INFO:     100.64.0.6:43176 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:36:44.537153584Z [inf]  INFO:     100.64.0.11:54350 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:36:48.551085343Z [inf]  INFO:     100.64.0.6:18440 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:36:53.583365662Z [inf]  INFO:     100.64.0.8:59428 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:36:58.048226193Z [inf]  INFO:     100.64.0.7:20082 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:37:03.975407934Z [inf]  INFO:     100.64.0.2:26352 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:37:04.694420828Z [err]  10:37:04 - ETH: existing exposure (pos=0.26860000 orders=2) — skipping
+2026-07-02T10:37:07.051671425Z [inf]  INFO:     100.64.0.4:37992 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T10:37:08.783232807Z [inf]  INFO:     100.64.0.10:24212 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:37:13.223734880Z [inf]  INFO:     100.64.0.2:61086 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:37:19.046258530Z [inf]  INFO:     100.64.0.3:30720 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:37:23.249488988Z [inf]  INFO:     100.64.0.11:11744 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:37:28.314334138Z [inf]  INFO:     100.64.0.13:13026 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:37:33.252143060Z [inf]  INFO:     100.64.0.8:46964 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:37:37.036303509Z [inf]  INFO:     100.64.0.11:39592 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T10:37:38.267346532Z [inf]  INFO:     100.64.0.3:50256 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:37:44.051066253Z [inf]  INFO:     100.64.0.6:59664 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:37:49.129733727Z [inf]  INFO:     100.64.0.13:19184 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:37:53.212817469Z [inf]  INFO:     100.64.0.8:30216 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:37:58.203148854Z [inf]  INFO:     100.64.0.2:44046 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:38:02.981429254Z [inf]  INFO:     100.64.0.9:20756 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:38:07.190478848Z [inf]  INFO:     100.64.0.3:47800 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T10:38:08.163404392Z [inf]  INFO:     100.64.0.8:50942 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:38:14.682845919Z [inf]  INFO:     100.64.0.11:35080 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:38:18.493815491Z [inf]  INFO:     100.64.0.9:54942 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:38:23.497129400Z [inf]  INFO:     100.64.0.12:35276 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:38:28.413786698Z [inf]  INFO:     100.64.0.12:35276 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:38:33.693084013Z [inf]  INFO:     100.64.0.9:19680 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:38:37.414793440Z [inf]  INFO:     100.64.0.7:42624 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T10:38:38.393762859Z [inf]  INFO:     100.64.0.10:56254 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:38:43.541919409Z [inf]  INFO:     100.64.0.4:38548 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:38:48.596903508Z [inf]  INFO:     100.64.0.10:61484 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:38:53.767780542Z [inf]  INFO:     100.64.0.2:56952 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:38:58.495048888Z [inf]  INFO:     100.64.0.2:56952 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:39:03.627345446Z [inf]  INFO:     100.64.0.5:58222 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:39:07.118339976Z [inf]  INFO:     100.64.0.6:55146 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T10:39:07.654210096Z [err]  10:39:07 - ETH: existing exposure (pos=0.26860000 orders=2) — skipping
+2026-07-02T10:39:08.711602255Z [inf]  INFO:     100.64.0.8:49496 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:39:13.087245284Z [inf]  INFO:     100.64.0.7:36414 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:39:13.706185237Z [err]  INFO:     connection closed
+2026-07-02T10:41:13.637978321Z [err]  10:41:04 - ETH: existing exposure (pos=0.26860000 orders=2) — skipping
+2026-07-02T10:42:13.262159063Z [err]  10:42:10 - ETH: cancel open order oid=55856908629
+2026-07-02T10:42:13.262166931Z [err]  10:42:12 - ETH: cancel open order oid=55856909261
+2026-07-02T10:42:14.066391181Z [err]  10:42:13 - ETH: maker-first close 0.26860000 @ 1653.5 (chờ 20s trước khi market)
+2026-07-02T10:42:43.742703339Z [err]  10:42:35 - ETH: cancel open order oid=55857213023
+2026-07-02T10:42:43.742714476Z [err]  10:42:37 - ETH: market close remaining size=0.26860000
+2026-07-02T10:42:43.742721264Z [err]  10:42:40 - ETH: trade closed reason=time_stop net_pnl=-0.022556
+2026-07-02T10:42:43.742728772Z [err]  10:42:40 - ETH: single-loss cooldown until 10:47 (5m)
+2026-07-02T10:42:43.742734944Z [err]  10:42:40 - ETH: recorded — win=False pnl=-0.0226 | day_pnl=2.2727 | trades_today=3
+2026-07-02T10:42:43.742741750Z [err]  10:42:42 - ETH: risk block: cooldown 4m còn lại (đến 10:47)
+2026-07-02T10:43:53.862675828Z [err]  10:43:45 - ETH: risk block: cooldown 3m còn lại (đến 10:47)
+2026-07-02T10:44:53.408745319Z [err]  10:44:48 - ETH: risk block: cooldown 2m còn lại (đến 10:47)
+2026-07-02T10:45:13.561647403Z [err]  10:45:06 - BTC 2026-07-02 10:44:00+00:00: setup LONG [trend_up/trend_pullback] score=50 conf=C price=61392.0000 obi=0.04(n=26) bb_w=0.29%
+2026-07-02T10:45:13.561653200Z [err]  10:45:06 - BTC: score breakdown: pullback_zone=+30 | rsi_5m_intact=+5 | trend_15m=+15 | spread_penalty=-10 | time_filter=+10
+2026-07-02T10:45:43.122662594Z [err]  10:45:34 - BNB 2026-07-02 10:44:00+00:00: setup LONG [trend_up/trend_pullback] score=50 conf=C price=555.0000 obi=-0.08(n=26) bb_w=0.24%
+2026-07-02T10:45:43.122678487Z [err]  10:45:34 - BNB: score breakdown: pullback_zone=+30 | rsi_5m_intact=+5 | trend_15m=+15 | spread_penalty=-10 | time_filter=+10
+2026-07-02T10:45:50.922835848Z [err]  10:45:50 - ETH: risk block: cooldown 1m còn lại (đến 10:47)
+2026-07-02T10:46:10.471318635Z [err]  10:46:04 - BTC 2026-07-02 10:45:00+00:00: setup LONG [trend_up/trend_pullback] score=60 conf=B price=61302.0000 obi=0.02(n=27) bb_w=0.30%
+2026-07-02T10:46:10.471325117Z [err]  10:46:04 - BTC: score breakdown: pullback_zone=+30 | rsi_pullback=+10 | rsi_5m_intact=+5 | trend_15m=+15 | spread_penalty=-10 | time_filter=+10
+2026-07-02T10:46:10.471331058Z [err]  10:46:04 - BTC: risk sizing — risk=1.80 USD sl=0.300% notional=600.00 margin=30.00 (half)
+2026-07-02T10:46:10.471336952Z [err]  10:46:04 - BTC: active entry guard SET — executing trade in background
+2026-07-02T10:46:10.471342971Z [err]  10:46:04 - BTC: entry LONG score at 61302.0000 | margin=30.00 notional=600.00 size=0.00979000
+2026-07-02T10:46:10.471348962Z [err]  10:46:05 - BTC: price reverted 0.08% without fill — cancelling order oid=55857341196
+2026-07-02T10:46:10.471354653Z [err]  10:46:05 - BTC: cancel open order oid=55857341196
+2026-07-02T10:46:16.266279286Z [err]  10:46:15 - BTC: entry not filled; setup skipped
+2026-07-02T10:46:55.964272973Z [err]  10:46:53 - ETH: risk block: cooldown 0m còn lại (đến 10:47)
+2026-07-02T10:47:03.715621699Z [err]  10:47:03 - BTC 2026-07-02 10:46:00+00:00: setup LONG [trend_up/trend_pullback] score=85 conf=A price=61349.0000 obi=0.35(n=27) bb_w=0.29%
+2026-07-02T10:47:03.715636270Z [err]  10:47:03 - BTC: score breakdown: pullback_zone=+30 | rsi_pullback=+10 | rsi_5m_intact=+5 | trend_15m=+15 | obi_bonus=+15 | time_filter=+10
+2026-07-02T10:47:03.715642500Z [err]  10:47:03 - BTC: risk sizing — risk=3.00 USD sl=0.300% notional=1000.00 margin=50.00 (full)
+2026-07-02T10:47:03.715655218Z [err]  10:47:03 - BTC: active entry guard SET — executing trade in background
+2026-07-02T10:47:03.715664709Z [err]  10:47:03 - BTC: entry LONG score at 61349.0000 | margin=50.00 notional=1000.00 size=0.01630000
+2026-07-02T10:47:03.856318306Z [err]  10:47:03 - BTC: score 85 >= taker threshold, TP1 est 0.150% > 0.130% fees — market entry
+2026-07-02T10:47:04.770974928Z [err]  10:47:04 - BNB 2026-07-02 10:46:00+00:00: setup LONG [trend_up/trend_pullback] score=55 conf=C price=554.6400 obi=-0.18(n=27) bb_w=0.23%
+2026-07-02T10:47:04.770982333Z [err]  10:47:04 - BNB: score breakdown: pullback_zone=+30 | rsi_pullback=+10 | rsi_5m_intact=+5 | trend_15m=+15 | directional_vol=+5 | obi_penalty=-10 | spread_penalty=-10 | time_filter=+10
+2026-07-02T10:47:04.770988187Z [err]  10:47:04 - BNB: FEE GATE — TP1 est 0.093% < fees+edge 0.100% (ATR 0.078% quá bé so với phí) — skipping
+2026-07-02T10:47:04.932942770Z [err]  10:47:04 - BTC: filled 0.01630000 @ 61374.7227 | TP1=61466.7848 TP2=61558.8469 SL=61190.5985 | risk=3.00 backstop=4.50 | deadline=10:57
+2026-07-02T10:47:45.087027346Z [err]  10:47:44 - ETH 2026-07-02 10:46:00+00:00: setup LONG [trend_up/trend_pullback] score=85 conf=A price=1650.4000 obi=0.47(n=28) bb_w=0.16%
+2026-07-02T10:47:45.087040990Z [err]  10:47:44 - ETH: score breakdown: pullback_zone=+30 | rsi_pullback=+10 | rsi_5m_intact=+5 | trend_15m=+15 | obi_bonus=+15 | time_filter=+10
+2026-07-02T10:47:45.087048425Z [err]  10:47:44 - ETH: risk sizing — risk=3.00 USD sl=0.400% notional=750.00 margin=37.50 (full)
+2026-07-02T10:47:45.087054519Z [err]  10:47:44 - ETH: active entry guard SET — executing trade in background
+2026-07-02T10:47:45.087060955Z [err]  10:47:44 - ETH: entry LONG score at 1650.4000 | margin=37.50 notional=750.00 size=0.45450000
+2026-07-02T10:47:45.087067708Z [err]  10:47:44 - ETH: score 85 >= taker threshold, TP1 est 0.200% > 0.130% fees — market entry
+2026-07-02T10:47:45.321773303Z [err]  10:47:45 - ETH: filled 0.45450000 @ 1651.0000 | TP1=1654.3020 TP2=1657.6040 SL=1644.3960 | risk=3.00 backstop=4.50 | deadline=10:57
+2026-07-02T10:48:05.356166289Z [err]  10:48:04 - BNB 2026-07-02 10:47:00+00:00: setup LONG [trend_up/trend_pullback] score=65 conf=B price=554.5400 obi=-0.13(n=27) bb_w=0.21%
+2026-07-02T10:48:05.356178211Z [err]  10:48:04 - BNB: score breakdown: pullback_zone=+30 | rsi_pullback=+10 | rsi_5m_intact=+5 | trend_15m=+15 | directional_vol=+5 | spread_penalty=-10 | time_filter=+10
+2026-07-02T10:50:05.760842178Z [err]  10:50:05 - BTC: active entry guard expired after 181s — clearing
+2026-07-02T10:50:05.776898516Z [err]  10:50:05 - BTC: existing exposure (pos=0.01630000 orders=2) — skipping
+2026-07-02T10:50:55.355767348Z [err]  10:50:47 - ETH: active entry guard expired after 183s — clearing
+2026-07-02T10:50:55.355774875Z [err]  10:50:47 - ETH: existing exposure (pos=0.45450000 orders=2) — skipping
+2026-07-02T10:51:15.363107226Z [err]  10:51:05 - BTC: existing exposure (pos=0.01630000 orders=2) — skipping
+2026-07-02T10:52:15.461830297Z [err]  10:52:05 - ETH: existing exposure (pos=0.45450000 orders=2) — skipping
+2026-07-02T10:53:05.260141538Z [err]  10:53:04 - BTC: existing exposure (pos=0.01630000 orders=2) — skipping
+2026-07-02T10:54:05.795290462Z [err]  10:54:04 - ETH: existing exposure (pos=0.45450000 orders=2) — skipping
+2026-07-02T10:54:45.466908527Z [err]  INFO:     100.64.0.2:34536 - "WebSocket /ws/logs" [accepted]
+2026-07-02T10:54:45.466922641Z [err]  INFO:     connection open
+2026-07-02T10:54:45.466931034Z [inf]  INFO:     100.64.0.7:41830 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T10:54:45.466939135Z [inf]  INFO:     100.64.0.10:60020 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:54:49.767358028Z [inf]  INFO:     100.64.0.7:13260 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:54:55.429370330Z [inf]  INFO:     100.64.0.2:60082 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:54:59.764978721Z [inf]  INFO:     100.64.0.12:46268 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:55:04.569376159Z [err]  10:55:04 - BTC: existing exposure (pos=0.01630000 orders=2) — skipping
+2026-07-02T10:55:04.648830114Z [inf]  INFO:     100.64.0.2:14846 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:55:09.945151087Z [inf]  INFO:     100.64.0.2:14846 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:55:13.771874079Z [inf]  INFO:     100.64.0.9:60972 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T10:55:14.851284453Z [inf]  INFO:     100.64.0.4:45374 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:55:19.832616605Z [inf]  INFO:     100.64.0.10:47690 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:55:23.035648049Z [inf]  INFO:     100.64.0.8:19838 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T10:55:23.976337478Z [inf]  INFO:     100.64.0.7:20520 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:55:24.814748706Z [inf]  INFO:     100.64.0.3:39370 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:55:29.778619390Z [inf]  INFO:     100.64.0.12:52224 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:55:34.875533008Z [inf]  INFO:     100.64.0.13:39404 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:55:39.873635014Z [inf]  INFO:     100.64.0.2:57946 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:55:43.933652366Z [inf]  INFO:     100.64.0.12:61282 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T10:55:44.814449808Z [inf]  INFO:     100.64.0.7:48540 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:55:50.006561692Z [inf]  INFO:     100.64.0.7:48540 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:55:55.223671876Z [inf]  INFO:     100.64.0.2:54542 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:56:00.292701211Z [inf]  INFO:     100.64.0.2:54542 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:56:04.288481734Z [err]  10:56:04 - ETH: existing exposure (pos=0.45450000 orders=2) — skipping
+2026-07-02T10:56:05.192664323Z [inf]  INFO:     100.64.0.7:55230 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:56:10.401017696Z [inf]  INFO:     100.64.0.12:13244 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:56:13.826247311Z [inf]  INFO:     100.64.0.2:38874 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T10:56:14.794677738Z [inf]  INFO:     100.64.0.10:10392 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:56:19.825423642Z [inf]  INFO:     100.64.0.3:29208 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:56:24.841443592Z [inf]  INFO:     100.64.0.2:47324 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:56:30.015584197Z [inf]  INFO:     100.64.0.13:45828 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:56:34.683499973Z [inf]  INFO:     100.64.0.2:56782 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:56:39.917596325Z [inf]  INFO:     100.64.0.8:39638 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:56:43.993416521Z [inf]  INFO:     100.64.0.7:49322 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T10:56:44.979592500Z [inf]  INFO:     100.64.0.13:16530 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:56:50.320577837Z [inf]  INFO:     100.64.0.8:48126 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:56:54.725519958Z [inf]  INFO:     100.64.0.2:21032 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:57:00.636207264Z [inf]  INFO:     100.64.0.2:21032 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:57:03.673968381Z [err]  10:57:03 - BTC: existing exposure (pos=0.01630000 orders=2) — skipping
+2026-07-02T10:57:04.936241337Z [inf]  INFO:     100.64.0.7:17558 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:57:05.834572915Z [err]  10:57:05 - BTC: cancel open order oid=55857373282
+2026-07-02T10:57:06.839960746Z [err]  10:57:06 - BTC: cancel open order oid=55857373953
+2026-07-02T10:57:08.698084606Z [err]  10:57:08 - BTC: maker-first close 0.01630000 @ 61411 (chờ 20s trước khi market)
+2026-07-02T10:57:10.015038391Z [inf]  INFO:     100.64.0.7:17558 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:57:13.777687965Z [inf]  INFO:     100.64.0.2:54848 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T10:57:14.948694163Z [inf]  INFO:     100.64.0.7:17558 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:57:19.945626452Z [inf]  INFO:     100.64.0.2:54862 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:57:25.047704511Z [inf]  INFO:     100.64.0.2:54862 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:57:30.157809646Z [inf]  INFO:     100.64.0.9:35648 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:57:30.385966392Z [err]  10:57:30 - BTC: cancel open order oid=55857675142
+2026-07-02T10:57:31.566779099Z [err]  10:57:31 - BTC: market close remaining size=0.01630000
+2026-07-02T10:57:35.090232093Z [inf]  INFO:     100.64.0.7:20864 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:57:35.250340377Z [err]  10:57:35 - BTC: trade closed reason=time_stop net_pnl=-0.374112
+2026-07-02T10:57:35.250352867Z [err]  10:57:35 - BTC: single-loss cooldown until 11:02 (5m)
+2026-07-02T10:57:35.250359517Z [err]  10:57:35 - BTC: 3 consecutive losses → long cooldown until 11:02
+2026-07-02T10:57:35.250366413Z [err]  10:57:35 - BTC: recorded — win=False pnl=-0.3741 | day_pnl=-2.1355 | trades_today=3
+2026-07-02T10:57:36.247021353Z [err]  10:57:36 - BTC: risk block: cooldown 4m còn lại (đến 11:02)
+2026-07-02T10:57:40.208555785Z [inf]  INFO:     100.64.0.2:16160 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:57:44.236186643Z [inf]  INFO:     100.64.0.2:16160 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T10:57:45.149479294Z [inf]  INFO:     100.64.0.2:50008 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:57:46.700936518Z [err]  10:57:46 - ETH: cancel open order oid=55857395197
+2026-07-02T10:57:48.226475290Z [err]  10:57:47 - ETH: cancel open order oid=55857395762
+2026-07-02T10:57:49.530850520Z [err]  10:57:49 - ETH: maker-first close 0.45450000 @ 1652.2 (chờ 20s trước khi market)
+2026-07-02T10:57:50.200550275Z [inf]  INFO:     100.64.0.4:47146 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:57:54.825448007Z [inf]  INFO:     100.64.0.7:52770 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:57:59.838682327Z [inf]  INFO:     100.64.0.10:13848 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:58:02.383576851Z [err]  10:58:02 - ETH: existing exposure (pos=0.45450000 orders=1) — skipping
+2026-07-02T10:58:05.562898970Z [inf]  INFO:     100.64.0.7:42006 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T10:58:08.787928927Z [err]  INFO:     connection closed
+2026-07-02T10:58:11.533346223Z [err]  10:58:11 - ETH: cancel open order oid=55857696726
+2026-07-02T10:58:12.557601323Z [err]  10:58:12 - ETH: market close remaining size=0.45450000
+2026-07-02T10:58:16.560390042Z [err]  10:58:16 - ETH: trade closed reason=time_stop net_pnl=-0.584480
+2026-07-02T10:58:16.560395527Z [err]  10:58:16 - ETH: single-loss cooldown until 11:03 (5m)
+2026-07-02T10:58:16.560400668Z [err]  10:58:16 - ETH: 3 consecutive losses → long cooldown until 11:03
+2026-07-02T10:58:16.560406986Z [err]  10:58:16 - ETH: recorded — win=False pnl=-0.5845 | day_pnl=1.6882 | trades_today=4
+2026-07-02T10:58:19.642699639Z [err]  10:58:19 - ETH: risk block: cooldown 4m còn lại (đến 11:03)
+2026-07-02T10:58:38.978103848Z [err]  10:58:36 - BTC: risk block: cooldown 3m còn lại (đến 11:02)

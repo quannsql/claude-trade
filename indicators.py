@@ -427,26 +427,44 @@ def _score_trend_pullback(result: dict, regime: str,
     bb_mid1 = (bb_upper1 + bb_lower1) / 2
     zone_tolerance = 0.0004  # 0.04%
 
+    # ── Trend Age (Late-Trend Filter) ──
+    is_late_trend = False
+    if not pd.isna(ema50_5) and ema50_5 > 0:
+        if abs(price1 - ema50_5) / ema50_5 > 0.008:
+            is_late_trend = True
+
     # ── Base trigger: giá đã pullback vào value zone chưa? ──
     in_zone = False
+    pattern_1m = detect_candle_pattern(row1, row1_prev)
+    
     if direction == "long":
-        zone_edge = max(
-            v for v in (ema21_1, bb_mid1, vwap1)
-            if v is not None and not pd.isna(v)
-        )
+        if is_late_trend:
+            zone_edge = ema50_5 if not pd.isna(ema50_5) else bb_mid1
+        else:
+            zone_edge = max(
+                v for v in (ema21_1, bb_mid1, vwap1)
+                if v is not None and not pd.isna(v)
+            )
         in_zone = price1 <= zone_edge * (1 + zone_tolerance)
         # Pullback quá sâu = breakdown, không phải pullback
-        pattern_1m = detect_candle_pattern(row1, row1_prev)
         if price1 < bb_lower1 and pattern_1m == "strong_bearish_close":
             return result
+        # Hard condition: bắt buộc nến đảo chiều 1m
+        if pattern_1m not in ("hammer", "bullish_engulfing", "strong_bullish_close"):
+            return result
     else:
-        zone_edge = min(
-            v for v in (ema21_1, bb_mid1, vwap1)
-            if v is not None and not pd.isna(v)
-        )
+        if is_late_trend:
+            zone_edge = ema50_5 if not pd.isna(ema50_5) else bb_mid1
+        else:
+            zone_edge = min(
+                v for v in (ema21_1, bb_mid1, vwap1)
+                if v is not None and not pd.isna(v)
+            )
         in_zone = price1 >= zone_edge * (1 - zone_tolerance)
-        pattern_1m = detect_candle_pattern(row1, row1_prev)
         if price1 > bb_upper1 and pattern_1m == "strong_bullish_close":
+            return result
+        # Hard condition: bắt buộc nến đảo chiều 1m
+        if pattern_1m not in ("shooting_star", "bearish_engulfing", "strong_bearish_close"):
             return result
 
     if not in_zone:
@@ -485,15 +503,9 @@ def _score_trend_pullback(result: dict, regime: str,
         else:
             details["rsi_5m_intact"] = 0
 
-    # ── Candle reversal xác nhận pullback kết thúc ──
-    if direction == "long" and pattern_1m in ("hammer", "bullish_engulfing", "strong_bullish_close"):
-        score += 10
-        details["candle_1m"] = 10
-    elif direction == "short" and pattern_1m in ("shooting_star", "bearish_engulfing", "strong_bearish_close"):
-        score += 10
-        details["candle_1m"] = 10
-    else:
-        details["candle_1m"] = 0
+    # ── Candle reversal xác nhận pullback kết thúc (đã là điều kiện cứng) ──
+    score += 10
+    details["candle_1m"] = 10
 
     pattern_5m = detect_candle_pattern(row5, row5_prev)
     if direction == "long" and pattern_5m in ("hammer", "bullish_engulfing"):
@@ -531,30 +543,39 @@ def _score_trend_pullback(result: dict, regime: str,
         details["directional_vol"] = 0
 
     # ── OBI (smoothed): sổ lệnh phải KHÔNG chống lại trend ──
-    if obi != 0.0:
+    obi_05 = ob_analysis.get("obi_05", 0.0) if ob_analysis else 0.0
+    if obi != 0.0 or obi_05 != 0.0:
         if direction == "long":
-            if obi <= -0.30:
-                result["block_reasons"].append(f"OBI={obi:.2f} against uptrend pullback")
+            if obi <= -0.30 or obi_05 <= -0.30:
+                result["block_reasons"].append(f"OBI={obi:.2f}/OBI_05={obi_05:.2f} against uptrend pullback")
                 result["hard_block"] = True
-            elif obi >= 0.15:
+            elif obi >= 0.15 and obi_05 >= 0.15:
                 score += 15
                 details["obi_bonus"] = 15
-            elif obi <= -0.15:
+            elif obi <= -0.15 or obi_05 <= -0.15:
                 score -= 10
                 details["obi_penalty"] = -10
         else:
-            if obi >= 0.30:
-                result["block_reasons"].append(f"OBI={obi:.2f} against downtrend pullback")
+            if obi >= 0.30 or obi_05 >= 0.30:
+                result["block_reasons"].append(f"OBI={obi:.2f}/OBI_05={obi_05:.2f} against downtrend pullback")
                 result["hard_block"] = True
-            elif obi <= -0.15:
+            elif obi <= -0.15 and obi_05 <= -0.15:
                 score += 15
                 details["obi_bonus"] = 15
-            elif obi >= 0.15:
+            elif obi >= 0.15 or obi_05 >= 0.15:
                 score -= 10
                 details["obi_penalty"] = -10
 
     # ── Wall support / spread ──
     if ob_analysis:
+        cvd = ob_analysis.get("cvd", 0.0)
+        if direction == "long" and cvd < 0:
+            result["block_reasons"].append(f"CVD={cvd:.4f} against long")
+            result["hard_block"] = True
+        elif direction == "short" and cvd > 0:
+            result["block_reasons"].append(f"CVD={cvd:.4f} against short")
+            result["hard_block"] = True
+
         if direction == "long" and ob_analysis.get("bid_wall"):
             score += 10
             details["bid_wall"] = 10
@@ -1004,29 +1025,38 @@ def _score_range_fade(result: dict,
     # Flip cũ giữ nguyên điểm đã chấm cho hướng ngược lại (bug).
     # Giờ: sổ lệnh chống mạnh → hard block, chống nhẹ → penalty.
     # --------------------------------------------------
-    if direction is not None and obi != 0.0:
+    obi_05 = ob_analysis.get("obi_05", 0.0) if ob_analysis else 0.0
+    if direction is not None and (obi != 0.0 or obi_05 != 0.0):
         if direction == "long":
-            if obi < -0.25:
-                result["block_reasons"].append(f"OBI={obi:.2f} (sellers dominant, smoothed)")
+            if obi < -0.25 or obi_05 < -0.25:
+                result["block_reasons"].append(f"OBI={obi:.2f}/OBI_05={obi_05:.2f} (sellers dominant, smoothed)")
                 result["hard_block"] = True
-            elif obi > 0.30:
+            elif obi > 0.30 and obi_05 > 0.30:
                 score += 15
                 details["obi_bonus"] = 15
-            elif obi < -0.15:
+            elif obi < -0.15 or obi_05 < -0.15:
                 score -= 10
                 details["obi_penalty"] = -10
         else:  # short
-            if obi > 0.25:
-                result["block_reasons"].append(f"OBI={obi:.2f} (buyers dominant, smoothed)")
+            if obi > 0.25 or obi_05 > 0.25:
+                result["block_reasons"].append(f"OBI={obi:.2f}/OBI_05={obi_05:.2f} (buyers dominant, smoothed)")
                 result["hard_block"] = True
-            elif obi < -0.30:
+            elif obi < -0.30 and obi_05 < -0.30:
                 score += 15
                 details["obi_bonus"] = 15
-            elif obi > 0.15:
+            elif obi > 0.15 or obi_05 > 0.15:
                 score -= 10
                 details["obi_penalty"] = -10
 
     if ob_analysis:
+        cvd = ob_analysis.get("cvd", 0.0)
+        if direction == "long" and cvd < 0:
+            result["block_reasons"].append(f"CVD={cvd:.4f} against long")
+            result["hard_block"] = True
+        elif direction == "short" and cvd > 0:
+            result["block_reasons"].append(f"CVD={cvd:.4f} against short")
+            result["hard_block"] = True
+
         if direction == "long" and ob_analysis.get("bid_wall"):
             score += 15
             details["bid_wall"] = 15

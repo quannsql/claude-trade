@@ -109,6 +109,10 @@ OBI_MIN_SAMPLES = int(os.environ.get("HL_OBI_MIN_SAMPLES", "3"))
 _obi_buffers: dict[str, deque] = {}
 _latest_ob_analysis: dict[str, dict] = {}
 
+# ── CVD Tracking ──
+_trades_buffers: dict[str, dict[int, dict]] = {}
+CVD_WINDOW_SEC = int(os.environ.get("HL_CVD_WINDOW_SEC", "180"))
+
 # ── v3: Candle cache — chỉ refetch khi nến mới ĐÃ đóng (giảm ~20x REST call) ──
 _candle_cache: dict[tuple[str, str], dict[str, Any]] = {}
 
@@ -499,31 +503,47 @@ def _get_orderbook_analysis(info: Info, coin: str, current_price: float = 0.0, d
         if current_price <= 0:
             current_price = (best_bid + best_ask) / 2
 
-        # Lấy OBI trong khoảng ±0.15% quanh giá hiện tại thay vì số lượng level cố định
-        min_bid_px = current_price * (1 - 0.0015)
-        max_ask_px = current_price * (1 + 0.0015)
-        
-        bids = [b for b in raw_bids if float(b.get("px", 0)) >= min_bid_px]
-        asks = [a for a in raw_asks if float(a.get("px", 0)) <= max_ask_px]
-        
-        if not bids: bids = raw_bids[:10]
-        if not asks: asks = raw_asks[:10]
+        # Lớp ±0.15%
+        min_bid_px_15 = current_price * (1 - 0.0015)
+        max_ask_px_15 = current_price * (1 + 0.0015)
+        bids_15 = [b for b in raw_bids if float(b.get("px", 0)) >= min_bid_px_15]
+        asks_15 = [a for a in raw_asks if float(a.get("px", 0)) <= max_ask_px_15]
 
-        # OBI
-        bid_vol = sum(float(b.get("sz", 0)) for b in bids)
-        ask_vol = sum(float(a.get("sz", 0)) for a in asks)
-        total_vol = bid_vol + ask_vol
-        if total_vol > 0:
-            result["obi"] = (bid_vol - ask_vol) / total_vol
+        # Lớp ±0.05%
+        min_bid_px_05 = current_price * (1 - 0.0005)
+        max_ask_px_05 = current_price * (1 + 0.0005)
+        bids_05 = [b for b in raw_bids if float(b.get("px", 0)) >= min_bid_px_05]
+        asks_05 = [a for a in raw_asks if float(a.get("px", 0)) <= max_ask_px_05]
+
+        if not bids_15: bids_15 = raw_bids[:10]
+        if not asks_15: asks_15 = raw_asks[:10]
+        if not bids_05: bids_05 = bids_15[:3]
+        if not asks_05: asks_05 = asks_15[:3]
+
+        # OBI ±0.15%
+        bid_vol_15 = sum(float(b.get("sz", 0)) for b in bids_15)
+        ask_vol_15 = sum(float(a.get("sz", 0)) for a in asks_15)
+        total_vol_15 = bid_vol_15 + ask_vol_15
+        if total_vol_15 > 0:
+            result["obi"] = (bid_vol_15 - ask_vol_15) / total_vol_15
+
+        # OBI ±0.05%
+        bid_vol_05 = sum(float(b.get("sz", 0)) for b in bids_05)
+        ask_vol_05 = sum(float(a.get("sz", 0)) for a in asks_05)
+        total_vol_05 = bid_vol_05 + ask_vol_05
+        if total_vol_05 > 0:
+            result["obi_05"] = (bid_vol_05 - ask_vol_05) / total_vol_05
+        else:
+            result["obi_05"] = result["obi"]
 
         # Wall detection: tìm level có size > 3x average
-        avg_bid_sz = bid_vol / len(bids) if bids else 0
-        avg_ask_sz = ask_vol / len(asks) if asks else 0
+        avg_bid_sz = bid_vol_15 / len(bids_15) if bids_15 else 0
+        avg_ask_sz = ask_vol_15 / len(asks_15) if asks_15 else 0
 
         wall_threshold = 3.0  # 3x average = "wall"
         near_threshold = 0.001  # 0.1% từ giá hiện tại
 
-        for b in bids:
+        for b in bids_15:
             sz = float(b.get("sz", 0))
             px = float(b.get("px", 0))
             if sz > avg_bid_sz * wall_threshold:
@@ -533,7 +553,7 @@ def _get_orderbook_analysis(info: Info, coin: str, current_price: float = 0.0, d
                     result["bid_wall_price"] = px
                     break  # Lấy wall gần nhất
 
-        for a in asks:
+        for a in asks_15:
             sz = float(a.get("sz", 0))
             px = float(a.get("px", 0))
             if sz > avg_ask_sz * wall_threshold:
@@ -549,36 +569,71 @@ def _get_orderbook_analysis(info: Info, coin: str, current_price: float = 0.0, d
     return result
 
 
-def _sample_obi(info: Info, coin: str) -> None:
+def _sample_market_data(info: Info, coin: str) -> None:
     """
-    Lấy 1 mẫu OBI vào buffer (gọi mỗi scan cycle ~3s, kể cả khi đang có
-    vị thế/cooldown để buffer luôn ấm). Đây là call REST duy nhất chạy
-    mỗi cycle — mọi thứ khác đều cache.
+    Lấy 1 mẫu OBI và CVD vào buffer (gọi mỗi scan cycle ~3s).
     """
     ob = _get_orderbook_analysis(info, coin, 0.0, 20)
+    
+    # CVD via recentTrades
+    try:
+        trades = info.post("/info", {"type": "recentTrades", "coin": coin})
+        if isinstance(trades, list):
+            tb = _trades_buffers.setdefault(coin, {})
+            for t in trades:
+                tid = t.get("tid")
+                if tid:
+                    tb[tid] = t
+            
+            now_ms = _now_ms()
+            cutoff_ms = now_ms - (CVD_WINDOW_SEC * 1000)
+            tids_to_remove = [tid for tid, t in tb.items() if t.get("time", 0) < cutoff_ms]
+            for tid in tids_to_remove:
+                del tb[tid]
+                
+            buy_vol = sum(float(t.get("sz", 0)) for t in tb.values() if t.get("side") == "B")
+            sell_vol = sum(float(t.get("sz", 0)) for t in tb.values() if t.get("side") == "A")
+            ob["cvd"] = buy_vol - sell_vol
+    except Exception as e:
+        logger.debug("fetch trades failed: %s", e)
+
     _latest_ob_analysis[coin] = ob
     buf = _obi_buffers.setdefault(coin, deque())
     now = time.time()
-    buf.append((now, ob.get("obi", 0.0)))
+    buf.append((
+        now, 
+        ob.get("obi", 0.0), 
+        ob.get("obi_05", 0.0), 
+        ob.get("bid_wall", False), 
+        ob.get("ask_wall", False)
+    ))
     while buf and now - buf[0][0] > OBI_WINDOW_SEC:
         buf.popleft()
 
 
-def _smoothed_obi(coin: str) -> tuple[float, int]:
+def _smoothed_obi(coin: str) -> tuple[float, float, bool, bool, int]:
     """
     OBI làm mượt = trung bình các mẫu trong OBI_WINDOW_SEC gần nhất.
-    Trả về (obi_mean, n_samples). Dưới OBI_MIN_SAMPLES mẫu → (0.0, n)
-    để scoring bỏ qua OBI (an toàn hơn là tin 1 snapshot nhiễu).
+    Trả về (obi_mean, obi_05_mean, bid_wall_solid, ask_wall_solid, n_samples).
+    Wall_solid: tồn tại trong 3 mẫu gần nhất (≥9s).
     """
     buf = _obi_buffers.get(coin)
     if not buf:
-        return 0.0, 0
+        return 0.0, 0.0, False, False, 0
     now = time.time()
-    samples = [v for (t, v) in buf if now - t <= OBI_WINDOW_SEC]
+    samples = [v for v in buf if now - v[0] <= OBI_WINDOW_SEC]
     n = len(samples)
     if n < OBI_MIN_SAMPLES:
-        return 0.0, n
-    return sum(samples) / n, n
+        return 0.0, 0.0, False, False, n
+    
+    obi_mean = sum(s[1] for s in samples) / n
+    obi_05_mean = sum(s[2] for s in samples) / n
+    
+    last_3 = samples[-3:]
+    bid_wall_solid = all(s[3] for s in last_3) if len(last_3) >= 3 else False
+    ask_wall_solid = all(s[4] for s in last_3) if len(last_3) >= 3 else False
+    
+    return obi_mean, obi_05_mean, bid_wall_solid, ask_wall_solid, n
 
 
 def _get_funding_rate(info: Info, coin: str) -> float:
@@ -913,18 +968,39 @@ async def _market_close_remaining(
         return None
 
 
+def _fresh_bbo(info: Info, coin: str) -> tuple[float, float]:
+    """Lấy best bid/ask TƯƠI từ L2 snapshot (không dùng cache scan cycle)."""
+    l2 = info.l2_snapshot(coin)
+    levels = (l2 or {}).get("levels") or []
+    if len(levels) < 2 or not levels[0] or not levels[1]:
+        return 0.0, 0.0
+    return float(levels[0][0].get("px", 0)), float(levels[1][0].get("px", 0))
+
+
 async def _close_position_maker_first(
     exchange: Exchange, info: Info, address: str, coin: str,
-    managed_oids: set[int], timeout_seconds: int = 20,
+    managed_oids: set[int], timeout_seconds: int | None = None,
 ) -> None:
     """
-    v3.1 FEE FIX: đóng position bằng Alo limit tại bbo trước (phí maker 0.015%),
-    chỉ fallback market (taker 0.045%) nếu không khớp trong timeout_seconds.
+    v3.2 FEE: đóng position bằng Alo limit ĐUỔI THEO bbo (phí maker 0.015%),
+    chỉ fallback market (taker 0.045%) khi hết timeout hoặc giá chạy ngược.
 
-    Dùng cho time_stop — exit trung tính, không gấp. Live 02/07: 4/6 lệnh thoát
-    bằng time_stop taker, mỗi lệnh mất thêm ~$0.6/2000 notional so với maker.
+    Bản v3.1 đặt 1 lệnh Alo tĩnh tại bbo lấy từ cache scan (stale hàng chục
+    giây) rồi chờ 20s: giá nhích 1 tick là không bao giờ khớp → live 02/07
+    hầu hết time_stop vẫn rơi xuống market, taker close = $40/$79 tổng phí.
+    Bản này:
+      - bbo tươi từ L2 mỗi vòng poll, re-quote bám theo khi bbo dịch chuyển
+      - chờ tối đa maker_close_timeout_s (45s mặc định)
+      - abort → market ngay nếu giá chạy ngược quá maker_close_abort_pct
+        (vị thế đang KHÔNG có SL bảo vệ trong giai đoạn này)
     KHÔNG dùng cho hard SL / emergency (ưu tiên tốc độ).
     """
+    if timeout_seconds is None:
+        timeout_seconds = int(CONFIG.get("maker_close_timeout_s", 45))
+    requote_s = max(int(CONFIG.get("maker_close_requote_s", 6)), ORDER_POLL_SECONDS)
+    abort_pct = CONFIG.get("maker_close_abort_pct", 0.10) / 100
+
+    oid: int | None = None
     try:
         pos_size, _ = await _call(_position_for_coin, info, address, coin)
         close_size = abs(pos_size)
@@ -932,29 +1008,66 @@ async def _close_position_maker_first(
             return
         is_buy_exit = pos_size < 0  # short → mua lại để đóng
 
-        ob = _latest_ob_analysis.get(coin) or {}
+        best_bid, best_ask = await _call(_fresh_bbo, info, coin)
         # Đứng ĐÚNG bbo phía mình: sell exit đặt tại ask, buy exit đặt tại bid
-        px = ob.get("best_bid") if is_buy_exit else ob.get("best_ask")
-        if px and px > 0:
-            size_r = _round_size(exchange, coin, close_size)
-            oid, _ = await _place_limit(exchange, coin, is_buy_exit, size_r, px, True, "Alo")
-            if oid is not None:
-                managed_oids.add(oid)
+        px = best_bid if is_buy_exit else best_ask
+        if not px or px <= 0:
+            raise RuntimeError("no fresh bbo")
+        ref_px = px  # mốc theo dõi adverse move
+
+        size_r = _round_size(exchange, coin, close_size)
+        oid, _ = await _place_limit(exchange, coin, is_buy_exit, size_r, px, True, "Alo")
+        if oid is None:
+            raise RuntimeError("Alo close rejected")
+        managed_oids.add(oid)
+        logger.info(
+            "%s: maker-first close %.8f @ %.5g (chase bbo, tối đa %ds)",
+            coin, size_r, px, timeout_seconds,
+        )
+
+        deadline = time.monotonic() + timeout_seconds
+        last_quote = time.monotonic()
+        while time.monotonic() < deadline:
+            await asyncio.sleep(ORDER_POLL_SECONDS)
+            pos_size, _ = await _call(_position_for_coin, info, address, coin)
+            if abs(pos_size) <= POSITION_EPSILON:
+                logger.info("%s: maker close filled — tiết kiệm phí taker", coin)
+                return
+
+            best_bid, best_ask = await _call(_fresh_bbo, info, coin)
+            new_px = best_bid if is_buy_exit else best_ask
+            if not new_px or new_px <= 0:
+                continue
+
+            # Giá chạy ngược quá abort_pct so với quote đầu → không cố maker nữa
+            adverse = (new_px - ref_px) / ref_px if is_buy_exit else (ref_px - new_px) / ref_px
+            if adverse >= abort_pct:
                 logger.info(
-                    "%s: maker-first close %.8f @ %.5g (chờ %ds trước khi market)",
-                    coin, size_r, px, timeout_seconds,
+                    "%s: giá chạy ngược %.3f%% khi chờ maker close — market ngay",
+                    coin, adverse * 100,
                 )
-                deadline = time.monotonic() + timeout_seconds
-                while time.monotonic() < deadline:
-                    await asyncio.sleep(ORDER_POLL_SECONDS)
-                    pos_size, _ = await _call(_position_for_coin, info, address, coin)
-                    if abs(pos_size) <= POSITION_EPSILON:
-                        logger.info("%s: maker close filled — saved taker fee", coin)
-                        return
+                break
+
+            # Chase: bbo dịch chuyển & đủ requote interval → dời lệnh bám theo
+            if new_px != px and time.monotonic() - last_quote >= requote_s:
                 await _cancel_if_open(exchange, info, address, coin, oid)
+                # cancel xong có thể vừa khớp — check lại trước khi quote mới
+                pos_size, _ = await _call(_position_for_coin, info, address, coin)
+                remaining = abs(pos_size)
+                if remaining <= POSITION_EPSILON:
+                    logger.info("%s: maker close filled — tiết kiệm phí taker", coin)
+                    return
+                size_r = _round_size(exchange, coin, remaining)
+                px = new_px
+                oid, _ = await _place_limit(exchange, coin, is_buy_exit, size_r, px, True, "Alo")
+                if oid is None:
+                    raise RuntimeError("Alo re-quote rejected")
+                managed_oids.add(oid)
+                last_quote = time.monotonic()
     except Exception as exc:
         logger.warning("%s: maker-first close failed (%s) — fallback market", coin, exc)
 
+    await _cancel_if_open(exchange, info, address, coin, oid)
     await _market_close_remaining(exchange, info, address, coin, managed_oids)
 
 
@@ -1123,10 +1236,24 @@ async def _execute_setup(
             exchange, coin, is_entry_buy, size, entry_price, False, tif
         )
         if entry_oid is None and tif == "Alo":
-            logger.warning("%s: Entry Alo rejected (likely crosses spread), falling back to Gtc limit", coin)
-            entry_oid, response = await _place_limit(
-                exchange, coin, is_entry_buy, size, entry_price, False, "Gtc"
-            )
+            # v3.2 FEE: bản cũ fallback Gtc cùng giá → limit đã cross spread
+            # thì Gtc khớp NGAY như taker 0.045% (đường taker ẩn ở entry).
+            # Giờ re-quote Alo tại bbo phía mình — vẫn passive, vẫn maker;
+            # nếu tiếp tục bị reject thì bỏ setup (lỡ 1 lệnh rẻ hơn trả taker).
+            try:
+                best_bid, best_ask = await _call(_fresh_bbo, info, coin)
+                bbo_px = best_bid if is_entry_buy else best_ask
+            except Exception:
+                bbo_px = 0.0
+            if bbo_px and bbo_px > 0:
+                logger.warning(
+                    "%s: Entry Alo rejected (crossed spread) — re-quote Alo tại bbo %.5g thay vì Gtc taker",
+                    coin, bbo_px,
+                )
+                entry_price = bbo_px
+                entry_oid, response = await _place_limit(
+                    exchange, coin, is_entry_buy, size, entry_price, False, "Alo"
+                )
         timeout_seconds = max(1, int(cfg.get("limit_timeout_bars", 1))) * 60
         reversal_cancel_pct = cfg.get("reversal_cancel_pct", 0.0)
 
@@ -1264,9 +1391,8 @@ async def _execute_setup(
                 )
                 break
 
-            # ── HARD DOLLAR SL: kiểm tra mỗi HARD_DOLLAR_SL_CHECK_INTERVAL giây ──
+            # ── MFE Breakeven & HARD DOLLAR SL: kiểm tra mỗi HARD_DOLLAR_SL_CHECK_INTERVAL giây ──
             # Thoát ngay nếu unrealized loss vượt HARD_DOLLAR_SL_USD
-            # Bảo vệ khỏi tình huống giá trượt dài không chạm % SL
             elapsed_since_check = time.monotonic() - _last_hard_sl_check
             if elapsed_since_check >= HARD_DOLLAR_SL_CHECK_INTERVAL and abs_pos > POSITION_EPSILON:
                 _last_hard_sl_check = time.monotonic()
@@ -1277,6 +1403,9 @@ async def _execute_setup(
                         pos = item.get("position", {})
                         if pos.get("coin") == coin:
                             unrealized_pnl = _to_float(pos.get("unrealizedPnl"))
+                            mark_px = _to_float(pos.get("markPx"))
+                            
+                            # Hard dollar SL check
                             if unrealized_pnl < -hard_sl_usd:
                                 logger.warning(
                                     "%s: HARD SL BACKSTOP triggered! unrealized_pnl=%.4f < -%.2f — emergency close",
@@ -1287,9 +1416,25 @@ async def _execute_setup(
                                     await _cancel_if_open(exchange, info, address, coin, oid)
                                 await _market_close_remaining(exchange, info, address, coin, managed_oids)
                                 await _wait_for_position_flat(info, address, coin)
+                                break
+                                
+                            # Breakeven stop check
+                            if not locals().get("breakeven_triggered") and cfg.get("move_sl_to_breakeven_after_mfe_pct", True) and mark_px > 0:
+                                if direction == "long":
+                                    favorable = (mark_px - avg_entry) / avg_entry
+                                else:
+                                    favorable = (avg_entry - mark_px) / avg_entry
+                                    
+                                if favorable >= tp1_pct * 0.5:
+                                    logger.info("%s: MFE reached (%.2f%%). Moving SL to breakeven", coin, favorable*100)
+                                    breakeven_triggered = True  # noqa: F841
+                                    await _cancel_if_open(exchange, info, address, coin, sl_oid)
+                                    sl_price = avg_entry
+                                    sl_oid, _ = await _place_trigger_sl(exchange, coin, exit_is_buy, abs_pos, sl_price)
+                                    if sl_oid: managed_oids.add(sl_oid)
                             break
                 except Exception as exc:
-                    logger.warning("%s: hard dollar SL check failed: %s", coin, exc)
+                    logger.warning("%s: hard dollar SL / Breakeven check failed: %s", coin, exc)
 
             if exit_reason in ("hard_dollar_sl",):
                 break
@@ -1422,10 +1567,9 @@ async def _scan_coin(
             logger.debug("%s: coin disabled — skipping", coin)
             return
 
-        # ── v3: Sample OBI MỖI cycle (kể cả cooldown/đang có lệnh) để buffer
-        # smoothing luôn ấm. Đây là call REST duy nhất chạy mỗi 3s.
+        # ── v3: Sample Market Data (OBI, CVD) MỖI cycle (kể cả cooldown/đang có lệnh)
         try:
-            await _call(_sample_obi, info, coin)
+            await _call(_sample_market_data, info, coin)
         except Exception:
             pass
 
@@ -1545,8 +1689,11 @@ async def _scan_coin(
             _orphan_timers.pop(coin, None)
 
         # ── v3: OBI đã làm mượt (rolling mean 90s) thay vì snapshot đơn lẻ ──
-        obi_smooth, obi_n = _smoothed_obi(coin)
+        obi_smooth, obi_05_smooth, bid_wall_solid, ask_wall_solid, obi_n = _smoothed_obi(coin)
         ob_analysis = _latest_ob_analysis.get(coin, {})
+        ob_analysis["bid_wall"] = bid_wall_solid
+        ob_analysis["ask_wall"] = ask_wall_solid
+        ob_analysis["obi_05"] = obi_05_smooth
 
         effective_cfg = get_effective_config(coin)
         latest = await _call(_latest_setup, info, coin, effective_cfg, obi_smooth, ob_analysis)
@@ -1658,8 +1805,13 @@ async def run_bot_async():
         CONFIG.get("reversal_cancel_pct", 0.0), API_FAILURE_THRESHOLD,
     )
     logger.info(
-        "v3.1 FEE: gate TP1>=fees+%.2f%% | maker-first time_stop close | net PnL = closedPnl - fees",
-        CONFIG.get("fee_edge_min_pct", 0.04),
+        "v3.2 FEE: gate maker TP1>=fees+%.2f%% | taker cần TP1>=takerRT×%.1f+edge | "
+        "maker close chase %ds (requote %ds, abort %.2f%%) | net PnL = closedPnl - fees",
+        CONFIG.get("fee_edge_min_pct", 0.06),
+        CONFIG.get("taker_rt_mult", 2.0),
+        CONFIG.get("maker_close_timeout_s", 45),
+        CONFIG.get("maker_close_requote_s", 6),
+        CONFIG.get("maker_close_abort_pct", 0.10),
     )
     logger.info(
         "Guards: entry=%ds | SL cooldown=%dm | max margin=%.0f%% | daily_loss=%.2f | max_trades/day=%d | disabled=%s",
