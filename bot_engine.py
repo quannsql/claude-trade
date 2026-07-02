@@ -81,7 +81,7 @@ LOOKBACK_15M = int(os.environ.get("HL_LOOKBACK_15M", "260"))
 MARKET_CLOSE_SLIPPAGE = float(os.environ.get("HL_MARKET_CLOSE_SLIPPAGE", "0.002"))
 POSITION_EPSILON = 1e-8
 
-DISABLED_COINS: set[str] = {"ETH"}
+DISABLED_COINS: set[str] = set()
 # ── FIX #2: Cooldown nhỏ sau mỗi lần thua đơn lẻ ──
 SL_SINGLE_COOLDOWN_MINUTES = int(os.environ.get("HL_SL_COOLDOWN_MINUTES", "3"))
 
@@ -174,12 +174,14 @@ class RiskState:
             remaining = int((cooldown - now_utc).total_seconds() / 60)
             return False, f"cooldown {remaining}m còn lại (đến {cooldown.strftime('%H:%M')})"
 
-        day_key = (coin, now_utc.date())
-        if self.trades_today.get(day_key, 0) >= CONFIG["max_trades_per_day"]:
-            return False, "max trades per day reached"
+        today = now_utc.date()
+        total_trades_today = sum(v for k, v in self.trades_today.items() if k[1] == today)
+        if total_trades_today >= CONFIG["max_trades_per_day"]:
+            return False, "max global trades per day reached"
 
-        if self.pnl_today.get(day_key, 0.0) <= -CONFIG["daily_loss_limit_usd"]:
-            return False, "daily loss limit reached"
+        total_pnl_today = sum(v for k, v in self.pnl_today.items() if k[1] == today)
+        if total_pnl_today <= -CONFIG["daily_loss_limit_usd"]:
+            return False, f"daily global loss limit reached ({total_pnl_today:.2f} <= {-CONFIG['daily_loss_limit_usd']})"
 
         return True, None
 
@@ -479,19 +481,29 @@ def _get_orderbook_analysis(info: Info, coin: str, current_price: float = 0.0, d
         if not l2 or "levels" not in l2 or len(l2["levels"]) < 2:
             return result
 
-        bids = l2["levels"][0][:depth]
-        asks = l2["levels"][1][:depth]
+        raw_bids = l2["levels"][0]
+        raw_asks = l2["levels"][1]
 
-        if not bids or not asks:
+        if not raw_bids or not raw_asks:
             return result
 
         # Spread
-        best_bid = float(bids[0].get("px", 0))
-        best_ask = float(asks[0].get("px", 0))
+        best_bid = float(raw_bids[0].get("px", 0))
+        best_ask = float(raw_asks[0].get("px", 0))
         if best_bid > 0:
             result["spread_pct"] = (best_ask - best_bid) / best_bid * 100
         if current_price <= 0:
             current_price = (best_bid + best_ask) / 2
+
+        # Lấy OBI trong khoảng ±0.15% quanh giá hiện tại thay vì số lượng level cố định
+        min_bid_px = current_price * (1 - 0.0015)
+        max_ask_px = current_price * (1 + 0.0015)
+        
+        bids = [b for b in raw_bids if float(b.get("px", 0)) >= min_bid_px]
+        asks = [a for a in raw_asks if float(a.get("px", 0)) <= max_ask_px]
+        
+        if not bids: bids = raw_bids[:10]
+        if not asks: asks = raw_asks[:10]
 
         # OBI
         bid_vol = sum(float(b.get("sz", 0)) for b in bids)
@@ -894,10 +906,9 @@ async def _final_net_pnl(info: Info, address: str, coin: str, start_ms: int, man
 async def _wait_for_position_flat(info: Info, address: str, coin: str, timeout_seconds: int = 30) -> bool:
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
-        pos_size, _ = await _call(_position_for_coin, info, address, coin)
-        # Bỏ qua dust position (< $10)
-        # Giả định giá BTC ~ 60k -> $10 ~ 0.00016. Tạm dùng ngưỡng 0.0002 (khoảng $12) làm dust cho BTC.
-        if abs(pos_size) <= 0.0002: 
+        pos_size, pos_entry_px = await _call(_position_for_coin, info, address, coin)
+        # Bỏ qua dust position (< $12) bằng notional
+        if abs(pos_size) * pos_entry_px <= 12: 
             return True
         await asyncio.sleep(ORDER_POLL_SECONDS)
     return False
@@ -1145,7 +1156,7 @@ async def _execute_setup(
                 await _wait_for_position_flat(info, address, coin)
                 break
 
-            if abs_pos <= 0.0002:  # Bỏ qua dust (< $12)
+            if abs_pos * pos_entry_px <= 12:  # Bỏ qua dust (< $12)
                 if abs_pos > POSITION_EPSILON:
                     logger.warning("%s: dust position detected (size=%.8f) — ignoring to prevent $10 limit error", coin, abs_pos)
                 # v3: xác định lý do thoát THẬT từ fills (TP2/SL/TP1_flat/external)
@@ -1342,7 +1353,6 @@ async def _scan_coin(
             # v3: throttle — log 1 lần/phút thay vì mỗi 3s (log cũ ngập cooldown spam)
             _log_throttled(f"riskblock:{coin}", 60, "%s: risk block: %s", coin, reason)
             return
-
         # ── v3: New-candle gate — mọi call nặng (user_state, open_orders, 5m/15m
         # candles, funding) chỉ chạy khi có nến 1m MỚI đóng (~1 lần/phút).
         df1 = await _call(_cached_candles, info, coin, "1m", LOOKBACK_1M)
@@ -1382,11 +1392,27 @@ async def _scan_coin(
                 )
                 return
 
-        pos_size, pos_entry = await _call(_position_for_coin, info, address, coin)
+        user_state = await _call(info.user_state, address)
+        active_coins = []
+        pos_size = 0.0
+        pos_entry = None
+        for item in user_state.get("assetPositions", []):
+            position = item.get("position", {})
+            c = position.get("coin")
+            s = _to_float(position.get("szi"))
+            e = _to_float(position.get("entryPx"))
+            if abs(s) * (e or 0) > 12:
+                active_coins.append(c)
+            if c == coin:
+                pos_size = s
+                pos_entry = e
+                
         open_orders = await _call(_open_orders_for_coin, info, address, coin)
 
+        notional_pos = abs(pos_size) * (pos_entry or 0)
+
         # Dọn dẹp stale orders
-        if abs(pos_size) <= 0.0002 and len(open_orders) > 0:
+        if notional_pos <= 12 and len(open_orders) > 0:
             logger.info("%s: %d stale orders without valid position → cancelling", coin, len(open_orders))
             for order in open_orders:
                 oid = order.get("oid")
@@ -1394,10 +1420,10 @@ async def _scan_coin(
                     await _call(exchange.cancel, coin, int(oid))
             open_orders = await _call(_open_orders_for_coin, info, address, coin)
 
-        # Bỏ qua dust position (< 0.0002 BTC) khi check existing exposure
-        if abs(pos_size) > 0.0002 or open_orders:
+        # Bỏ qua dust position (< $12 notional) khi check existing exposure
+        if notional_pos > 12 or open_orders:
             # Lưới an toàn cho orphan position
-            if abs(pos_size) > 0.0002 and not open_orders:
+            if notional_pos > 12 and not open_orders:
                 if coin not in _orphan_timers:
                     _orphan_timers[coin] = time.time()
                 elif time.time() - _orphan_timers[coin] > 60:

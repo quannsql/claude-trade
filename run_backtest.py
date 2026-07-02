@@ -119,7 +119,7 @@ BASE_CONFIG = {
     # ── Scoring Engine v3 config ──
     "use_dual_regime": True,         # trend → pullback thuận trend; range → fade
     "vwap_min_hour_utc": 3,          # vwap_stretch_base cần VWAP >= 3h dữ liệu/ngày
-    "asia_score_bump": 10,           # 01-06 UTC: min_score_half/full +10
+    "asia_score_bump": 0,            # 01-06 UTC: min_score_half/full +0
 
     # ── Risk sizing v3: loss ≈ win ≈ risk_per_trade_usd ──
     # notional = risk_usd / sl_pct → chạm SL % lỗ đúng ~risk_usd.
@@ -146,7 +146,7 @@ PROFILES = {
     # Phương châm: trade nhiều lệnh BTC nhỏ, lãi ít mỗi lệnh nhưng tổng dương.
     # ETH bị loại. Bù đắp bằng max_trades_per_day=40 và min_score_half=45.
     "btc_high_freq": {
-        "symbols": ["BTCUSDT"],
+        "symbols": ["BTCUSDT", "ETHUSDT", "BNBUSDT"],
         "leverage": 20,
         "margin_full": 100.0,
         "margin_half": 50.0,
@@ -157,7 +157,7 @@ PROFILES = {
         "tp1_pct": 0.10,
         "tp2_pct": 0.20,
         "sl_pct": 0.20,
-        "time_stop_minutes": 10,
+        "time_stop_minutes": 5,
 
         "move_sl_to_breakeven_after_tp1": True,
         "use_dynamic_tp_sl": True,

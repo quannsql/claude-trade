@@ -932,6 +932,21 @@ async def websocket_logs(websocket: WebSocket):
         ws_handler.connected_websockets.remove(websocket)
 
 
+@app.get("/api/download_setups")
+def download_setups():
+    from bot_engine import SETUP_LOG_PATH
+    if os.path.exists(SETUP_LOG_PATH):
+        return FileResponse(SETUP_LOG_PATH, filename="setups_log.csv", media_type="text/csv")
+    return Response(content="File not found", status_code=404)
+
+@app.get("/api/download_trades")
+def download_trades():
+    from bot_engine import TRADE_LOG_PATH
+    if os.path.exists(TRADE_LOG_PATH):
+        return FileResponse(TRADE_LOG_PATH, filename="trades_log.csv", media_type="text/csv")
+    return Response(content="File not found", status_code=404)
+
+
 # ---------------------------------------------------------
 # Static Files
 # ---------------------------------------------------------
