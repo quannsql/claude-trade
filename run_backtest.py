@@ -54,8 +54,10 @@ COIN_CONFIG: dict[str, dict] = {
         "use_regime_filter": True,
         # v3: TP/SL cân bằng — SL 1.2x ATR thay vì 1.5x để loss ≈ win.
         # Sizing theo risk_per_trade_usd nên % không còn quyết định dollar loss.
-        "tp1_pct_max": 0.15,
-        "tp2_pct_max": 0.30,
+        # v3.3: cap 0.15→0.20 — cap cũ < required_taker 0.18% nên BTC bị khóa
+        # taker/chase VĨNH VIỄN kể cả sóng mạnh; giờ ATR>=0.25% là đủ điều kiện.
+        "tp1_pct_max": 0.20,
+        "tp2_pct_max": 0.40,
         "tp1_atr_mult": 0.8,
         "tp2_atr_mult": 1.6,
         "sl_atr_mult": 1.2,

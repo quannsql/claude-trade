@@ -141,6 +141,7 @@ class FillSummary:
     closed_pnl: float = 0.0
     fees: float = 0.0
     crossed: bool = False
+    escaped: bool = False  # giá bật thuận hướng (reversal_cancel) mà chưa fill
 
     @property
     def avg_price(self) -> float | None:
@@ -865,6 +866,7 @@ async def _wait_entry_fill(
     deadline = time.monotonic() + timeout_seconds
     last_summary = FillSummary()
     cancel_reason = "entry timeout"
+    price_escaped = False
 
     gone_no_pos = 0
     gone_with_pos = 0
@@ -913,6 +915,7 @@ async def _wait_entry_fill(
                               (not is_buy and mid <= signal_price * (1 - rev))
                     if escaped:
                         cancel_reason = f"price reverted {reversal_cancel_pct}% without fill"
+                        price_escaped = True
                         break
             except Exception:
                 pass
@@ -949,6 +952,7 @@ async def _wait_entry_fill(
             final_summary.size = abs(pos_size)
             final_summary.notional = abs(pos_size) * (pos_entry if pos_entry else 0.0)
 
+    final_summary.escaped = price_escaped and final_summary.size <= POSITION_EPSILON
     return final_summary
 
 
@@ -1227,6 +1231,13 @@ async def _execute_setup(
                 coin, score, edge["tp1_pct_est"], edge["required_taker_pct"],
             )
 
+    # ── v3.3: taker-chase — giá bật THUẬN hướng mà maker chưa khớp là xác nhận
+    # mạnh nhất (live 15:09 ETH score 93: bounce +0.08%/47s đúng như dự đoán
+    # nhưng reversal_cancel hủy lệnh → trắng tay). Được đuổi bằng market CHỈ KHI
+    # lệnh đủ trả phí taker (viable_taker); không đủ → hủy như cũ.
+    chase_edge = estimate_fee_edge(signal_price, atr_5m, cfg)
+    allow_taker_chase = bool(chase_edge["viable_taker"])
+
     if entry_order_type == "market":
         slippage = max(cfg.get("slippage_pct", 0.0) / 100, 0.002)
         response = await _call(
@@ -1295,9 +1306,27 @@ async def _execute_setup(
     )
 
     if entry_fill.size <= POSITION_EPSILON or entry_fill.avg_price is None:
-        logger.info("%s: entry not filled; setup skipped", coin)
-        _clear_active_entry(coin)
-        return None
+        if entry_fill.escaped and allow_taker_chase and entry_order_type != "market":
+            logger.info(
+                "%s: giá bật thuận hướng, maker chưa khớp — TAKER CHASE (TP1 est %.3f%% >= %.3f%%)",
+                coin, chase_edge["tp1_pct_est"], chase_edge["required_taker_pct"],
+            )
+            slippage = max(cfg.get("slippage_pct", 0.0) / 100, 0.002)
+            response = await _call(
+                exchange.market_open, coin, is_entry_buy, size, signal_price, slippage,
+            )
+            chase_oid = _extract_oid(response)
+            if chase_oid is not None:
+                managed_oids.add(chase_oid)
+                entry_fill = await _wait_entry_fill(
+                    info, exchange, address, coin, chase_oid, size, start_ms, 30,
+                    is_buy=is_entry_buy, signal_price=signal_price,
+                    reversal_cancel_pct=0.0,
+                )
+        if entry_fill.size <= POSITION_EPSILON or entry_fill.avg_price is None:
+            logger.info("%s: entry not filled; setup skipped", coin)
+            _clear_active_entry(coin)
+            return None
 
     if entry_fill.size < size * 0.999:
         if entry_fill.size < size * 0.25:

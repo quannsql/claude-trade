@@ -224,7 +224,11 @@ def estimate_fee_edge(price: float, atr_5m: float, cfg: dict) -> dict:
         tp1_pct_est = cfg.get("tp1_pct", 0.10)
 
     required_maker = maker + taker + min_edge
-    required_taker = (taker + taker) * taker_rt_mult + min_edge
+    # Taker path: vào taker nhưng TP1 thoát bằng Alo MAKER (use_maker_for_tp)
+    # → chi phí người THẮNG = taker_in + maker_out (0.06%), không phải taker×2.
+    # Vế thua (SL taker) đã được che bằng hệ số ×taker_rt_mult.
+    # Bản cũ tính taker×2×2 = 0.24% → cấm tuyệt đối taker kể cả khi lời rõ.
+    required_taker = (taker + maker) * taker_rt_mult + min_edge
 
     return {
         "tp1_pct_est": tp1_pct_est,

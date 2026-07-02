@@ -555,10 +555,13 @@ def _score_trend_pullback(result: dict, regime: str,
         details["directional_vol"] = 0
 
     # ── OBI (smoothed): sổ lệnh phải KHÔNG chống lại trend ──
+    # Hard block cần CẢ HAI tầng đồng thuận: tầng sâu chống mạnh + tầng sát giá
+    # không ủng hộ. Bản cũ OR → tầng ±0.05% (nhiễu/spoof nhất) phủ quyết một
+    # mình (live 15:08 BTC: obi +0.21 ủng hộ long vẫn bị obi_05 -0.29 chặn).
     obi_05 = ob_analysis.get("obi_05", 0.0) if ob_analysis else 0.0
     if obi != 0.0 or obi_05 != 0.0:
         if direction == "long":
-            if obi <= -0.30 or obi_05 <= -0.30:
+            if obi <= -0.30 and obi_05 <= -0.10:
                 result["block_reasons"].append(f"OBI={obi:.2f}/OBI_05={obi_05:.2f} against uptrend pullback")
                 result["hard_block"] = True
             elif obi >= 0.15 and obi_05 >= 0.15:
@@ -568,7 +571,7 @@ def _score_trend_pullback(result: dict, regime: str,
                 score -= 10
                 details["obi_penalty"] = -10
         else:
-            if obi >= 0.30 or obi_05 >= 0.30:
+            if obi >= 0.30 and obi_05 >= 0.10:
                 result["block_reasons"].append(f"OBI={obi:.2f}/OBI_05={obi_05:.2f} against downtrend pullback")
                 result["hard_block"] = True
             elif obi <= -0.15 and obi_05 <= -0.15:
@@ -1056,10 +1059,12 @@ def _score_range_fade(result: dict,
     # Flip cũ giữ nguyên điểm đã chấm cho hướng ngược lại (bug).
     # Giờ: sổ lệnh chống mạnh → hard block, chống nhẹ → penalty.
     # --------------------------------------------------
+    # Hard block cần CẢ HAI tầng đồng thuận (tầng sát giá nhiễu/spoof nhất
+    # không được phủ quyết một mình); chống một tầng → chỉ penalty.
     obi_05 = ob_analysis.get("obi_05", 0.0) if ob_analysis else 0.0
     if direction is not None and (obi != 0.0 or obi_05 != 0.0):
         if direction == "long":
-            if obi < -0.25 or obi_05 < -0.25:
+            if obi < -0.25 and obi_05 < -0.10:
                 result["block_reasons"].append(f"OBI={obi:.2f}/OBI_05={obi_05:.2f} (sellers dominant, smoothed)")
                 result["hard_block"] = True
             elif obi > 0.30 and obi_05 > 0.30:
@@ -1069,7 +1074,7 @@ def _score_range_fade(result: dict,
                 score -= 10
                 details["obi_penalty"] = -10
         else:  # short
-            if obi > 0.25 or obi_05 > 0.25:
+            if obi > 0.25 and obi_05 > 0.10:
                 result["block_reasons"].append(f"OBI={obi:.2f}/OBI_05={obi_05:.2f} (buyers dominant, smoothed)")
                 result["hard_block"] = True
             elif obi < -0.30 and obi_05 < -0.30:
