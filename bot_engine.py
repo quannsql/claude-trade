@@ -594,6 +594,12 @@ def _sample_market_data(info: Info, coin: str) -> None:
             buy_vol = sum(float(t.get("sz", 0)) for t in tb.values() if t.get("side") == "B")
             sell_vol = sum(float(t.get("sz", 0)) for t in tb.values() if t.get("side") == "A")
             ob["cvd"] = buy_vol - sell_vol
+            # Ratio chuẩn hóa [-1,1] — scoring dùng cái này thay dấu thô:
+            # cvd thô lệch theo size coin và gần như luôn != 0 → sign-gate
+            # là coin-flip. LƯU Ý: recentTrades chỉ trả ~10 trades/call nên
+            # đây là mẫu thưa; đủ cho ratio, muốn chuẩn phải WebSocket trades.
+            total_vol = buy_vol + sell_vol
+            ob["cvd_ratio"] = (buy_vol - sell_vol) / total_vol if total_vol > 0 else 0.0
     except Exception as e:
         logger.debug("fetch trades failed: %s", e)
 
@@ -1232,6 +1238,19 @@ async def _execute_setup(
         reversal_cancel_pct = 0.0
     else:
         tif = "Alo" if cfg.get("use_maker_for_entry", True) else "Gtc"
+        # ── v3.3 FILL FIX: JOIN BBO thay vì treo sâu dưới giá ──
+        # Setup chỉ pass sau khi có xác nhận đảo chiều → giá thường KHÔNG quay
+        # lại offset 0.035% nữa (live 13:58: setup score 95 duy nhất trong 2h
+        # cũng "entry not filled"). Đứng ngay đầu sổ phía mình: khớp ở tick
+        # ngược đầu tiên, vẫn maker 100% (Alo), reversal_cancel vẫn bảo vệ.
+        try:
+            best_bid, best_ask = await _call(_fresh_bbo, info, coin)
+            if is_entry_buy and best_bid > 0:
+                entry_price = max(entry_price, best_bid)
+            elif not is_entry_buy and best_ask > 0:
+                entry_price = min(entry_price, best_ask)
+        except Exception:
+            pass  # giữ entry_price theo offset nếu không lấy được bbo
         entry_oid, response = await _place_limit(
             exchange, coin, is_entry_buy, size, entry_price, False, tif
         )
@@ -1366,6 +1385,11 @@ async def _execute_setup(
     exit_reason = "unknown"
     tp2_oid: int | None = None
     _last_hard_sl_check = time.monotonic()
+    # Khoảng cách TP1 tính từ GIÁ (hoạt động cả nhánh dynamic lẫn fixed —
+    # bug cũ: dùng biến tp1_pct chỉ tồn tại ở nhánh fixed → NameError mỗi
+    # lần check khi use_dynamic_tp_sl=True, breakeven không bao giờ chạy)
+    tp1_dist_pct = abs(tp1_price - avg_entry) / avg_entry if avg_entry > 0 else 0.0
+    breakeven_triggered = False
 
     while True:
         try:
@@ -1419,15 +1443,15 @@ async def _execute_setup(
                                 break
                                 
                             # Breakeven stop check
-                            if not locals().get("breakeven_triggered") and cfg.get("move_sl_to_breakeven_after_mfe_pct", True) and mark_px > 0:
+                            if not breakeven_triggered and cfg.get("move_sl_to_breakeven_after_mfe_pct", True) and mark_px > 0:
                                 if direction == "long":
                                     favorable = (mark_px - avg_entry) / avg_entry
                                 else:
                                     favorable = (avg_entry - mark_px) / avg_entry
-                                    
-                                if favorable >= tp1_pct * 0.5:
+
+                                if tp1_dist_pct > 0 and favorable >= tp1_dist_pct * 0.5:
                                     logger.info("%s: MFE reached (%.2f%%). Moving SL to breakeven", coin, favorable*100)
-                                    breakeven_triggered = True  # noqa: F841
+                                    breakeven_triggered = True
                                     await _cancel_if_open(exchange, info, address, coin, sl_oid)
                                     sl_price = avg_entry
                                     sl_oid, _ = await _place_trigger_sl(exchange, coin, exit_is_buy, abs_pos, sl_price)

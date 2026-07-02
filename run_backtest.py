@@ -47,9 +47,10 @@ COIN_CONFIG: dict[str, dict] = {
         "time_stop_minutes": 10,
         "bb_width_max_pct": 1.0,
         "bb_width_warn_pct": 0.6,
-        # Nới lỏng ngưỡng đầu vào vì bộ lọc CVD/OBI đã rất khắt khe
+        # Nới lỏng ngưỡng đầu vào vì bộ lọc CVD/OBI đã rất khắt khe.
+        # half 40: thêm lệnh B-grade ở HALF risk (60%) — tăng tần suất có kiểm soát
         "min_score_full": 65,
-        "min_score_half": 45,
+        "min_score_half": 40,
         "use_regime_filter": True,
         # v3: TP/SL cân bằng — SL 1.2x ATR thay vì 1.5x để loss ≈ win.
         # Sizing theo risk_per_trade_usd nên % không còn quyết định dollar loss.
@@ -69,9 +70,9 @@ COIN_CONFIG: dict[str, dict] = {
         "time_stop_minutes": 10,
         "bb_width_max_pct": 1.4,
         "bb_width_warn_pct": 0.9,
-        # Nới lỏng ngưỡng đầu vào
+        # Nới lỏng ngưỡng đầu vào — half 40: thêm lệnh B-grade ở HALF risk
         "min_score_full": 65,
-        "min_score_half": 45,
+        "min_score_half": 40,
         "use_regime_filter": True,
         # ETH margin nhỏ hơn ($1500) nên % nhỉnh hơn để đạt cùng lượng USD
         "tp1_pct_max": 0.20,

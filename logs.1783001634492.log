@@ -1,0 +1,172 @@
+2026-07-02T12:11:24.435307809Z [inf]  Starting Container
+2026-07-02T12:11:26.362355666Z [err]  INFO:     Started server process [1]
+2026-07-02T12:11:26.362363927Z [err]  INFO:     Waiting for application startup.
+2026-07-02T12:11:26.362370885Z [err]  12:11:25 - ============================================================
+2026-07-02T12:11:26.362378701Z [err]  12:11:25 - STARTING BOT ENGINE v3 — DUAL REGIME | RISK SIZING | OBI SMOOTH
+2026-07-02T12:11:26.362385426Z [err]  12:11:25 - ============================================================
+2026-07-02T12:11:26.362392019Z [err]  12:11:25 - Profile=btc_high_freq | entry=limit (taker if score>=85) | limit_offset=0.035% | time_stop=5m
+2026-07-02T12:11:26.362398382Z [err]  12:11:25 - Risk/trade=3.00 USD (half=60%) | SL=1.2xATR [0.10-0.40%] | backstop=x1.5 | thresholds half/full=45/65 (+0 Asia)
+2026-07-02T12:11:26.362404029Z [err]  12:11:25 - OBI smoothing=90s window (min 3 samples) | reversal_cancel=0.08% | circuit breaker=6 fails/60s
+2026-07-02T12:11:26.362412154Z [err]  12:11:25 - v3.2 FEE: gate maker TP1>=fees+0.06% | taker cần TP1>=takerRT×2.0+edge | maker close chase 45s (requote 6s, abort 0.10%) | net PnL = closedPnl - fees
+2026-07-02T12:11:26.362418750Z [err]  12:11:25 - Guards: entry=180s | SL cooldown=5m | max margin=70% | daily_loss=15.00 | max_trades/day=60 | disabled=none
+2026-07-02T12:11:26.362425529Z [err]  12:11:25 - Setup log: setups_log.csv | Trade log: trades_log.csv
+2026-07-02T12:11:26.444501735Z [err]  12:11:26 - Wallet=0x8FF6e34281254C21aB15f240232E19F1eaC92dB0 monitoring=BTC,ETH
+2026-07-02T12:11:26.444507520Z [err]  INFO:     Application startup complete.
+2026-07-02T12:11:26.444511851Z [err]  INFO:     Uvicorn running on http://0.0.0.0:8080 (Press CTRL+C to quit)
+2026-07-02T12:16:08.052115931Z [err]  12:16:03 - BTC 2026-07-02 12:15:00+00:00: block: regime_filter: EMA50 upslope 0.239% (uptrend, skip short) (price 61439.0000)
+2026-07-02T12:18:11.564110380Z [err]  12:18:05 - BTC 2026-07-02 12:17:00+00:00: block: regime_filter: EMA50 upslope 0.239% (uptrend, skip short) (price 61413.0000)
+2026-07-02T12:20:13.940773686Z [err]  12:20:06 - BTC 2026-07-02 12:19:00+00:00: block: regime_filter: EMA50 upslope 0.239% (uptrend, skip short) (price 61388.0000)
+2026-07-02T12:21:05.686929412Z [err]  12:21:03 - BTC 2026-07-02 12:20:00+00:00: block: regime_filter: EMA50 upslope 0.239% (uptrend, skip short) (price 61363.0000)
+2026-07-02T12:24:08.252908019Z [err]  12:24:02 - BTC 2026-07-02 12:23:00+00:00: block: regime_filter: EMA50 upslope 0.239% (uptrend, skip short) (price 61328.0000)
+2026-07-02T12:25:08.272715452Z [err]  12:25:03 - BTC 2026-07-02 12:24:00+00:00: block: regime_filter: EMA50 upslope 0.239% (uptrend, skip short) (price 61322.0000)
+2026-07-02T12:25:48.441511699Z [inf]  INFO:     100.64.0.2:38832 - "GET / HTTP/1.1" 200 OK
+2026-07-02T12:25:48.441516915Z [inf]  INFO:     100.64.0.3:35858 - "GET /static/main.js HTTP/1.1" 200 OK
+2026-07-02T12:25:48.441521827Z [inf]  INFO:     100.64.0.4:34558 - "GET /static/style.css HTTP/1.1" 200 OK
+2026-07-02T12:25:48.441527803Z [inf]  INFO:     100.64.0.5:20386 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T12:25:48.441533634Z [err]  INFO:     100.64.0.6:53168 - "WebSocket /ws/logs" [accepted]
+2026-07-02T12:25:48.441539394Z [err]  INFO:     connection open
+2026-07-02T12:25:48.441544734Z [inf]  INFO:     100.64.0.2:38832 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:25:48.441550525Z [inf]  INFO:     100.64.0.8:44542 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:25:48.441555605Z [inf]  INFO:     100.64.0.7:24574 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T12:25:51.443357355Z [inf]  INFO:     100.64.0.2:38832 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:25:56.072336938Z [inf]  INFO:     100.64.0.6:58950 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:26:16.029970117Z [inf]  INFO:     100.64.0.3:40762 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:26:16.029975222Z [inf]  INFO:     100.64.0.8:14698 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:26:16.029979836Z [inf]  INFO:     100.64.0.6:18692 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:26:16.029984394Z [inf]  INFO:     100.64.0.6:18692 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T12:26:16.441820272Z [inf]  INFO:     100.64.0.9:45882 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:26:21.460412040Z [inf]  INFO:     100.64.0.3:45998 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:26:26.014176315Z [inf]  INFO:     100.64.0.7:40642 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:26:31.247217299Z [inf]  INFO:     100.64.0.7:40642 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:26:36.509397267Z [inf]  INFO:     100.64.0.9:36040 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:26:41.048290112Z [inf]  INFO:     100.64.0.2:33818 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:27:01.053586572Z [inf]  INFO:     100.64.0.10:62936 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T12:27:01.053592212Z [inf]  INFO:     100.64.0.2:28428 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:27:04.041436818Z [inf]  INFO:     100.64.0.2:28428 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:27:09.439760111Z [err]  INFO:     connection closed
+2026-07-02T12:27:39.437912580Z [inf]  INFO:     100.64.0.6:51630 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:27:39.437921757Z [inf]  INFO:     100.64.0.4:61138 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T12:27:39.437928907Z [inf]  INFO:     100.64.0.11:17388 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:27:39.437935197Z [inf]  INFO:     100.64.0.2:55794 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:27:39.684818853Z [inf]  INFO:     100.64.0.4:61154 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:27:40.662851449Z [inf]  INFO:     100.64.0.8:14680 - "GET / HTTP/1.1" 200 OK
+2026-07-02T12:27:40.754960906Z [inf]  INFO:     100.64.0.9:20842 - "GET /static/main.js HTTP/1.1" 304 Not Modified
+2026-07-02T12:27:40.754967973Z [inf]  INFO:     100.64.0.9:20848 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+2026-07-02T12:27:40.839452246Z [inf]  INFO:     100.64.0.6:41774 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:27:40.951600058Z [inf]  INFO:     100.64.0.9:20842 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T12:27:40.995687439Z [err]  INFO:     100.64.0.3:53354 - "WebSocket /ws/logs" [accepted]
+2026-07-02T12:27:40.995693471Z [err]  INFO:     connection open
+2026-07-02T12:27:47.414982876Z [inf]  INFO:     100.64.0.5:21682 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:28:07.278370095Z [inf]  INFO:     100.64.0.12:51890 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:28:07.278374394Z [inf]  INFO:     100.64.0.2:46448 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:28:07.278378756Z [inf]  INFO:     100.64.0.8:57176 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:28:07.278383351Z [err]  12:28:03 - BTC 2026-07-02 12:27:00+00:00: block: regime_filter: EMA50 upslope 0.239% (uptrend, skip short) (price 61353.0000)
+2026-07-02T12:28:07.278388022Z [inf]  INFO:     100.64.0.3:48288 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:28:11.235588209Z [inf]  INFO:     100.64.0.7:14032 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T12:28:13.597921320Z [inf]  INFO:     100.64.0.11:59358 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:28:17.363789394Z [inf]  INFO:     100.64.0.7:46110 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:28:22.172745044Z [inf]  INFO:     100.64.0.7:46110 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:28:28.164231743Z [inf]  INFO:     100.64.0.3:24210 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:28:32.564599478Z [inf]  INFO:     100.64.0.13:45008 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:28:38.069914866Z [inf]  INFO:     100.64.0.4:43550 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:28:43.229030369Z [inf]  INFO:     100.64.0.9:18314 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T12:28:43.229046302Z [inf]  INFO:     100.64.0.7:61164 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:28:47.066561298Z [inf]  INFO:     100.64.0.10:14106 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:28:52.686305270Z [inf]  INFO:     100.64.0.3:35654 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:28:57.618326006Z [inf]  INFO:     100.64.0.5:10426 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:28:57.770013390Z [err]  INFO:     connection closed
+2026-07-02T12:29:03.581626599Z [err]  12:29:03 - BTC 2026-07-02 12:28:00+00:00: block: regime_filter: EMA50 upslope 0.239% (uptrend, skip short) (price 61322.0000)
+2026-07-02T12:31:10.319362002Z [err]  12:31:04 - BTC 2026-07-02 12:30:00+00:00: block: regime_filter: EMA50 upslope 0.233% (uptrend, skip short) (price 61564.0000)
+2026-07-02T12:32:10.604107206Z [err]  12:32:02 - BTC 2026-07-02 12:31:00+00:00: block: regime_filter: EMA50 upslope 0.233% (uptrend, skip short) (price 61474.0000)
+2026-07-02T12:34:07.630394230Z [err]  12:34:05 - BTC 2026-07-02 12:33:00+00:00: block: regime_filter: EMA50 upslope 0.233% (uptrend, skip short) (price 61361.0000)
+2026-07-02T12:38:15.180629637Z [err]  INFO:     100.64.0.6:12474 - "WebSocket /ws/logs" [accepted]
+2026-07-02T12:38:15.180635509Z [err]  INFO:     connection open
+2026-07-02T12:38:15.180642679Z [inf]  INFO:     100.64.0.8:61140 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T12:38:15.180648856Z [inf]  INFO:     100.64.0.10:40634 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:38:15.485994607Z [inf]  INFO:     100.64.0.6:13498 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:38:21.170512047Z [inf]  INFO:     100.64.0.12:16758 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:38:21.425936925Z [inf]  INFO:     100.64.0.6:13500 - "GET / HTTP/1.1" 200 OK
+2026-07-02T12:38:21.845743908Z [inf]  INFO:     100.64.0.4:31704 - "GET /static/main.js HTTP/1.1" 304 Not Modified
+2026-07-02T12:38:21.845749357Z [inf]  INFO:     100.64.0.4:31708 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+2026-07-02T12:38:21.845754300Z [err]  INFO:     connection closed
+2026-07-02T12:38:21.921584333Z [inf]  INFO:     100.64.0.6:13500 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:38:22.083225601Z [err]  INFO:     100.64.0.9:43370 - "WebSocket /ws/logs" [accepted]
+2026-07-02T12:38:22.083234382Z [err]  INFO:     connection open
+2026-07-02T12:38:23.404801851Z [inf]  INFO:     100.64.0.5:46772 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T12:38:30.274823825Z [inf]  INFO:     100.64.0.12:16768 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:38:35.400137968Z [inf]  INFO:     100.64.0.4:50876 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:38:36.765304817Z [inf]  INFO:     100.64.0.4:50876 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:38:36.765312263Z [inf]  INFO:     100.64.0.10:33926 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T12:38:38.410913661Z [err]  INFO:     connection closed
+2026-07-02T12:39:18.362939085Z [err]  INFO:     100.64.0.10:18762 - "WebSocket /ws/logs" [accepted]
+2026-07-02T12:39:18.362961070Z [err]  INFO:     connection open
+2026-07-02T12:39:18.362968667Z [inf]  INFO:     100.64.0.10:18748 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T12:39:18.362976679Z [inf]  INFO:     100.64.0.6:54134 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:39:18.362985607Z [inf]  INFO:     100.64.0.2:16612 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:39:19.377389644Z [inf]  INFO:     100.64.0.4:39252 - "GET / HTTP/1.1" 200 OK
+2026-07-02T12:39:19.377395376Z [err]  INFO:     connection closed
+2026-07-02T12:39:19.383110072Z [err]  INFO:     100.64.0.7:29616 - "WebSocket /ws/logs" [accepted]
+2026-07-02T12:39:19.383118024Z [err]  INFO:     connection open
+2026-07-02T12:39:19.435033736Z [inf]  INFO:     100.64.0.12:20628 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T12:39:21.300558926Z [inf]  INFO:     100.64.0.10:37846 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:39:29.725301871Z [inf]  INFO:     100.64.0.2:56232 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T12:39:29.725308664Z [err]  INFO:     connection closed
+2026-07-02T12:43:08.294357971Z [err]  12:43:02 - BTC 2026-07-02 12:42:00+00:00: block: regime_filter: EMA50 upslope 0.233% (uptrend, skip short) (price 61444.0000)
+2026-07-02T12:45:05.174951579Z [err]  12:45:04 - BTC 2026-07-02 12:44:00+00:00: block: regime_filter: EMA50 upslope 0.229% (uptrend, skip short) (price 61492.0000)
+2026-07-02T12:46:05.737824160Z [err]  12:46:03 - BTC 2026-07-02 12:45:00+00:00: block: regime_filter: EMA50 upslope 0.229% (uptrend, skip short) (price 61492.0000)
+2026-07-02T13:06:38.562143596Z [err]  INFO:     100.64.0.4:54220 - "WebSocket /ws/logs" [accepted]
+2026-07-02T13:06:38.562148956Z [err]  INFO:     connection open
+2026-07-02T13:06:38.562154522Z [inf]  INFO:     100.64.0.11:48458 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T13:06:38.562159812Z [inf]  INFO:     100.64.0.13:62926 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T13:06:40.347255189Z [inf]  INFO:     100.64.0.11:48466 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T13:06:45.621418198Z [inf]  INFO:     100.64.0.5:11096 - "GET / HTTP/1.1" 200 OK
+2026-07-02T13:06:45.711811433Z [err]  INFO:     connection closed
+2026-07-02T13:06:45.715301637Z [inf]  INFO:     100.64.0.11:54670 - "GET /static/main.js HTTP/1.1" 304 Not Modified
+2026-07-02T13:06:45.715309480Z [inf]  INFO:     100.64.0.13:59428 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+2026-07-02T13:06:45.938160549Z [inf]  INFO:     100.64.0.12:39112 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T13:06:45.938170664Z [err]  INFO:     100.64.0.4:60854 - "WebSocket /ws/logs" [accepted]
+2026-07-02T13:06:45.938179342Z [err]  INFO:     connection open
+2026-07-02T13:06:47.490032607Z [inf]  INFO:     100.64.0.5:11096 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T13:06:53.666756981Z [inf]  INFO:     100.64.0.8:21132 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T13:06:57.938129318Z [inf]  INFO:     100.64.0.2:45654 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T13:07:00.269106656Z [err]  INFO:     connection closed
+2026-07-02T13:18:59.544713044Z [err]  INFO:     connection open
+2026-07-02T13:18:59.544723515Z [inf]  INFO:     100.64.0.13:35304 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T13:18:59.544731303Z [inf]  INFO:     100.64.0.12:34720 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T13:18:59.544733490Z [err]  INFO:     connection open
+2026-07-02T13:18:59.544738894Z [inf]  INFO:     100.64.0.12:34720 - "GET / HTTP/1.1" 200 OK
+2026-07-02T13:18:59.544746664Z [inf]  INFO:     100.64.0.8:33926 - "GET /static/main.js HTTP/1.1" 304 Not Modified
+2026-07-02T13:18:59.544747960Z [inf]  INFO:     100.64.0.7:22434 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T13:18:59.544756113Z [inf]  INFO:     100.64.0.5:28540 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+2026-07-02T13:18:59.544758619Z [inf]  INFO:     100.64.0.12:34720 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T13:18:59.544763578Z [err]  INFO:     connection closed
+2026-07-02T13:18:59.544767380Z [err]  INFO:     100.64.0.5:28546 - "WebSocket /ws/logs" [accepted]
+2026-07-02T13:18:59.544780282Z [err]  INFO:     100.64.0.3:27466 - "WebSocket /ws/logs" [accepted]
+2026-07-02T13:19:00.593200572Z [err]  INFO:     connection closed
+2026-07-02T13:48:04.005592894Z [err]  INFO:     100.64.0.7:59642 - "WebSocket /ws/logs" [accepted]
+2026-07-02T13:48:04.005599220Z [err]  INFO:     connection open
+2026-07-02T13:48:04.005604803Z [inf]  INFO:     100.64.0.10:35598 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T13:48:04.005610376Z [inf]  INFO:     100.64.0.10:35592 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T13:48:06.809116341Z [inf]  INFO:     100.64.0.5:27730 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T13:48:07.084325087Z [inf]  INFO:     100.64.0.2:11448 - "GET / HTTP/1.1" 200 OK
+2026-07-02T13:48:07.162808371Z [inf]  INFO:     100.64.0.5:27730 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+2026-07-02T13:48:07.162821689Z [inf]  INFO:     100.64.0.12:58898 - "GET /static/main.js HTTP/1.1" 304 Not Modified
+2026-07-02T13:48:07.162828919Z [err]  INFO:     connection closed
+2026-07-02T13:48:07.242522320Z [inf]  INFO:     100.64.0.4:46224 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T13:48:07.345155907Z [inf]  INFO:     100.64.0.2:11448 - "GET /api/live_chart HTTP/1.1" 200 OK
+2026-07-02T13:48:07.355717392Z [err]  INFO:     100.64.0.6:44494 - "WebSocket /ws/logs" [accepted]
+2026-07-02T13:48:07.355726317Z [err]  INFO:     connection open
+2026-07-02T13:48:13.982683154Z [inf]  INFO:     100.64.0.12:17876 - "GET /api/state HTTP/1.1" 200 OK
+2026-07-02T13:48:43.917430287Z [err]  INFO:     connection closed
+2026-07-02T13:58:10.101630086Z [err]  13:58:02 - BTC 2026-07-02 13:57:00+00:00: setup LONG [trend_up/trend_pullback] score=95 conf=A price=61991.0000 obi=0.44(n=27) bb_w=0.32%
+2026-07-02T13:58:10.101636468Z [err]  13:58:02 - BTC: score breakdown: pullback_zone=+30 | rsi_pullback=+10 | rsi_5m_intact=+5 | candle_1m=+10 | trend_15m=+15 | obi_bonus=+15 | bid_wall=+10 | spread_penalty=-10 | time_filter=+10
+2026-07-02T13:58:10.101643072Z [err]  13:58:02 - BTC: risk sizing — risk=3.00 USD sl=0.300% notional=1000.00 margin=50.00 (full)
+2026-07-02T13:58:10.101649237Z [err]  13:58:02 - BTC: active entry guard SET — executing trade in background
+2026-07-02T13:58:10.101655927Z [err]  13:58:02 - BTC: entry LONG score at 61991.0000 | margin=50.00 notional=1000.00 size=0.01613000
+2026-07-02T13:58:10.101662731Z [err]  13:58:03 - BTC: score 95 đạt taker nhưng TP1 est 0.150% < 0.240% (taker fees+edge) — giữ maker
+2026-07-02T13:59:11.304577038Z [err]  13:59:07 - BTC: entry timeout — cancelling order oid=55864871034
+2026-07-02T13:59:11.304584152Z [err]  13:59:07 - BTC: cancel open order oid=55864871034
+2026-07-02T13:59:17.580004352Z [err]  13:59:17 - BTC: entry not filled; setup skipped
+2026-07-02T14:12:14.331281955Z [inf]  INFO:     100.64.0.2:26978 - "GET /api/download_setups HTTP/1.1" 200 OK
+2026-07-02T14:12:46.119976363Z [inf]  INFO:     100.64.0.11:53352 - "GET /api/download_trades HTTP/1.1" 404 Not Found
+2026-07-02T14:12:46.119983827Z [inf]  INFO:     100.64.0.3:55792 - "GET /favicon.ico HTTP/1.1" 404 Not Found

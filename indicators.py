@@ -425,9 +425,12 @@ def _score_trend_pullback(result: dict, regime: str,
             return result
 
     bb_mid1 = (bb_upper1 + bb_lower1) / 2
-    zone_tolerance = 0.0004  # 0.04%
+    zone_tolerance = 0.0006  # 0.06% — nới nhẹ để tăng tần suất trigger (scalping)
 
-    # ── Trend Age (Late-Trend Filter) ──
+    # ── Trend Age (Late-Trend): trend đã chạy xa EMA50-5m → đòi hỏi xác nhận
+    # mạnh hơn + penalty, KHÔNG đổi zone (bản cũ đòi price1 <= EMA50-5m trong
+    # khi guard phía trên đòi price5 > EMA50-5m → tự mâu thuẫn, không bao giờ
+    # vào được lệnh khi late trend).
     is_late_trend = False
     if not pd.isna(ema50_5) and ema50_5 > 0:
         if abs(price1 - ema50_5) / ema50_5 > 0.008:
@@ -436,42 +439,47 @@ def _score_trend_pullback(result: dict, regime: str,
     # ── Base trigger: giá đã pullback vào value zone chưa? ──
     in_zone = False
     pattern_1m = detect_candle_pattern(row1, row1_prev)
-    
+
+    # Xác nhận đảo chiều: pattern MẠNH (hiếm trên 1m) HOẶC xác nhận yếu
+    # (nến thuận hướng + không phá đáy/đỉnh nến trước) — đủ để không mua
+    # khi dao đang rơi, nhưng không bóp chết tần suất lệnh của scalping.
     if direction == "long":
-        if is_late_trend:
-            zone_edge = ema50_5 if not pd.isna(ema50_5) else bb_mid1
-        else:
-            zone_edge = max(
-                v for v in (ema21_1, bb_mid1, vwap1)
-                if v is not None and not pd.isna(v)
-            )
+        strong_confirm = pattern_1m in ("hammer", "bullish_engulfing", "strong_bullish_close")
+        weak_confirm = (row1["close"] > row1["open"]) and (row1["low"] >= row1_prev["low"])
+        zone_edge = max(
+            v for v in (ema21_1, bb_mid1, vwap1)
+            if v is not None and not pd.isna(v)
+        )
         in_zone = price1 <= zone_edge * (1 + zone_tolerance)
         # Pullback quá sâu = breakdown, không phải pullback
         if price1 < bb_lower1 and pattern_1m == "strong_bearish_close":
             return result
-        # Hard condition: bắt buộc nến đảo chiều 1m
-        if pattern_1m not in ("hammer", "bullish_engulfing", "strong_bullish_close"):
-            return result
     else:
-        if is_late_trend:
-            zone_edge = ema50_5 if not pd.isna(ema50_5) else bb_mid1
-        else:
-            zone_edge = min(
-                v for v in (ema21_1, bb_mid1, vwap1)
-                if v is not None and not pd.isna(v)
-            )
+        strong_confirm = pattern_1m in ("shooting_star", "bearish_engulfing", "strong_bearish_close")
+        weak_confirm = (row1["close"] < row1["open"]) and (row1["high"] <= row1_prev["high"])
+        zone_edge = min(
+            v for v in (ema21_1, bb_mid1, vwap1)
+            if v is not None and not pd.isna(v)
+        )
         in_zone = price1 >= zone_edge * (1 - zone_tolerance)
         if price1 > bb_upper1 and pattern_1m == "strong_bullish_close":
             return result
-        # Hard condition: bắt buộc nến đảo chiều 1m
-        if pattern_1m not in ("shooting_star", "bearish_engulfing", "strong_bearish_close"):
-            return result
+
+    # Không có bất kỳ dấu hiệu đảo chiều nào → bỏ (giữ kỷ luật "không bắt dao rơi")
+    if not (strong_confirm or weak_confirm):
+        return result
+    # Late trend: chỉ chấp nhận xác nhận MẠNH (vào muộn thì phải chắc hơn)
+    if is_late_trend and not strong_confirm:
+        return result
 
     if not in_zone:
         return result
 
     score += 30
     details["pullback_zone"] = 30
+    if is_late_trend:
+        score -= 10
+        details["late_trend"] = -10
 
     # ── RSI pullback: dip lành mạnh, không phải crash ──
     if direction == "long":
@@ -503,9 +511,13 @@ def _score_trend_pullback(result: dict, regime: str,
         else:
             details["rsi_5m_intact"] = 0
 
-    # ── Candle reversal xác nhận pullback kết thúc (đã là điều kiện cứng) ──
-    score += 10
-    details["candle_1m"] = 10
+    # ── Candle reversal: pattern mạnh +10, xác nhận yếu +5 ──
+    if strong_confirm:
+        score += 10
+        details["candle_1m"] = 10
+    else:
+        score += 5
+        details["candle_1m"] = 5
 
     pattern_5m = detect_candle_pattern(row5, row5_prev)
     if direction == "long" and pattern_5m in ("hammer", "bullish_engulfing"):
@@ -566,15 +578,33 @@ def _score_trend_pullback(result: dict, regime: str,
                 score -= 10
                 details["obi_penalty"] = -10
 
-    # ── Wall support / spread ──
+    # ── Wall support / spread / CVD ──
     if ob_analysis:
-        cvd = ob_analysis.get("cvd", 0.0)
-        if direction == "long" and cvd < 0:
-            result["block_reasons"].append(f"CVD={cvd:.4f} against long")
-            result["hard_block"] = True
-        elif direction == "short" and cvd > 0:
-            result["block_reasons"].append(f"CVD={cvd:.4f} against short")
-            result["hard_block"] = True
+        # CVD ratio = (buy-sell)/(buy+sell) trong 3 phút — CHUẨN HÓA [-1,1].
+        # Tại đáy pullback flow gần như LUÔN âm nhẹ (định nghĩa của pullback)
+        # → chặn theo dấu thô = chặn đúng entry mình muốn (bug bản trước).
+        # Chỉ chặn khi flow cực đoan một chiều, còn lại cộng/trừ điểm.
+        cvd_ratio = ob_analysis.get("cvd_ratio", 0.0)
+        if direction == "long":
+            if cvd_ratio <= -0.50:
+                result["block_reasons"].append(f"CVD ratio={cvd_ratio:.2f} bán tháo mạnh, không đỡ")
+                result["hard_block"] = True
+            elif cvd_ratio <= -0.20:
+                score -= 10
+                details["cvd_penalty"] = -10
+            elif cvd_ratio >= 0.20:
+                score += 10
+                details["cvd_bonus"] = 10
+        else:
+            if cvd_ratio >= 0.50:
+                result["block_reasons"].append(f"CVD ratio={cvd_ratio:.2f} mua đuổi mạnh, không chặn")
+                result["hard_block"] = True
+            elif cvd_ratio >= 0.20:
+                score -= 10
+                details["cvd_penalty"] = -10
+            elif cvd_ratio <= -0.20:
+                score += 10
+                details["cvd_bonus"] = 10
 
         if direction == "long" and ob_analysis.get("bid_wall"):
             score += 10
@@ -595,8 +625,10 @@ def _score_trend_pullback(result: dict, regime: str,
             score += 5
             details["funding_bias"] = 5
 
-    # ── Session bonus (Asia penalty được xử lý bằng threshold bump ở engine) ──
-    if cfg.get("use_time_filter", True) and 7 <= hour_utc <= 17:
+    # ── Session bonus: MỌI khung giờ như nhau (user yêu cầu Asia trade bình
+    # thường — bản cũ chỉ +10 cho 7-17 UTC nên Asia cần raw score cao hơn 10).
+    # Chất lượng giờ thấp-ATR đã có FEE GATE lo, không cần phạt theo giờ.
+    if cfg.get("use_time_filter", True):
         score += 10
         details["time_filter"] = 10
 
@@ -1010,11 +1042,10 @@ def _score_range_fade(result: dict,
         details["candle_5m"] = 0
 
     # --------------------------------------------------
-    # MODULE 9: TIME-OF-DAY — chỉ còn bonus London/NY
-    # (Asia không còn -5: engine nâng min_score +asia_score_bump thay thế,
-    #  mạnh hơn nhiều so với penalty tượng trưng)
+    # MODULE 9: TIME-OF-DAY — MỌI khung giờ như nhau (user yêu cầu Asia
+    # trade bình thường; giờ thấp-ATR đã có FEE GATE lo, không phạt theo giờ)
     # --------------------------------------------------
-    if cfg.get("use_time_filter", True) and 7 <= hour_utc <= 17:
+    if cfg.get("use_time_filter", True):
         score += 10
         details["time_filter"] = 10
     else:
@@ -1049,13 +1080,16 @@ def _score_range_fade(result: dict,
                 details["obi_penalty"] = -10
 
     if ob_analysis:
-        cvd = ob_analysis.get("cvd", 0.0)
-        if direction == "long" and cvd < 0:
-            result["block_reasons"].append(f"CVD={cvd:.4f} against long")
-            result["hard_block"] = True
-        elif direction == "short" and cvd > 0:
-            result["block_reasons"].append(f"CVD={cvd:.4f} against short")
-            result["hard_block"] = True
+        # CVD cho FADE: fade là lệnh NGƯỢC flow theo bản chất (mua khi chạm
+        # band dưới = flow vừa bán) → KHÔNG hard block theo dấu. Chỉ phạt khi
+        # flow cực đoan một chiều (thác đổ — fade dễ bị cán).
+        cvd_ratio = ob_analysis.get("cvd_ratio", 0.0)
+        if direction == "long" and cvd_ratio <= -0.60:
+            score -= 10
+            details["cvd_penalty"] = -10
+        elif direction == "short" and cvd_ratio >= 0.60:
+            score -= 10
+            details["cvd_penalty"] = -10
 
         if direction == "long" and ob_analysis.get("bid_wall"):
             score += 15
