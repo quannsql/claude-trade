@@ -173,9 +173,6 @@ def compute_dynamic_levels(
     tp1_atr_mult: float = 1.5,
     tp2_atr_mult: float = 3.0,
     sl_atr_mult: float = 1.2,
-    tp1_pct_min: float = 0.0,
-    tp2_pct_min: float = 0.0,
-    sl_pct_min: float = 0.0,
     tp1_pct_max: float = 0.30,
     tp2_pct_max: float = 0.60,
     sl_pct_max: float = 0.40,
@@ -196,9 +193,9 @@ def compute_dynamic_levels(
     tp2_pct_calc = atr_pct * tp2_atr_mult
     sl_pct_calc = atr_pct * sl_atr_mult
 
-    tp1_pct = min(max(tp1_pct_calc, tp1_pct_min), tp1_pct_max)
-    tp2_pct = min(max(tp2_pct_calc, tp2_pct_min), tp2_pct_max)
-    sl_pct = min(max(sl_pct_calc, sl_pct_min), sl_pct_max)
+    tp1_pct = min(tp1_pct_calc, tp1_pct_max)
+    tp2_pct = min(tp2_pct_calc, tp2_pct_max)
+    sl_pct = min(sl_pct_calc, sl_pct_max)
 
     if direction == "long":
         tp1_price = entry_price * (1 + tp1_pct / 100)

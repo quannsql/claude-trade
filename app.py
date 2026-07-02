@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from hyperliquid.info import Info
 
-from bot_engine import API_URL, PRIVATE_KEY, logger as bot_logger, run_bot_async, _sync_api_pause
+from bot_engine import API_URL, PRIVATE_KEY, logger as bot_logger, run_bot_async
 
 try:
     import psycopg
@@ -835,7 +835,6 @@ async def startup_event():
 import time
 _state_cache = {}
 _state_cache_time = 0
-STATE_CACHE_SECONDS = int(os.environ.get("DASHBOARD_STATE_CACHE_SECONDS", "10"))
 
 @app.get("/api/state")
 def get_state():
@@ -845,15 +844,12 @@ def get_state():
         return {"error": "Wallet not configured.", "storage": _query_history(20)}
 
     now = time.time()
-    if now - _state_cache_time < STATE_CACHE_SECONDS and _state_cache:
+    if now - _state_cache_time < 4 and _state_cache:
         return _state_cache
 
     try:
-        _sync_api_pause()
         user_state = info.user_state(user_address)
-        _sync_api_pause()
         open_orders = info.open_orders(user_address)
-        _sync_api_pause()
         fills = info.user_fills(user_address) or []
         margin_summary = user_state.get("marginSummary", {})
         positions = user_state.get("assetPositions", [])
@@ -875,10 +871,6 @@ def get_state():
         _state_cache_time = now
         return _state_cache
     except Exception as e:
-        if _state_cache:
-            cached = dict(_state_cache)
-            cached["warning"] = str(e)
-            return cached
         return {"error": str(e), "storage": _query_history(20)}
 
 

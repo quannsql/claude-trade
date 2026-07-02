@@ -37,7 +37,6 @@ IMPROVEMENT #6 — PARTIAL FILL PNL TRACKING
 import asyncio
 import logging
 import os
-import threading
 import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
@@ -68,22 +67,15 @@ PRIVATE_KEY = os.environ.get("HL_PRIVATE_KEY", "")
 HL_NETWORK = os.environ.get("HL_NETWORK", "TESTNET").strip().upper()
 API_URL = constants.MAINNET_API_URL if HL_NETWORK == "MAINNET" else constants.TESTNET_API_URL
 
-SIGNAL_POLL_SECONDS = int(os.environ.get("HL_SIGNAL_POLL_SECONDS", "10"))
-ORDER_POLL_SECONDS = int(os.environ.get("HL_ORDER_POLL_SECONDS", "4"))
+SIGNAL_POLL_SECONDS = int(os.environ.get("HL_SIGNAL_POLL_SECONDS", "3"))
+ORDER_POLL_SECONDS = int(os.environ.get("HL_ORDER_POLL_SECONDS", "3"))
 LOOKBACK_1M = int(os.environ.get("HL_LOOKBACK_1M", "300"))
 LOOKBACK_5M = int(os.environ.get("HL_LOOKBACK_5M", "160"))
 LOOKBACK_15M = int(os.environ.get("HL_LOOKBACK_15M", "260"))
 MARKET_CLOSE_SLIPPAGE = float(os.environ.get("HL_MARKET_CLOSE_SLIPPAGE", "0.002"))
 POSITION_EPSILON = 1e-8
-API_MIN_INTERVAL_SEC = float(os.environ.get("HL_API_MIN_INTERVAL_SEC", "0.22"))
-SIGNAL_CHECK_INTERVAL_SEC = int(os.environ.get("HL_SIGNAL_CHECK_INTERVAL_SEC", "45"))
 
-
-def _parse_coin_set(raw: str) -> set[str]:
-    return {item.strip().upper() for item in raw.split(",") if item.strip()}
-
-
-DISABLED_COINS: set[str] = _parse_coin_set(os.environ.get("HL_DISABLED_COINS", ""))
+DISABLED_COINS: set[str] = {"ETH"}
 # ── FIX #2: Cooldown nhỏ sau mỗi lần thua đơn lẻ ──
 SL_SINGLE_COOLDOWN_MINUTES = int(os.environ.get("HL_SL_COOLDOWN_MINUTES", "3"))
 
@@ -105,10 +97,6 @@ _coin_locks: dict[str, asyncio.Lock] = {}
 
 # Theo dõi thời gian orphan position của từng coin
 _orphan_timers: dict[str, float] = {}
-_last_signal_check: dict[str, float] = {}
-_api_rate_lock = threading.Lock()
-_last_api_call_ts = 0.0
-_funding_cache: dict[str, tuple[float, float]] = {}
 
 
 @dataclass
@@ -149,33 +137,22 @@ class RiskState:
     trades_today: dict[tuple[str, date], int] = field(default_factory=dict)
     pnl_today: dict[tuple[str, date], float] = field(default_factory=dict)
 
-    def can_trade(self, coin: str, now_utc: datetime, cfg: dict | None = None) -> tuple[bool, str | None]:
-        cfg = cfg or CONFIG
+    def can_trade(self, coin: str, now_utc: datetime) -> tuple[bool, str | None]:
         cooldown = self.cooldown_until.get(coin)
         if cooldown and now_utc < cooldown:
             remaining = int((cooldown - now_utc).total_seconds() / 60)
             return False, f"cooldown {remaining}m còn lại (đến {cooldown.strftime('%H:%M')})"
 
         day_key = (coin, now_utc.date())
-        if self.trades_today.get(day_key, 0) >= cfg["max_trades_per_day"]:
+        if self.trades_today.get(day_key, 0) >= CONFIG["max_trades_per_day"]:
             return False, "max trades per day reached"
 
-        total_limit = cfg.get("max_total_trades_per_day")
-        if total_limit is not None:
-            total_trades = sum(
-                count for (_, trade_day), count in self.trades_today.items()
-                if trade_day == now_utc.date()
-            )
-            if total_trades >= total_limit:
-                return False, "max total trades per day reached"
-
-        if self.pnl_today.get(day_key, 0.0) <= -cfg["daily_loss_limit_usd"]:
+        if self.pnl_today.get(day_key, 0.0) <= -CONFIG["daily_loss_limit_usd"]:
             return False, "daily loss limit reached"
 
         return True, None
 
-    def record_trade(self, result: TradeResult, cfg: dict | None = None) -> None:
-        cfg = cfg or CONFIG
+    def record_trade(self, result: TradeResult) -> None:
         day_key = (result.coin, result.entry_time.date())
         self.trades_today[day_key] = self.trades_today.get(day_key, 0) + 1
         self.pnl_today[day_key] = self.pnl_today.get(day_key, 0.0) + result.net_pnl
@@ -199,8 +176,8 @@ class RiskState:
                 )
 
             # Cooldown dài hơn sau N losses liên tiếp
-            if losses >= cfg["max_consecutive_losses"]:
-                long_cooldown = result.exit_time + timedelta(minutes=cfg["cooldown_minutes"])
+            if losses >= CONFIG["max_consecutive_losses"]:
+                long_cooldown = result.exit_time + timedelta(minutes=CONFIG["cooldown_minutes"])
                 self.cooldown_until[result.coin] = long_cooldown
                 self.consecutive_losses[result.coin] = 0
                 logger.info(
@@ -210,7 +187,7 @@ class RiskState:
                     long_cooldown.strftime("%H:%M"),
                 )
 
-        if self.pnl_today[day_key] <= -cfg["daily_loss_limit_usd"]:
+        if self.pnl_today[day_key] <= -CONFIG["daily_loss_limit_usd"]:
             tomorrow = datetime.combine(
                 result.exit_time.date() + timedelta(days=1),
                 datetime.min.time(),
@@ -222,24 +199,6 @@ class RiskState:
 
 def _now_ms() -> int:
     return int(time.time() * 1000)
-
-
-def _sync_api_pause() -> None:
-    """Small global throttle for Hyperliquid HTTP calls shared by worker threads."""
-    global _last_api_call_ts
-    if API_MIN_INTERVAL_SEC <= 0:
-        return
-    with _api_rate_lock:
-        now = time.monotonic()
-        wait = API_MIN_INTERVAL_SEC - (now - _last_api_call_ts)
-        if wait > 0:
-            time.sleep(wait)
-        _last_api_call_ts = time.monotonic()
-
-
-def _is_rate_limit_error(exc: Exception) -> bool:
-    text = str(exc)
-    return "429" in text or "Too Many Requests" in text
 
 
 def _interval_ms(interval: str) -> int:
@@ -468,123 +427,9 @@ def _get_orderbook_analysis(info: Info, coin: str, current_price: float, depth: 
     return result
 
 
-def _get_orderbook_analysis(info: Info, coin: str, current_price: float, depth: int = 20) -> dict:
-    """Read several L2 snapshots and turn them into stable scalp features."""
-    result = {
-        "obi": 0.0,
-        "obi_avg": 0.0,
-        "obi_delta": 0.0,
-        "bid_wall": False,
-        "ask_wall": False,
-        "bid_wall_price": None,
-        "ask_wall_price": None,
-        "spread_pct": 0.0,
-        "best_bid": None,
-        "best_ask": None,
-        "microprice": None,
-        "microprice_bias": 0.0,
-        "pressure": "neutral",
-        "pressure_flip": False,
-        "pressure_flip_to": "neutral",
-        "valid": False,
-    }
-    try:
-        snapshots: list[dict[str, Any]] = []
-        reads = max(1, int(os.environ.get("HL_OB_SNAPSHOTS", "1")))
-        delay = max(0.0, float(os.environ.get("HL_OB_SNAPSHOT_DELAY", "0.15")))
-
-        for idx in range(reads):
-            _sync_api_pause()
-            l2 = info.l2_snapshot(coin)
-            if l2 and "levels" in l2 and len(l2["levels"]) >= 2:
-                bids = l2["levels"][0][:depth]
-                asks = l2["levels"][1][:depth]
-                if bids and asks:
-                    snapshots.append({"bids": bids, "asks": asks})
-            if idx < reads - 1 and delay > 0:
-                time.sleep(delay)
-
-        if not snapshots:
-            return result
-
-        obi_values: list[float] = []
-        for snap in snapshots:
-            bid_vol = sum(float(b.get("sz", 0)) for b in snap["bids"])
-            ask_vol = sum(float(a.get("sz", 0)) for a in snap["asks"])
-            total = bid_vol + ask_vol
-            if total > 0:
-                obi_values.append((bid_vol - ask_vol) / total)
-
-        last_bids = snapshots[-1]["bids"]
-        last_asks = snapshots[-1]["asks"]
-        best_bid = float(last_bids[0].get("px", 0))
-        best_ask = float(last_asks[0].get("px", 0))
-        if not obi_values or best_bid <= 0 or best_ask <= 0:
-            return result
-
-        bid_vol = sum(float(b.get("sz", 0)) for b in last_bids)
-        ask_vol = sum(float(a.get("sz", 0)) for a in last_asks)
-        best_bid_sz = float(last_bids[0].get("sz", 0))
-        best_ask_sz = float(last_asks[0].get("sz", 0))
-        obi_avg = sum(obi_values) / len(obi_values)
-        obi_delta = obi_values[-1] - obi_values[0] if len(obi_values) > 1 else 0.0
-        pressure = "buy" if obi_avg > 0.16 else "sell" if obi_avg < -0.16 else "neutral"
-        first_pressure = "buy" if obi_values[0] > 0.16 else "sell" if obi_values[0] < -0.16 else "neutral"
-
-        result["valid"] = True
-        result["obi"] = obi_values[-1]
-        result["obi_avg"] = obi_avg
-        result["obi_delta"] = obi_delta
-        result["pressure"] = pressure
-        result["pressure_flip"] = first_pressure != pressure and pressure != "neutral"
-        result["pressure_flip_to"] = pressure
-        result["best_bid"] = best_bid
-        result["best_ask"] = best_ask
-        result["spread_pct"] = (best_ask - best_bid) / best_bid * 100
-
-        if best_bid_sz + best_ask_sz > 0:
-            microprice = (best_ask * best_bid_sz + best_bid * best_ask_sz) / (best_bid_sz + best_ask_sz)
-            mid = (best_bid + best_ask) / 2
-            result["microprice"] = microprice
-            result["microprice_bias"] = (microprice - mid) / mid * 100 if mid > 0 else 0.0
-
-        avg_bid_sz = bid_vol / len(last_bids) if last_bids else 0
-        avg_ask_sz = ask_vol / len(last_asks) if last_asks else 0
-        wall_threshold = float(os.environ.get("HL_OB_WALL_MULT", "3.0"))
-        near_threshold = float(os.environ.get("HL_OB_WALL_NEAR_PCT", "0.001"))
-
-        for b in last_bids:
-            sz = float(b.get("sz", 0))
-            px = float(b.get("px", 0))
-            if avg_bid_sz > 0 and sz > avg_bid_sz * wall_threshold:
-                if current_price > 0 and abs(px - current_price) / current_price < near_threshold:
-                    result["bid_wall"] = True
-                    result["bid_wall_price"] = px
-                    break
-
-        for a in last_asks:
-            sz = float(a.get("sz", 0))
-            px = float(a.get("px", 0))
-            if avg_ask_sz > 0 and sz > avg_ask_sz * wall_threshold:
-                if current_price > 0 and abs(px - current_price) / current_price < near_threshold:
-                    result["ask_wall"] = True
-                    result["ask_wall_price"] = px
-                    break
-    except Exception as e:
-        logger.debug("orderbook_analysis failed: %s", e)
-
-    return result
-
-
 def _get_funding_rate(info: Info, coin: str) -> float:
     """Lấy funding rate hiện tại của coin. Trả về 0.0 nếu lỗi."""
-    now = time.time()
-    cached = _funding_cache.get(coin)
-    if cached and now - cached[1] < 300:
-        return cached[0]
-
     try:
-        _sync_api_pause()
         meta = info.meta_and_asset_ctxs()
         if not meta or len(meta) < 2:
             return 0.0
@@ -592,9 +437,7 @@ def _get_funding_rate(info: Info, coin: str) -> float:
         coin_meta = info.name_to_asset(coin)
         if coin_meta < len(asset_ctxs):
             ctx = asset_ctxs[coin_meta]
-            rate = float(ctx.get("funding", 0.0))
-            _funding_cache[coin] = (rate, now)
-            return rate
+            return float(ctx.get("funding", 0.0))
     except Exception:
         return 0.0
     return 0.0
@@ -614,12 +457,7 @@ def fetch_hyperliquid_candles(
         "type": "candleSnapshot",
         "req": {"coin": coin, "interval": interval, "startTime": start_time, "endTime": end_time},
     }
-    try:
-        _sync_api_pause()
-        res = info.post("/info", req)
-    except Exception as exc:
-        logger.warning("%s: candle fetch failed interval=%s: %s", coin, interval, exc)
-        return pd.DataFrame()
+    res = info.post("/info", req)
     if not res:
         return pd.DataFrame()
     rows = [
@@ -666,7 +504,7 @@ def _latest_setup(info: Info, coin: str, effective_cfg: dict) -> tuple[dict[str,
     current_price = float(df1.iloc[i1]["close"])
     ob_analysis = _get_orderbook_analysis(info, coin, current_price, 20)
     funding_rate = _get_funding_rate(info, coin)
-    obi = ob_analysis.get("obi_avg", ob_analysis.get("obi", 0.0))
+    obi = ob_analysis.get("obi", 0.0)
     setup = score_setup(i15, df15, i5, df5, i1, df1, hour_utc=signal_ts.hour, cfg=effective_cfg, obi=obi, ob_analysis=ob_analysis, funding_rate=funding_rate)
     setup["obi"] = obi
     return setup, current_price, signal_ts
@@ -675,20 +513,18 @@ def _latest_setup(info: Info, coin: str, effective_cfg: dict) -> tuple[dict[str,
 async def _call(fn, *args, **kwargs):
     fn_name = getattr(fn, "__name__", "unknown")
     is_write = fn_name in ("order", "market_close", "cancel")
-    max_retries = 1 if is_write else 4
+    max_retries = 1 if is_write else 3
     base_delay = 1.0
 
     for attempt in range(max_retries):
         try:
-            _sync_api_pause()
             return await asyncio.to_thread(fn, *args, **kwargs)
         except Exception as exc:
             if attempt == max_retries - 1:
                 if not is_write:
                     logger.warning("API call %s failed after %d attempts: %s", fn_name, max_retries, exc)
                 raise
-            delay = (5.0 if _is_rate_limit_error(exc) else base_delay) * (2 ** attempt)
-            delay = min(delay, 20.0)
+            delay = base_delay * (2 ** attempt)
             logger.info("API call %s failed: %s. Retrying in %ds...", fn_name, exc, delay)
             await asyncio.sleep(delay)
 
@@ -720,57 +556,6 @@ async def _place_limit(
         return None, None
 
 
-def _maker_entry_price_from_book(info: Info, coin: str, is_buy: bool, signal_price: float, cfg: dict) -> tuple[float | None, dict[str, Any]]:
-    ob = _get_orderbook_analysis(info, coin, signal_price, depth=20)
-    best_bid = ob.get("best_bid")
-    best_ask = ob.get("best_ask")
-    spread_pct = _to_float(ob.get("spread_pct"))
-    max_spread = cfg.get("max_spread_pct", 0.03)
-    if not ob.get("valid") or best_bid is None or best_ask is None:
-        return None, ob
-    if spread_pct > max_spread:
-        return None, ob
-    price = float(best_bid if is_buy else best_ask)
-    return price, ob
-
-
-async def _place_maker_entry(
-    exchange: Exchange,
-    info: Info,
-    coin: str,
-    is_buy: bool,
-    size: float,
-    signal_price: float,
-    cfg: dict,
-) -> tuple[int | None, Any, float | None]:
-    attempts = max(1, int(cfg.get("entry_reprice_attempts", 2)) + 1)
-    last_response = None
-    last_price: float | None = None
-    for attempt in range(attempts):
-        price, ob = await _call(_maker_entry_price_from_book, info, coin, is_buy, signal_price, cfg)
-        if price is None:
-            logger.info(
-                "%s: maker entry skipped; book invalid or spread too wide (spread=%.4f%%)",
-                coin, _to_float(ob.get("spread_pct")),
-            )
-            return None, ob, None
-        last_price = price
-        oid, response = await _place_limit(exchange, coin, is_buy, size, price, False, "Alo")
-        last_response = response
-        if oid is not None:
-            return oid, response, price
-        if attempt < attempts - 1:
-            await asyncio.sleep(float(cfg.get("entry_reprice_delay_sec", 0.4)))
-
-    if cfg.get("allow_taker_entry_fallback", False):
-        logger.warning("%s: maker entry rejected after reprices; fallback Gtc enabled", coin)
-        oid, response = await _place_limit(exchange, coin, is_buy, size, last_price or signal_price, False, "Gtc")
-        return oid, response, last_price or signal_price
-
-    logger.info("%s: maker entry rejected after reprices; setup skipped to protect fee edge", coin)
-    return None, last_response, last_price
-
-
 async def _place_trigger_sl(
     exchange: Exchange, coin: str, is_buy: bool, size: float, trigger_price: float,
 ) -> tuple[int | None, Any]:
@@ -790,10 +575,9 @@ async def _place_trigger_sl(
 
 
 async def _place_tp_with_fallback(
-    exchange: Exchange, coin: str, is_buy: bool, size: float, price: float, cfg: dict | None = None,
+    exchange: Exchange, coin: str, is_buy: bool, size: float, price: float,
 ) -> int | None:
-    cfg = cfg or CONFIG
-    tif = "Alo" if cfg.get("use_maker_for_tp", True) else "Gtc"
+    tif = "Alo" if CONFIG.get("use_maker_for_tp", True) else "Gtc"
     oid, _ = await _place_limit(exchange, coin, is_buy, size, price, True, tif)
     if oid is not None:
         return oid
@@ -939,19 +723,8 @@ async def _execute_setup(
 
     entry_price = signal_price
     if cfg.get("entry_order_type") == "limit":
-        if cfg.get("use_maker_for_entry", True):
-            maker_price, maker_ob = await _call(_maker_entry_price_from_book, info, coin, is_entry_buy, signal_price, cfg)
-            if maker_price is None:
-                logger.info(
-                    "%s: no safe maker entry price (spread=%.4f%%); setup skipped",
-                    coin, _to_float(maker_ob.get("spread_pct")),
-                )
-                _clear_active_entry(coin)
-                return None
-            entry_price = maker_price
-        else:
-            offset = cfg.get("limit_offset_pct", 0.0) / 100
-            entry_price = signal_price * (1 - offset if is_entry_buy else 1 + offset)
+        offset = cfg.get("limit_offset_pct", 0.0) / 100
+        entry_price = signal_price * (1 - offset if is_entry_buy else 1 + offset)
     size = _round_size(exchange, coin, notional / entry_price)
     if size <= 0:
         logger.warning("%s: computed entry size is zero; skipping", coin)
@@ -986,13 +759,12 @@ async def _execute_setup(
         entry_oid = _extract_oid(response)
         timeout_seconds = 30
     else:
-        if cfg.get("use_maker_for_entry", True):
-            entry_oid, response, placed_price = await _place_maker_entry(
-                exchange, info, coin, is_entry_buy, size, signal_price, cfg
-            )
-            if placed_price is not None:
-                entry_price = placed_price
-        else:
+        tif = "Alo" if cfg.get("use_maker_for_entry", True) else "Gtc"
+        entry_oid, response = await _place_limit(
+            exchange, coin, is_entry_buy, size, entry_price, False, tif
+        )
+        if entry_oid is None and tif == "Alo":
+            logger.warning("%s: Entry Alo rejected (likely crosses spread), falling back to Gtc limit", coin)
             entry_oid, response = await _place_limit(
                 exchange, coin, is_entry_buy, size, entry_price, False, "Gtc"
             )
@@ -1039,9 +811,6 @@ async def _execute_setup(
             tp1_atr_mult=cfg.get("tp1_atr_mult", 1.5),
             tp2_atr_mult=cfg.get("tp2_atr_mult", 3.0),
             sl_atr_mult=cfg.get("sl_atr_mult", 1.2),
-            tp1_pct_min=cfg.get("tp1_pct_min", 0.0),
-            tp2_pct_min=cfg.get("tp2_pct_min", 0.0),
-            sl_pct_min=cfg.get("sl_pct_min", 0.0),
             tp1_pct_max=cfg.get("tp1_pct_max", 0.30),
             tp2_pct_max=cfg.get("tp2_pct_max", 0.60),
             sl_pct_max=cfg.get("sl_pct_max", 0.40),
@@ -1073,7 +842,7 @@ async def _execute_setup(
         deadline.strftime("%H:%M"),
     )
 
-    tp1_oid = await _place_tp_with_fallback(exchange, coin, exit_is_buy, tp1_size, tp1_price, cfg)
+    tp1_oid = await _place_tp_with_fallback(exchange, coin, exit_is_buy, tp1_size, tp1_price)
     if tp1_oid is not None:
         managed_oids.add(tp1_oid)
 
@@ -1088,7 +857,6 @@ async def _execute_setup(
     exit_reason = "unknown"
     tp2_oid: int | None = None
     _last_hard_sl_check = time.monotonic()
-    hard_dollar_sl = float(cfg.get("max_loss_per_trade_usd", HARD_DOLLAR_SL_USD))
 
     while True:
         try:
@@ -1123,10 +891,10 @@ async def _execute_setup(
                         pos = item.get("position", {})
                         if pos.get("coin") == coin:
                             unrealized_pnl = _to_float(pos.get("unrealizedPnl"))
-                            if unrealized_pnl < -hard_dollar_sl:
+                            if unrealized_pnl < -HARD_DOLLAR_SL_USD:
                                 logger.warning(
                                     "%s: HARD DOLLAR SL triggered! unrealized_pnl=%.4f < -%.2f — emergency close",
-                                    coin, unrealized_pnl, hard_dollar_sl,
+                                    coin, unrealized_pnl, HARD_DOLLAR_SL_USD,
                                 )
                                 exit_reason = "hard_dollar_sl"
                                 for oid in (tp1_oid, tp2_oid, sl_oid):
@@ -1148,7 +916,7 @@ async def _execute_setup(
                     tp1_summary = _summarize_fills(await _call(_fills_by_oid, info, address, start_ms, coin, tp1_oid), tp1_oid) if tp1_oid else FillSummary()
                     if tp1_summary.size < tp1_size * 0.999 and abs_pos > (filled_size - tp1_size) * 1.001:
                         logger.warning("%s: TP1 order missing, recreating...", coin)
-                        tp1_oid = await _place_tp_with_fallback(exchange, coin, exit_is_buy, tp1_size, tp1_price, cfg)
+                        tp1_oid = await _place_tp_with_fallback(exchange, coin, exit_is_buy, tp1_size, tp1_price)
                         if tp1_oid: managed_oids.add(tp1_oid)
 
                 if sl_oid is None or sl_oid not in open_oids:
@@ -1165,8 +933,8 @@ async def _execute_setup(
                     
                     remaining_size = _round_size(exchange, coin, abs_pos)
                     if remaining_size > POSITION_EPSILON:
-                        next_sl_price = avg_entry if cfg.get("move_sl_to_breakeven_after_tp1", False) else sl_price
-                        tp2_oid = await _place_tp_with_fallback(exchange, coin, exit_is_buy, remaining_size, tp2_price, cfg)
+                        next_sl_price = avg_entry if CONFIG.get("move_sl_to_breakeven_after_tp1", False) else sl_price
+                        tp2_oid = await _place_tp_with_fallback(exchange, coin, exit_is_buy, remaining_size, tp2_price)
                         if tp2_oid: managed_oids.add(tp2_oid)
                         
                         sl_oid, _ = await _place_trigger_sl(exchange, coin, exit_is_buy, remaining_size, next_sl_price)
@@ -1182,14 +950,14 @@ async def _execute_setup(
                     tp2_summary = _summarize_fills(await _call(_fills_by_oid, info, address, start_ms, coin, tp2_oid), tp2_oid) if tp2_oid else FillSummary()
                     if tp2_summary.size <= 0 and abs_pos > POSITION_EPSILON:
                         logger.warning("%s: TP2 order missing, recreating...", coin)
-                        tp2_oid = await _place_tp_with_fallback(exchange, coin, exit_is_buy, abs_pos, tp2_price, cfg)
+                        tp2_oid = await _place_tp_with_fallback(exchange, coin, exit_is_buy, abs_pos, tp2_price)
                         if tp2_oid: managed_oids.add(tp2_oid)
 
                 if sl_oid is None or sl_oid not in open_oids:
                     sl_summary = _summarize_fills(await _call(_fills_by_oid, info, address, start_ms, coin, sl_oid), sl_oid) if sl_oid else FillSummary()
                     if sl_summary.size <= 0 and abs_pos > POSITION_EPSILON:
                         logger.warning("%s: SL stage 2 missing, recreating...", coin)
-                        next_sl_price = avg_entry if cfg.get("move_sl_to_breakeven_after_tp1", False) else sl_price
+                        next_sl_price = avg_entry if CONFIG.get("move_sl_to_breakeven_after_tp1", False) else sl_price
                         sl_oid, _ = await _place_trigger_sl(exchange, coin, exit_is_buy, abs_pos, next_sl_price)
                         if sl_oid: managed_oids.add(sl_oid)
 
@@ -1232,7 +1000,7 @@ async def _execute_and_record(
             score, atr_5m, effective_cfg=effective_cfg,
         )
         if result is not None:
-            risk.record_trade(result, effective_cfg)
+            risk.record_trade(result)
             logger.info(
                 "%s: recorded — win=%s pnl=%.4f | day_pnl=%.4f | trades_today=%d",
                 coin, result.win, result.net_pnl,
@@ -1285,16 +1053,8 @@ async def _scan_coin(
                 )
                 _active_entry.pop(coin, None)
 
-        effective_cfg = get_effective_config(coin)
-        now_mono = time.monotonic()
-        check_interval = int(effective_cfg.get("signal_check_interval_sec", SIGNAL_CHECK_INTERVAL_SEC))
-        last_check = _last_signal_check.get(coin, 0.0)
-        if now_mono - last_check < check_interval:
-            return
-        _last_signal_check[coin] = now_mono
-
         now_utc = datetime.now(timezone.utc)
-        can_trade, reason = risk.can_trade(coin, now_utc, effective_cfg)
+        can_trade, reason = risk.can_trade(coin, now_utc)
         if not can_trade:
             logger.info("%s: risk block: %s", coin, reason)
             return
@@ -1351,6 +1111,7 @@ async def _scan_coin(
         else:
             _orphan_timers.pop(coin, None)
 
+        effective_cfg = get_effective_config(coin)
         latest = await _call(_latest_setup, info, coin, effective_cfg)
         if latest is None:
             return
@@ -1381,11 +1142,10 @@ async def _scan_coin(
             setup["confidence"] = "C"
 
         logger.info(
-            "%s %s: setup %s engine=%s regime=%s score=%s conf=%s price=%.4f obi=%.2f spread=%.4f%% bb_w=%.2f%%",
-            coin, signal_ts, direction.upper(), setup.get("engine", "?"), setup.get("regime", "?"),
-            score, setup.get("confidence", "?"),
-            current_price, obi, setup.get("spread_pct", 0.0),
-            setup.get("bb_width_pct", 0),
+            "%s %s: setup %s score=%s conf=%s price=%.4f obi=%.2f bb_w=%.2f%% squeeze=%s",
+            coin, signal_ts, direction.upper(), score, setup.get("confidence", "?"),
+            current_price, obi,
+            setup.get("bb_width_pct", 0), setup.get("bb_squeeze", False),
         )
         # Log score breakdown cho debug
         score_details = setup.get("score_details", {})
@@ -1421,7 +1181,7 @@ async def _scan_coin(
 
 async def run_bot_async():
     logger.info("=" * 60)
-    logger.info("STARTING BOT ENGINE - MULTI-ASSET SCALP MODE")
+    logger.info("STARTING BOT ENGINE — BTC ONLY MODE")
     logger.info("=" * 60)
     logger.info(
         "Profile=%s | entry=%s | TP1=%.3f%% | TP2=%.3f%% | SL=%.3f%% | time_stop=%sm",
@@ -1437,11 +1197,6 @@ async def run_bot_async():
         "HARD DOLLAR SL=%.2f USD | DISABLED COINS=%s | daily_loss_limit=%.2f USD | max_trades/day=%d",
         HARD_DOLLAR_SL_USD, ",".join(DISABLED_COINS) if DISABLED_COINS else "none",
         CONFIG.get("daily_loss_limit_usd", 0), CONFIG.get("max_trades_per_day", 0),
-    )
-    logger.info(
-        "API throttle=%.2fs | signal_loop=%ss | per_coin_signal_check=%ss | OB snapshots=%s",
-        API_MIN_INTERVAL_SEC, SIGNAL_POLL_SECONDS, SIGNAL_CHECK_INTERVAL_SEC,
-        os.environ.get("HL_OB_SNAPSHOTS", "1"),
     )
 
     if not PRIVATE_KEY:
