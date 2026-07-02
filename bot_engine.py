@@ -1942,6 +1942,10 @@ async def run_bot_async():
         CONFIG.get("maker_close_abort_pct", 0.10),
     )
     logger.info(
+        "v3.5: momentum_break=%s (thác/pump → vào thuận lực) | anti-knife-catch fade (>=2/3 cờ → block)",
+        "ON" if CONFIG.get("use_momentum_break", True) else "OFF",
+    )
+    logger.info(
         "Guards: entry=%ds | SL cooldown=%dm | max margin=%.0f%% | daily_loss=%.2f | max_trades/day=%d | disabled=%s",
         ACTIVE_ENTRY_TIMEOUT_SEC, SL_SINGLE_COOLDOWN_MINUTES, MAX_MARGIN_USAGE_PCT * 100,
         CONFIG.get("daily_loss_limit_usd", 0), CONFIG.get("max_trades_per_day", 0),

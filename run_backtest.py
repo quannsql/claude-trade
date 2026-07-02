@@ -147,6 +147,12 @@ BASE_CONFIG = {
     # required_taker = taker_RT × taker_rt_mult + fee_edge_min_pct
     "taker_rt_mult": 2.0,
 
+    # ── v3.5 MOMENTUM BREAK: "1 cú sập = 2 lệnh" ──
+    # Lệnh 1: thác/pump đang chạy (đóng nến ngoài BB + thân nến mạnh + CVD
+    # |ratio|>=0.3) → vào THUẬN lực. Lệnh 2: fade bắt đảo chiều chỉ được vào
+    # khi lực đã cạn (anti knife-catch block >=2/3 cờ trong _score_range_fade).
+    "use_momentum_break": True,
+
     # ── v3.4 MAKER-ONLY ENTRY: tắt toàn bộ taker ở ENTRY (cả market entry
     # score>=85 lẫn taker-chase khi giá bật). Entry chỉ còn Alo maker 0.015%
     # + join bbo + re-quote bám giá. Taker duy nhất còn lại: SL/emergency.

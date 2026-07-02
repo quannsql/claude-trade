@@ -361,6 +361,18 @@ def score_setup(i15: int, df15: pd.DataFrame,
         regime = detect_trend_regime(df15, i15, df5, i5)
     result["regime"] = regime
 
+    # ── v3.5 MOMENTUM BREAK — xét TRƯỚC trend/fade ──
+    # "1 cú sập = 2 lệnh": đây là LỆNH 1 (thuận lực). Thác/pump đang chạy
+    # thì vào theo, thay vì chỉ đứng phạt điểm lệnh fade. Không trigger → None
+    # → rơi xuống trend/fade như cũ.
+    if cfg.get("use_momentum_break", True):
+        mb = _score_momentum_break(
+            result, regime, i5, df5, i1, df1,
+            hour_utc, cfg, obi, ob_analysis or {},
+        )
+        if mb is not None:
+            return mb
+
     if regime in ("trend_up", "trend_down"):
         return _score_trend_pullback(
             result, regime, i15, df15, i5, df5, i1, df1,
@@ -370,6 +382,103 @@ def score_setup(i15: int, df15: pd.DataFrame,
         result, i15, df15, i5, df5, i1, df1,
         hour_utc, cfg, obi, ob_analysis or {}, funding_rate,
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PATH C (v3.5): MOMENTUM BREAK — vào THUẬN lực khi thác đổ / pump đang chạy
+# ═══════════════════════════════════════════════════════════════════════════
+def _score_momentum_break(result: dict, regime: str,
+                          i5: int, df5: pd.DataFrame,
+                          i1: int, df1: pd.DataFrame,
+                          hour_utc: int, cfg: dict,
+                          obi: float, ob_analysis: dict) -> dict | None:
+    """
+    "1 cú sập = 2 lệnh" — LỆNH 1: short thuận thác / long thuận pump.
+
+    Trigger = 3 điều kiện ĐỒNG THỜI (chữ ký thác/pump từng dùng để phạt fade):
+      1. Nến 1m đóng NGOÀI dải BB (breakdown/breakout thật, không phải wick)
+      2. Thân nến mạnh (strong_close — body > 70% range)
+      3. CVD flow cùng chiều |ratio| >= 0.30 (phe aggressive đang đẩy)
+    + regime không được ngược chiều lệnh (trend_up cấm short break, ngược lại).
+
+    Không có CVD data (backtest / feed lỗi → ratio=0) → mode im lặng hoàn toàn.
+    Trả None khi không trigger → dispatcher rơi xuống trend/fade như cũ.
+    """
+    row1 = df1.iloc[i1]
+    row1_prev = df1.iloc[i1 - 1]
+    row5 = df5.iloc[i5]
+    price1 = row1["close"]
+    bb_upper1 = row1.get("bb_upper")
+    bb_lower1 = row1.get("bb_lower")
+    if bb_upper1 is None or bb_lower1 is None or pd.isna(bb_upper1) or pd.isna(bb_lower1):
+        return None
+
+    cvd_ratio = ob_analysis.get("cvd_ratio", 0.0) if ob_analysis else 0.0
+    pattern_1m = detect_candle_pattern(row1, row1_prev)
+
+    direction = None
+    if (price1 < bb_lower1 and pattern_1m == "strong_bearish_close"
+            and cvd_ratio <= -0.30 and regime != "trend_up"):
+        direction = "short"
+    elif (price1 > bb_upper1 and pattern_1m == "strong_bullish_close"
+            and cvd_ratio >= 0.30 and regime != "trend_down"):
+        direction = "long"
+    if direction is None:
+        return None
+
+    # Chống đuổi CUỐI thác: break đã chạy >1% khỏi EMA21-1m → sóng sắp tan
+    ema21_1 = row1.get("ema21")
+    if ema21_1 is not None and not pd.isna(ema21_1) and ema21_1 > 0:
+        if abs(price1 - ema21_1) / ema21_1 > 0.010:
+            result["entry_mode"] = "momentum_break"
+            result["block_reasons"].append(
+                f"momentum break đã chạy {abs(price1 - ema21_1) / ema21_1 * 100:.2f}% khỏi EMA21 — không đuổi cuối thác"
+            )
+            result["hard_block"] = True
+            return result
+
+    result["entry_mode"] = "momentum_break"
+    score = 40
+    details = {"break_trigger": 40}
+
+    # Volume climax: lực thật, không phải nến rỗng
+    vol1 = row1.get("volume")
+    vol_avg = row1.get("vol_avg20")
+    if not pd.isna(vol1) and not pd.isna(vol_avg) and vol_avg and vol1 > vol_avg * 1.5:
+        score += 15
+        details["vol_climax"] = 15
+
+    # Volume 5 nến gần nhất nghiêng cùng chiều
+    up_r, down_r = _directional_volume(df1, i1, lookback=5)
+    if (direction == "short" and down_r >= 0.6) or (direction == "long" and up_r >= 0.6):
+        score += 10
+        details["directional_vol"] = 10
+
+    # Sổ lệnh cùng phe → bonus; chống mạnh → penalty nặng (squeeze risk)
+    if obi != 0.0:
+        if (direction == "short" and obi <= -0.15) or (direction == "long" and obi >= 0.15):
+            score += 10
+            details["obi_bonus"] = 10
+        elif (direction == "short" and obi >= 0.30) or (direction == "long" and obi <= -0.30):
+            score -= 15
+            details["obi_penalty"] = -15
+
+    # RSI 5m đã nghiêng cùng chiều (momentum lan lên khung lớn hơn)
+    rsi5 = row5.get("rsi")
+    if rsi5 is not None and not pd.isna(rsi5):
+        if (direction == "short" and rsi5 < 50) or (direction == "long" and rsi5 > 50):
+            score += 5
+            details["rsi_5m_align"] = 5
+
+    if ob_analysis and ob_analysis.get("spread_pct", 0) > 0.05:
+        score -= 10
+        details["spread_penalty"] = -10
+
+    if cfg.get("use_time_filter", True):
+        score += 10
+        details["time_filter"] = 10
+
+    return _finalize_result(result, direction, score, details)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -827,6 +936,45 @@ def _score_range_fade(result: dict,
                 else:
                     return result
             else:
+                return result
+
+    # --------------------------------------------------
+    # v3.5 ANTI KNIFE-CATCH — "1 cú sập = 2 lệnh", LỆNH 2 phải đợi lực cạn.
+    # Thác/pump đang CHẢY (>=2/3 cờ đồng thời) → cấm fade ngược nó.
+    # Live 16:28 BTC: fade long score 80 giữa thác dù chính breakdown đã thấy
+    # đủ 3 cờ (thủng EMA50-5m, nến sập mạnh, CVD bán) — penalty -40 không đủ,
+    # phải là quyền phủ quyết.
+    # --------------------------------------------------
+    if direction is not None:
+        _pattern_kc = detect_candle_pattern(row1, row1_prev)
+        _cvd_kc = ob_analysis.get("cvd_ratio", 0.0) if ob_analysis else 0.0
+        if direction == "long":
+            _flags = [
+                bool(not pd.isna(ema50_5) and price5 < ema50_5),
+                _pattern_kc == "strong_bearish_close",
+                _cvd_kc <= -0.30,
+            ]
+            if sum(_flags) >= 2:
+                result["block_reasons"].append(
+                    f"thác đang chảy ({sum(_flags)}/3 cờ: ema50={_flags[0]} nến_sập={_flags[1]} cvd={_flags[2]}) — cấm bắt đáy"
+                )
+                result["hard_block"] = True
+                result["score_details"] = details
+                return result
+        else:
+            # Ngưỡng CVD chặt hơn chiều long: pump/short-squeeze nguy hiểm
+            # hơn cho lệnh short đỉnh
+            _flags = [
+                bool(not pd.isna(ema50_5) and price5 > ema50_5),
+                _pattern_kc == "strong_bullish_close",
+                _cvd_kc >= 0.25,
+            ]
+            if sum(_flags) >= 2:
+                result["block_reasons"].append(
+                    f"pump đang chạy ({sum(_flags)}/3 cờ: ema50={_flags[0]} nến_tăng={_flags[1]} cvd={_flags[2]}) — cấm bán đỉnh"
+                )
+                result["hard_block"] = True
+                result["score_details"] = details
                 return result
 
     # --------------------------------------------------
